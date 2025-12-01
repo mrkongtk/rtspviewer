@@ -37,13 +37,12 @@ import com.mrkongtk.rstpviewer.viewmode.StreamListScreenViewModel
 /**
  * A reusable Top App Bar composable used throughout the application.
  *
- * It renders a [CenterAlignedTopAppBar] that dynamically displays the title based on the
- * current screen and conditionally shows a back navigation arrow.
+ * This component renders a [CenterAlignedTopAppBar] that reacts to the navigation state.
  *
- * @param currentScreen The [AppScreen] enum representing the active destination. Used to resolve the title string resource.
- * @param canNavigateBack If true, displays the back arrow icon.
- * @param navigateUp A callback lambda triggered when the back button is pressed.
- * @param modifier The [Modifier] to be applied to the TopAppBar.
+ * @param currentScreen The [AppScreen] enum representing the current destination. Used to fetch the title string resource.
+ * @param canNavigateBack Boolean flag indicating if the back stack is not empty (true = show back arrow).
+ * @param navigateUp Callback function to handle the back button click event.
+ * @param modifier Modifier to be applied to the TopAppBar container.
  */
 @Composable
 fun AppBar(
@@ -59,6 +58,7 @@ fun AppBar(
         ),
         modifier = modifier,
         navigationIcon = {
+            // Only display the back button if navigation history exists
             if (canNavigateBack) {
                 IconButton(onClick = navigateUp) {
                     Icon(
@@ -72,26 +72,27 @@ fun AppBar(
 }
 
 /**
- * The primary layout wrapper for the application.
+ * The root container (Scaffold) for the application's UI.
  *
- * This composable sets up the [Scaffold], which provides the basic material design visual layout structure.
- * It observes the Navigation Controller's state to automatically update the [AppBar] title
- * and back-button visibility as the user navigates through the app.
+ * This composable handles the top-level structure, including the [AppBar] and the
+ * [Scaffold] padding. It observes the [NavController] to dynamically update the
+ * AppBar title and back button state.
  *
- * @param navController The [NavHostController] that manages app navigation. Defaults to [rememberNavController].
- * @param content A composable lambda that accepts the controller and padding values. Usually contains the [NavHost].
+ * @param navController The central [NavHostController] managing app navigation.
+ * @param content The content composable to render inside the Scaffold (usually the [NavHost]).
  */
 @Composable
 fun NavigationScreen(
     navController: NavHostController = rememberNavController(),
     content: @Composable (NavHostController, PaddingValues) -> Unit
 ) {
-    // Observe the back stack to determine which screen is currently visible.
-    // This allows the AppBar to update its title reactively.
+    // 1. Observe the current back stack entry as State.
+    // This ensures the UI recomposes whenever the user navigates to a new screen.
     val backStackEntry by navController.currentBackStackEntryAsState()
 
-    // Parse the current route string back into an AppScreen enum.
-    // Falls back to AppScreen.Start if the route is null or unrecognized.
+    // 2. Resolve the current screen from the route string.
+    // We use a try-catch block to safely convert the route string back to an Enum.
+    // If the route is null or invalid, we fallback to the Start screen.
     val currentScreen = backStackEntry?.destination?.route?.let { route ->
         try {
             AppScreen.valueOf(route)
@@ -103,30 +104,31 @@ fun NavigationScreen(
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            // Applies padding for system bars (status bar, navigation bar) to support edge-to-edge display.
+            // 3. Handle System Bars (Edge-to-Edge).
+            // This padding prevents the content from drawing behind the status/navigation bars.
             .windowInsetsPadding(WindowInsets.systemBars),
         topBar = {
             AppBar(
                 currentScreen = currentScreen,
-                // Only show the back button if there is a screen "behind" the current one in the stack.
+                // Show back arrow only if there is a previous entry in the stack
                 canNavigateBack = navController.previousBackStackEntry != null,
                 navigateUp = { navController.navigateUp() }
             )
         }
     ) { innerPadding ->
-        // innerPadding must be passed to the content to prevent the TopAppBar from obscuring the UI.
+        // Pass innerPadding to the content to ensure it respects the TopAppBar's height
         content(navController, innerPadding)
     }
 }
 
 /**
- * Defines the navigation graph (routes) for the application.
+ * Defines the Navigation Graph and hosts the screen destinations.
  *
- * This component hosts the specific screen implementations and manages dependency injection
- * (via Hilt) for their ViewModels.
+ * This component maps [AppScreen] routes to specific Composable screens and manages
+ * dependency injection for ViewModels.
  *
- * @param navController The navigation controller passed down from the parent [NavigationScreen].
- * @param innerPadding Padding values provided by the parent Scaffold, ensuring content sits below the TopAppBar.
+ * @param navController The navigation controller provided by the parent [NavigationScreen].
+ * @param innerPadding Padding values from the parent Scaffold to prevent UI overlap.
  */
 @Composable
 fun NavigationScreenContent(
@@ -138,50 +140,43 @@ fun NavigationScreenContent(
         startDestination = AppScreen.Start.name,
         modifier = Modifier
             .fillMaxSize()
-            // Note: Applying verticalScroll here makes the entire container scrollable.
-            // If individual screens (like LazyColumn) handle their own scrolling, this might need to be removed.
-            .verticalScroll(rememberScrollState())
             .padding(innerPadding)
     ) {
-        // Route definition for the Start Screen
+        // --- Destination: Start Screen ---
         composable(route = AppScreen.Start.name) {
-            // Hilt automatically provides the scoped ViewModel for this screen
+            // Hilt automatically scopes this ViewModel to the lifecycle of this navigation entry
             val viewModel: StreamListScreenViewModel = hiltViewModel()
 
             StreamListScreen(
                 viewModel = viewModel,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
+                modifier = Modifier.fillMaxSize()
             )
         }
 
-        // Add more composable() destinations here as the app grows
     }
 }
 
 /**
- * Preview provider for the [NavigationScreen].
- * Renders the UI in both Day (Light) and Night (Dark) modes to ensure theme compatibility.
+ * Preview for the Navigation Shell.
+ *
+ * Renders the UI in both Light and Dark themes to verify layout and color adaptation.
  */
 @Preview(
     name = "Day Mode",
     showSystemUi = true,
-    showBackground = true,
     uiMode = Configuration.UI_MODE_NIGHT_NO
 )
 @Preview(
     name = "Night Mode",
     showSystemUi = true,
-    showBackground = true,
     uiMode = Configuration.UI_MODE_NIGHT_YES
 )
 @Composable
 fun NavigationScreenPreview() {
     RSTPViewerTheme {
-        val navController: NavHostController = rememberNavController()
+        val navController = rememberNavController()
 
-        // Renders the shell with dummy content to visualize the Scaffold structure
+        // Render the shell with dummy content for preview purposes
         NavigationScreen(navController = navController) { _, innerPadding ->
             Text(
                 text = "Preview Content Area",
