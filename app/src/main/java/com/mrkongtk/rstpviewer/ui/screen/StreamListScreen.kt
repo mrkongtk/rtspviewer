@@ -1,6 +1,7 @@
 package com.mrkongtk.rstpviewer.ui.screen
 
 import android.content.res.Configuration
+import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,72 +23,80 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mrkongtk.rstpviewer.model.RSTPItem
+import com.mrkongtk.rstpviewer.ui.compose.StreamListItem
+import com.mrkongtk.rstpviewer.ui.theme.PaddingM
 import com.mrkongtk.rstpviewer.ui.theme.RSTPViewerTheme
 import com.mrkongtk.rstpviewer.viewmode.StreamListScreenViewModel
 
 /**
- * A Composable screen responsible for displaying the list of saved RTSP streams.
+ * The main screen responsible for displaying a list of configured RTSP streams.
  *
- * This screen follows the Unidirectional Data Flow pattern:
- * 1. It observes state (`rstpItems`) from the [StreamListScreenViewModel].
- * 2. It reacts to state changes (Empty vs. Populated list).
- * 3. It renders the appropriate UI layout.
+ * This Composable observes the state from [StreamListScreenViewModel] and handles
+ * two primary UI states:
+ * 1. **Empty State**: Displays a placeholder message when no streams are saved.
+ * 2. **Content State**: Displays a scrollable list of streams.
  *
- * @param viewModel The ViewModel injected via Hilt to handle business logic and state holding.
- *                  Defaults to `hiltViewModel()` for production use.
- * @param modifier The modifier to apply to the root layout of this screen.
+ * @param viewModel The view model responsible for providing the list of RTSP items.
+ *                  Defaults to an instance provided by Hilt navigation graph.
+ * @param modifier  The modifier to apply to the container of this screen.
  */
 @Composable
 fun StreamListScreen(
     viewModel: StreamListScreenViewModel = hiltViewModel(),
     modifier: Modifier = Modifier
 ) {
-    // Collect the flow of RSTP items as a Compose State.
-    // 'collectAsStateWithLifecycle' is used to ensure the flow collection stops
-    // when the app goes into the background, saving resources.
+    // Observes the stream list flow in a lifecycle-aware manner.
+    // This ensures collection stops when the app goes to the background to save resources.
     val rstpItems: List<RSTPItem> by viewModel.rstpItems.collectAsStateWithLifecycle()
 
-    // Determine which UI state to show based on the data
     if (rstpItems.isEmpty()) {
-        // --- Empty State ---
-        // Displays a centered message when no streams are available.
+        // --- Empty State UI ---
+        // Rendered when the data source returns no items.
         Column(
             modifier = modifier,
-            verticalArrangement = Arrangement.Center // Vertically center the content
+            verticalArrangement = Arrangement.Center
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.Center // Horizontally center the text
+                horizontalArrangement = Arrangement.Center
             ) {
-                Text("No item here.")
+                Text(text = "No item here.")
             }
         }
-
     } else {
-        // --- Content State ---
-        // Displays the list of items using a LazyColumn for performance efficiency.
+        // --- List Content UI ---
+        // Uses LazyColumn for efficient recycling of views during scrolling.
         LazyColumn(
-            modifier = modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.Top
+            modifier = modifier
+                .fillMaxSize()
+                .padding(vertical = PaddingM),
+            verticalArrangement = Arrangement.spacedBy(PaddingM)
         ) {
-            // Iterate through the items. 'itemsIndexed' is used here in case
-            // the index is needed for specific logic (e.g., alternating background colors)
-            // in the future.
-            itemsIndexed(rstpItems) { index, item ->
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    // TODO: Replace this basic Text with a detailed Row/Card component
-                    // for the actual stream item (e.g., thumbnail, status, edit buttons).
-                    Text(item.name)
-                }
+            itemsIndexed(
+                items = rstpItems,
+                key = { _, item -> item.order } // Optimization: Helps Compose identify items on updates
+            ) { index, item ->
+                StreamListItem(
+                    index = index,
+                    data = item,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PaddingM),
+                    onClick = { data ->
+                        // Handle item click (e.g., navigate to player)
+                        Log.d("StreamListScreen", "Clicked item: $data")
+                    }
+                )
             }
         }
     }
 }
 
 /**
- * Preview configurations for [StreamListScreen].
- * Generates interactive previews for both Day (Light) and Night (Dark) modes
- * to verify layout responsiveness and theme adherence.
+ * Preview provider for [StreamListScreen].
+ *
+ * Defines previews for both Light and Dark themes (Day/Night) to ensure
+ * text contrast and background colors are correct.
  */
 @Preview(
     name = "Day",
@@ -105,32 +114,31 @@ fun StreamListScreen(
 fun StreamListScreenPreview() {
     val context = LocalContext.current
 
-    // Apply the application's custom theme to the preview environment
     RSTPViewerTheme {
-        // Scaffold acts as the root container, handling system insets (statusBar/navigationBar)
-        // so the preview closely matches the actual device rendering.
+        // Scaffold acts as a container to mimic the actual screen structure,
+        // including handling system bar insets (status bar/navigation bar).
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) { innerPadding ->
 
-            // --- Mock Data Setup ---
-            // Create dummy data to visualize how the list looks when populated.
-            val items = listOf(
-                RSTPItem(1, "Living Room Camera", "rtsp://192.168.1.10", emptyList(), 1),
-                RSTPItem(2, "Backyard", "rtsp://192.168.1.11", emptyList(), 2)
+            // Generate mock data for the preview
+            val mockItems = listOf(
+                RSTPItem(id = 1, name = "Living Room Camera", link = "rtsp://192.168.1.10", tags = emptyList(), order = 1),
+                RSTPItem(id = 2, name = "Backyard", link = "rtsp://192.168.1.11", tags = emptyList(), order = 2)
             )
 
-            // Manually instantiate the ViewModel for the Preview.
-            // Note: In a real Hilt environment, we usually avoid manually new-ing ViewModels,
-            // but for simple UI previews, passing a mocked instance or setting initial data works.
-            val viewModel = StreamListScreenViewModel(context)
-            viewModel.updateData(items, true)
+            // Manually initialize ViewModel with mock data.
+            // Note: In production code, prefer decoupling the UI from the ViewModel class
+            // by creating a 'StreamListContent' composable that takes a raw List<RSTPItem>,
+            // but this approach works for quick prototyping.
+            val mockViewModel = StreamListScreenViewModel(context).apply {
+                updateData(mockItems, immediate = true)
+            }
 
-            // Render the screen with the scaffold padding applied
             StreamListScreen(
-                viewModel = viewModel,
+                viewModel = mockViewModel,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

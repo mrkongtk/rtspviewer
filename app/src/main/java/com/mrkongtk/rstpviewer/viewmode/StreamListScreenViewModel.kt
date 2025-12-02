@@ -66,9 +66,9 @@ class StreamListScreenViewModel @Inject constructor(
                     inputStream.bufferedReader().use { it.readText() }
                 }
 
-                // Deserialize JSON to data class and sort by the 'order' property
+                // Deserialize JSON to data class
                 val data = Json.decodeFromString<List<RSTPItem>>(text)
-                data.sortedBy { it.order }
+                data
             } catch (e: Exception) {
                 Log.e(debugTag, "read data error: $e")
                 null

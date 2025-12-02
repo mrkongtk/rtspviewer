@@ -8,5 +8,15 @@
             "sample",
             "home"
         ]
+    },
+    {
+        "id": 2,
+        "name": "Sample Data 2",
+        "link": "rtsp://59SaxbwkmvnNl7bH:K2fpYbtEg2A4HbMJ@192.168.127.101/live0",
+        "order": 2,
+        "tags": [
+            "sample",
+            "living room"
+        ]
     }
 ]
