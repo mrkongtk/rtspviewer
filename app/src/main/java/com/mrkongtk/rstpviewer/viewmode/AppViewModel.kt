@@ -1,0 +1,37 @@
+package com.mrkongtk.rstpviewer.viewmode
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.mrkongtk.rstpviewer.data.AppUiState
+import com.mrkongtk.rstpviewer.data.RTSPItem
+import com.mrkongtk.rstpviewer.data.repository.RTSPItemRepository
+import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
+import javax.inject.Inject
+
+@HiltViewModel
+class AppViewModel @Inject constructor(
+    private val rtspItemRepository: RTSPItemRepository,
+) : ViewModel() {
+
+    private val _uiState = MutableStateFlow(AppUiState(items = emptyList(), selectedItem = null))
+
+    val uiState = combine(_uiState, rtspItemRepository.items) { currentState, itemList ->
+        currentState.copy(items = itemList)
+    }
+
+    init {
+        viewModelScope.launch {
+            rtspItemRepository.loadData()
+        }
+    }
+
+    fun select(rtspItem: RTSPItem) {
+        _uiState.update { currentState ->
+            currentState.copy(selectedItem = rtspItem)
+        }
+    }
+}

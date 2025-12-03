@@ -19,7 +19,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.mrkongtk.rstpviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
 import com.mrkongtk.rstpviewer.ui.screen.NavigationScreen
+import com.mrkongtk.rstpviewer.viewmode.AppViewModel
 
 /**
  * Definition of the Dark Mode color palette.
@@ -78,7 +80,7 @@ private val LightColorScheme = lightColorScheme(
  * @param content The composable content to be rendered within this theme.
  */
 @Composable
-fun RSTPViewerTheme(
+fun RTSPViewerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = false,
@@ -90,6 +92,7 @@ fun RSTPViewerTheme(
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
+
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
@@ -130,12 +133,17 @@ fun RSTPViewerTheme(
     uiMode = Configuration.UI_MODE_NIGHT_YES
 )
 @Composable
-fun RSTPViewerThemePreview() {
-    RSTPViewerTheme {
+fun RTSPViewerThemePreview() {
+    RTSPViewerTheme {
         val navController: NavHostController = rememberNavController()
+        val context = LocalContext.current
+        val viewModel = AppViewModel(RTSPItemWithSampleInitRepositoryImpl(context))
 
         // Renders the shell with dummy content to visualize the Scaffold structure
-        NavigationScreen(navController = navController) { _, innerPadding ->
+        NavigationScreen(
+            navController = navController,
+            viewModel = viewModel
+        ) { _, innerPadding, _ ->
             Text(
                 text = "Preview Content Area",
                 modifier = Modifier

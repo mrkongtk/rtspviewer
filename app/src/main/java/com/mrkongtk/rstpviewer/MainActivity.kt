@@ -4,11 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rstpviewer.ui.screen.NavigationScreen
 import com.mrkongtk.rstpviewer.ui.screen.NavigationScreenContent
-import com.mrkongtk.rstpviewer.ui.theme.RSTPViewerTheme
+import com.mrkongtk.rstpviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rstpviewer.viewmode.AppViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
@@ -28,14 +30,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             // Apply the custom application theme
-            RSTPViewerTheme {
+            RTSPViewerTheme {
                 // Initialize the NavController to manage app navigation state
                 val navController: NavHostController = rememberNavController()
+                val viewModel: AppViewModel = hiltViewModel()
 
                 // Set up the root navigation structure (Scaffold, BottomBar, etc.)
-                NavigationScreen(navController = navController) { navController, innerPadding ->
+                NavigationScreen(
+                    navController = navController,
+                    viewModel = viewModel
+                ) { navController, innerPadding, viewModel ->
                     // Render the specific screen content based on the current route
-                    NavigationScreenContent(navController, innerPadding)
+                    NavigationScreenContent(navController, innerPadding, viewModel)
                 }
             }
         }

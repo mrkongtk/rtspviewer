@@ -1,7 +1,7 @@
 package com.mrkongtk.rstpviewer.ui.screen
 
+import android.annotation.SuppressLint
 import android.content.res.Configuration
-import android.util.Log
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,42 +16,34 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.mrkongtk.rstpviewer.model.RSTPItem
+import com.mrkongtk.rstpviewer.data.RTSPItem
 import com.mrkongtk.rstpviewer.ui.compose.StreamListItem
 import com.mrkongtk.rstpviewer.ui.theme.PaddingM
-import com.mrkongtk.rstpviewer.ui.theme.RSTPViewerTheme
-import com.mrkongtk.rstpviewer.viewmode.StreamListScreenViewModel
+import com.mrkongtk.rstpviewer.ui.theme.RTSPViewerTheme
 
 /**
  * The main screen responsible for displaying a list of configured RTSP streams.
  *
- * This Composable observes the state from [StreamListScreenViewModel] and handles
- * two primary UI states:
- * 1. **Empty State**: Displays a placeholder message when no streams are saved.
+ * This Composable is stateless (UI only) and renders based on the provided [itemList].
+ * It handles two primary UI states:
+ * 1. **Empty State**: Displays a placeholder message when the list is empty.
  * 2. **Content State**: Displays a scrollable list of streams.
  *
- * @param viewModel The view model responsible for providing the list of RTSP items.
- *                  Defaults to an instance provided by Hilt navigation graph.
- * @param modifier  The modifier to apply to the container of this screen.
+ * @param onItemSelected Callback triggered when a user taps on a specific [RTSPItem].
+ * @param modifier The modifier to apply to the container of this screen.
+ * @param itemList The current list of RTSP items to display.
  */
 @Composable
 fun StreamListScreen(
-    viewModel: StreamListScreenViewModel = hiltViewModel(),
-    modifier: Modifier = Modifier
+    onItemSelected: (RTSPItem) -> Unit,
+    modifier: Modifier = Modifier,
+    itemList: List<RTSPItem>,
 ) {
-    // Observes the stream list flow in a lifecycle-aware manner.
-    // This ensures collection stops when the app goes to the background to save resources.
-    val rstpItems: List<RSTPItem> by viewModel.rstpItems.collectAsStateWithLifecycle()
-
-    if (rstpItems.isEmpty()) {
+    if (itemList.isEmpty()) {
         // --- Empty State UI ---
-        // Rendered when the data source returns no items.
+        // Rendered when the data source returns no items to guide the user.
         Column(
             modifier = modifier,
             verticalArrangement = Arrangement.Center
@@ -73,8 +65,10 @@ fun StreamListScreen(
             verticalArrangement = Arrangement.spacedBy(PaddingM)
         ) {
             itemsIndexed(
-                items = rstpItems,
-                key = { _, item -> item.order } // Optimization: Helps Compose identify items on updates
+                items = itemList,
+                // Optimization: Providing a unique key helps Compose efficiently
+                // reorder or update items without redrawing the whole list.
+                key = { _, item -> item.order }
             ) { index, item ->
                 StreamListItem(
                     index = index,
@@ -83,8 +77,7 @@ fun StreamListScreen(
                         .fillMaxWidth()
                         .padding(horizontal = PaddingM),
                     onClick = { data ->
-                        // Handle item click (e.g., navigate to player)
-                        Log.d("StreamListScreen", "Clicked item: $data")
+                        onItemSelected(data)
                     }
                 )
             }
@@ -98,6 +91,7 @@ fun StreamListScreen(
  * Defines previews for both Light and Dark themes (Day/Night) to ensure
  * text contrast and background colors are correct.
  */
+@SuppressLint("ViewModelConstructorInComposable")
 @Preview(
     name = "Day",
     showSystemUi = true,
@@ -111,10 +105,9 @@ fun StreamListScreen(
     uiMode = Configuration.UI_MODE_NIGHT_YES
 )
 @Composable
-fun StreamListScreenPreview() {
-    val context = LocalContext.current
+private fun StreamListScreenPreview() {
 
-    RSTPViewerTheme {
+    RTSPViewerTheme {
         // Scaffold acts as a container to mimic the actual screen structure,
         // including handling system bar insets (status bar/navigation bar).
         Scaffold(
@@ -123,22 +116,27 @@ fun StreamListScreenPreview() {
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) { innerPadding ->
 
-            // Generate mock data for the preview
+            // Generate mock data specifically for the preview environment
             val mockItems = listOf(
-                RSTPItem(id = 1, name = "Living Room Camera", link = "rtsp://192.168.1.10", tags = emptyList(), order = 1),
-                RSTPItem(id = 2, name = "Backyard", link = "rtsp://192.168.1.11", tags = emptyList(), order = 2)
+                RTSPItem(
+                    id = 1,
+                    name = "Living Room Camera",
+                    url = "rtsp://192.168.1.10",
+                    tags = emptyList(),
+                    order = 1
+                ),
+                RTSPItem(
+                    id = 2,
+                    name = "Backyard",
+                    url = "rtsp://192.168.1.11",
+                    tags = emptyList(),
+                    order = 2
+                )
             )
 
-            // Manually initialize ViewModel with mock data.
-            // Note: In production code, prefer decoupling the UI from the ViewModel class
-            // by creating a 'StreamListContent' composable that takes a raw List<RSTPItem>,
-            // but this approach works for quick prototyping.
-            val mockViewModel = StreamListScreenViewModel(context).apply {
-                updateData(mockItems, immediate = true)
-            }
-
             StreamListScreen(
-                viewModel = mockViewModel,
+                onItemSelected = {}, // No-op for preview
+                itemList = mockItems,
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
