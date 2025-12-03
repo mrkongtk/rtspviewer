@@ -1,4 +1,4 @@
-package com.mrkongtk.rstpviewer
+package com.mrkongtk.rtspviewer
 
 import org.junit.Test
 

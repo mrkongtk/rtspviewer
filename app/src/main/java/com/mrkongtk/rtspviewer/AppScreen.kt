@@ -1,4 +1,4 @@
-package com.mrkongtk.rstpviewer
+package com.mrkongtk.rtspviewer
 
 import androidx.annotation.StringRes
 
@@ -19,5 +19,5 @@ enum class AppScreen(@StringRes val title: Int) {
     /**
      * The video playback screen where the RTSP stream is rendered.
      */
-    RSTPDisplay(title = R.string.screen_rtsp_display),
+    RTSPDisplay(title = R.string.screen_rtsp_display),
 }

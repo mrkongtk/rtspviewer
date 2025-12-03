@@ -1,4 +1,4 @@
-package com.mrkongtk.rstpviewer.ui.compose
+package com.mrkongtk.rtspviewer.ui.compose
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.*
@@ -10,11 +10,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import com.mrkongtk.rstpviewer.R
-import com.mrkongtk.rstpviewer.data.RTSPItem
-import com.mrkongtk.rstpviewer.ui.theme.PaddingM
-import com.mrkongtk.rstpviewer.ui.theme.PaddingS
-import com.mrkongtk.rstpviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.R
+import com.mrkongtk.rtspviewer.data.RTSPItem
+import com.mrkongtk.rtspviewer.ui.theme.PaddingM
+import com.mrkongtk.rtspviewer.ui.theme.PaddingS
+import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 
 /**
  * A list item component representing a single RTSP stream.

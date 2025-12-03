@@ -1,9 +1,9 @@
-package com.mrkongtk.rstpviewer.data.repository
+package com.mrkongtk.rtspviewer.data.repository
 
 import android.content.Context
 import android.content.res.AssetManager
 import android.util.Log
-import com.mrkongtk.rstpviewer.data.RTSPItem
+import com.mrkongtk.rtspviewer.data.RTSPItem
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow

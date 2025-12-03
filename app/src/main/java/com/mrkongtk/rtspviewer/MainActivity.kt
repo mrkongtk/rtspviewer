@@ -1,4 +1,4 @@
-package com.mrkongtk.rstpviewer
+package com.mrkongtk.rtspviewer
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -7,10 +7,10 @@ import androidx.activity.enableEdgeToEdge
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.mrkongtk.rstpviewer.ui.screen.NavigationScreen
-import com.mrkongtk.rstpviewer.ui.screen.NavigationScreenContent
-import com.mrkongtk.rstpviewer.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rstpviewer.viewmode.AppViewModel
+import com.mrkongtk.rtspviewer.ui.screen.NavigationScreen
+import com.mrkongtk.rtspviewer.ui.screen.NavigationScreenContent
+import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.viewmode.AppViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 /**

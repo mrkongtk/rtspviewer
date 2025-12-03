@@ -1,8 +1,8 @@
-package com.mrkongtk.rstpviewer.di
+package com.mrkongtk.rtspviewer.di
 
 import android.content.Context
-import com.mrkongtk.rstpviewer.data.repository.RTSPItemRepository
-import com.mrkongtk.rstpviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
+import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
+import com.mrkongtk.rtspviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -31,7 +31,7 @@ object AppModule {
      */
     @Provides
     @Singleton
-    fun provideRSTPItemRepository(@ApplicationContext context: Context): RTSPItemRepository {
+    fun provideRTSPItemRepository(@ApplicationContext context: Context): RTSPItemRepository {
         return RTSPItemWithSampleInitRepositoryImpl(context)
     }
 }

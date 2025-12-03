@@ -19,5 +19,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "RSTPViewer"
+rootProject.name = "RTSPViewer"
 include(":app")

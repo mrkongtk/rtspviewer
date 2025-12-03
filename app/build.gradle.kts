@@ -9,13 +9,13 @@ plugins {
 }
 
 android {
-    namespace = "com.mrkongtk.rstpviewer"
+    namespace = "com.mrkongtk.rtspviewer"
     compileSdk {
         version = release(36)
     }
 
     defaultConfig {
-        applicationId = "com.mrkongtk.rstpviewer"
+        applicationId = "com.mrkongtk.rtspviewer"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

@@ -1,4 +1,4 @@
-package com.mrkongtk.rstpviewer.ui.screen
+package com.mrkongtk.rtspviewer.ui.screen
 
 import android.annotation.SuppressLint
 import android.content.res.Configuration
@@ -15,8 +15,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.mrkongtk.rstpviewer.data.RTSPItem
-import com.mrkongtk.rstpviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.data.RTSPItem
+import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 
 /**
  * A Composable screen responsible for displaying the details of a specific RTSP stream.

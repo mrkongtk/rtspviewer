@@ -1,4 +1,4 @@
-package com.mrkongtk.rstpviewer.ui.screen
+package com.mrkongtk.rtspviewer.ui.screen
 
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.PaddingValues
@@ -29,12 +29,12 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.mrkongtk.rstpviewer.AppScreen
-import com.mrkongtk.rstpviewer.R
-import com.mrkongtk.rstpviewer.data.AppUiState
-import com.mrkongtk.rstpviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
-import com.mrkongtk.rstpviewer.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rstpviewer.viewmode.AppViewModel
+import com.mrkongtk.rtspviewer.AppScreen
+import com.mrkongtk.rtspviewer.R
+import com.mrkongtk.rtspviewer.data.AppUiState
+import com.mrkongtk.rtspviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
+import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.viewmode.AppViewModel
 import kotlinx.coroutines.flow.map
 
 /**
@@ -174,13 +174,13 @@ fun NavigationScreenContent(
             .fillMaxSize()
             .padding(innerPadding) // Apply Scaffold padding to the NavHost
     ) {
-        // Destination: List of RSTP Streams
+        // Destination: List of RTSP Streams
         composable(route = AppScreen.Start.name) {
             StreamListScreen(
-                onItemSelected = { rstpItem ->
+                onItemSelected = { rtspItem ->
                     // Select item in ViewModel and navigate to display screen
-                    viewModel.select(rstpItem)
-                    navController.navigate(AppScreen.RSTPDisplay.name)
+                    viewModel.select(rtspItem)
+                    navController.navigate(AppScreen.RTSPDisplay.name)
                 },
                 itemList = uiState.items,
                 modifier = Modifier.fillMaxSize()
@@ -188,7 +188,7 @@ fun NavigationScreenContent(
         }
 
         // Destination: Individual Stream Display
-        composable(route = AppScreen.RSTPDisplay.name) {
+        composable(route = AppScreen.RTSPDisplay.name) {
             // Only render if there is a valid selected item
             uiState.selectedItem?.let { item ->
                 StreamItemScreen(

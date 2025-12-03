@@ -1,4 +1,4 @@
-package com.mrkongtk.rstpviewer.ui.theme
+package com.mrkongtk.rtspviewer.ui.theme
 
 import android.content.res.Configuration
 import android.os.Build
@@ -19,9 +19,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.mrkongtk.rstpviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
-import com.mrkongtk.rstpviewer.ui.screen.NavigationScreen
-import com.mrkongtk.rstpviewer.viewmode.AppViewModel
+import com.mrkongtk.rtspviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
+import com.mrkongtk.rtspviewer.ui.screen.NavigationScreen
+import com.mrkongtk.rtspviewer.viewmode.AppViewModel
 
 /**
  * Definition of the Dark Mode color palette.
@@ -70,7 +70,7 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * The main Theme composable for the RSTPViewer application.
+ * The main Theme composable for the RTSPViewer application.
  *
  * This wrapper applies the Material Design 3 theme, handles Dynamic Color (Material You) logic,
  * and configures the System UI (Status Bar and Navigation Bar) colors.

@@ -1,4 +1,4 @@
-package com.mrkongtk.rstpviewer.data
+package com.mrkongtk.rtspviewer.data
 
 import kotlinx.serialization.Serializable
 

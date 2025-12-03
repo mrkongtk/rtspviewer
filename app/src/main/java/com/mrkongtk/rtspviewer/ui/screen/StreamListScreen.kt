@@ -1,4 +1,4 @@
-package com.mrkongtk.rstpviewer.ui.screen
+package com.mrkongtk.rtspviewer.ui.screen
 
 import android.annotation.SuppressLint
 import android.content.res.Configuration
@@ -18,10 +18,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.mrkongtk.rstpviewer.data.RTSPItem
-import com.mrkongtk.rstpviewer.ui.compose.StreamListItem
-import com.mrkongtk.rstpviewer.ui.theme.PaddingM
-import com.mrkongtk.rstpviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.data.RTSPItem
+import com.mrkongtk.rtspviewer.ui.compose.StreamListItem
+import com.mrkongtk.rtspviewer.ui.theme.PaddingM
+import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 
 /**
  * The main screen responsible for displaying a list of configured RTSP streams.
