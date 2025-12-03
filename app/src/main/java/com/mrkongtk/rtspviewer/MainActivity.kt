@@ -8,16 +8,16 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rtspviewer.ui.screen.NavigationScreen
-import com.mrkongtk.rtspviewer.ui.screen.NavigationScreenContent
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.viewmode.AppViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
- * The main entry point of the RTSP Viewer application.
+ * The primary entry point for the RTSP Viewer application.
  *
- * Annotated with @AndroidEntryPoint to enable Hilt for dependency injection
- * within the Activity and its attached Composables.
+ * This Activity serves as the container for the Jetpack Compose UI.
+ * It is annotated with [AndroidEntryPoint] to allow Hilt to inject dependencies
+ * into the Activity and the Composables hosted within it.
  */
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -25,24 +25,25 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Configures the app to draw behind the system bars (status and navigation)
+        // Enable edge-to-edge display to allow content to be drawn behind system bars
+        // (status bar and navigation bar) for a modern, immersive experience.
         enableEdgeToEdge()
 
         setContent {
-            // Apply the custom application theme
+            // Wrap the content in the application's custom theme
             RTSPViewerTheme {
-                // Initialize the NavController to manage app navigation state
+
+                // Initialize the NavController to handle navigation between screens
                 val navController: NavHostController = rememberNavController()
+
+                // Obtain the AppViewModel instance via Hilt injection
                 val viewModel: AppViewModel = hiltViewModel()
 
-                // Set up the root navigation structure (Scaffold, BottomBar, etc.)
+                // Render the main navigation structure (Scaffold, NavHost)
                 NavigationScreen(
                     navController = navController,
                     viewModel = viewModel
-                ) { navController, innerPadding, viewModel ->
-                    // Render the specific screen content based on the current route
-                    NavigationScreenContent(navController, innerPadding, viewModel)
-                }
+                )
             }
         }
     }

@@ -4,16 +4,12 @@ import android.content.res.Configuration
 import android.os.Build
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -24,8 +20,10 @@ import com.mrkongtk.rtspviewer.ui.screen.NavigationScreen
 import com.mrkongtk.rtspviewer.viewmode.AppViewModel
 
 /**
- * Definition of the Dark Mode color palette.
- * Maps specific color variables (e.g., PrimaryDark) to Material Design 3 color slots.
+ * Material Design 3 Dark Color Scheme.
+ *
+ * This property maps the project's specific dark color definitions (e.g., [PrimaryDark])
+ * to the standard Material 3 color slots.
  */
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryDark,
@@ -47,8 +45,10 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 /**
- * Definition of the Light Mode color palette.
- * Maps specific color variables (e.g., PrimaryLight) to Material Design 3 color slots.
+ * Material Design 3 Light Color Scheme.
+ *
+ * This property maps the project's specific light color definitions (e.g., [PrimaryLight])
+ * to the standard Material 3 color slots.
  */
 private val LightColorScheme = lightColorScheme(
     primary = PrimaryLight,
@@ -70,42 +70,47 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * The main Theme composable for the RTSPViewer application.
+ * The core Theme Composable for the RTSPViewer application.
  *
- * This wrapper applies the Material Design 3 theme, handles Dynamic Color (Material You) logic,
- * and configures the System UI (Status Bar and Navigation Bar) colors.
+ * This wrapper performs three main functions:
+ * 1. Determines the appropriate [colorScheme] based on system settings and OS version.
+ * 2. Updates the System UI (Status Bar and Navigation Bar) colors to match the theme.
+ * 3. Provides the [MaterialTheme] to the [content] hierarchy.
  *
- * @param darkTheme Whether to use the dark color scheme. Defaults to the system's current setting.
- * @param dynamicColor Whether to use dynamic colors (wallpaper-based) on Android 12+ (S). Defaults to false.
- * @param content The composable content to be rendered within this theme.
+ * @param darkTheme Whether the dark mode color scheme should be applied.
+ *                  Defaults to [isSystemInDarkTheme] to match the device setting.
+ * @param dynamicColor Whether to enable Material You (Dynamic Colors) derived from the user's wallpaper.
+ *                     Only applicable on Android 12 (API 31) and above. Defaults to false.
+ * @param content The Composable content to be displayed within the theme context.
  */
 @Composable
 fun RTSPViewerTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // Determine which color scheme to use based on inputs and API level
+    // 1. Resolve the Color Scheme
     val colorScheme = when {
+        // Check if Dynamic Color is requested AND supported by the OS (Android 12+)
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
+        // Fallback to static defined schemes
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
-    // Access the current Activity window to modify System UI bars
+    // 2. Update System UI Colors (Status Bar & Navigation Bar)
+    // We access the current Activity window to modify the system bars directly.
     LocalActivity.current?.window?.let { window ->
-        // Set the Status Bar color to match the theme's background
+        // Sets the status bar color to match the theme's background color
         window.statusBarColor = colorScheme.background.toArgb()
-        // Set the Navigation Bar color to match the theme's background
+        // Sets the navigation bar color to match the theme's background color
         window.navigationBarColor = colorScheme.background.toArgb()
     }
 
-    // Apply the MaterialTheme with the selected colors and typography
+    // 3. Apply the Material Theme
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
@@ -114,11 +119,13 @@ fun RTSPViewerTheme(
 }
 
 /**
- * Preview composable to visualize the Theme in Android Studio.
- * Generates two previews: one for Day mode and one for Night mode.
+ * Theme Preview for Android Studio.
  *
- * It mocks a NavHostController and the NavigationScreen shell to show
- * how the basic UI structure looks under the applied theme.
+ * This preview generates two configurations (Day Mode and Night Mode) to verify
+ * how the [NavigationScreen] and the overall theme look in different environments.
+ *
+ * Note: This instantiates a [AppViewModel] with a repository implementation directly
+ * for UI visualization purposes.
  */
 @Preview(
     name = "Day",
@@ -135,21 +142,14 @@ fun RTSPViewerTheme(
 @Composable
 fun RTSPViewerThemePreview() {
     RTSPViewerTheme {
+        // Setup required dependencies for the preview
         val navController: NavHostController = rememberNavController()
         val context = LocalContext.current
+
+        // Initialize ViewModel with the repository for the preview context
         val viewModel = AppViewModel(RTSPItemWithSampleInitRepositoryImpl(context))
 
-        // Renders the shell with dummy content to visualize the Scaffold structure
-        NavigationScreen(
-            navController = navController,
-            viewModel = viewModel
-        ) { _, innerPadding, _ ->
-            Text(
-                text = "Preview Content Area",
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-            )
-        }
+        // Render the main screen structure
+        NavigationScreen(navController = navController, viewModel = viewModel)
     }
 }
