@@ -63,6 +63,8 @@ dependencies {
     implementation(libs.androidx.hilt.hilt.navigation.compose)
     implementation(libs.google.dagger.hilt.android)
     ksp(libs.google.dagger.hilt.android.compiler)
+    implementation(libs.androidx.media3.media3.exoplayer.rtsp)
+    implementation(libs.androidx.media3.media3.ui)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

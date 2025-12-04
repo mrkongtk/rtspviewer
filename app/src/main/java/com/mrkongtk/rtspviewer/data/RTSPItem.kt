@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
 data class RTSPItem(
     val id: Long,
     val name: String,
-    val url: String,
+    val uri: String,
     val tags: List<String>,
-    val order: Int
+    val order: Int,
+    val forceTcp: Boolean = false,
 )

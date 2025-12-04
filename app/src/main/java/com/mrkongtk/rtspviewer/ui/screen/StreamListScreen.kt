@@ -121,14 +121,14 @@ private fun StreamListScreenPreview() {
                 RTSPItem(
                     id = 1,
                     name = "Living Room Camera",
-                    url = "rtsp://192.168.1.10",
+                    uri = "rtsp://192.168.1.10",
                     tags = emptyList(),
                     order = 1
                 ),
                 RTSPItem(
                     id = 2,
                     name = "Backyard",
-                    url = "rtsp://192.168.1.11",
+                    uri = "rtsp://192.168.1.11",
                     tags = emptyList(),
                     order = 2
                 )
