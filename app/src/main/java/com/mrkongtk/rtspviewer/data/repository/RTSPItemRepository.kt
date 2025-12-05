@@ -1,6 +1,6 @@
 package com.mrkongtk.rtspviewer.data.repository
 
-import com.mrkongtk.rtspviewer.data.RTSPItem
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import kotlinx.coroutines.flow.StateFlow
 
 /**

@@ -24,7 +24,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.mrkongtk.rtspviewer.R
-import com.mrkongtk.rtspviewer.data.RTSPItem
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.PaddingS
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme

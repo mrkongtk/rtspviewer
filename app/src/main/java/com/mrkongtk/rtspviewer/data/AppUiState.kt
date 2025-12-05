@@ -1,5 +1,7 @@
 package com.mrkongtk.rtspviewer.data
 
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+
 /**
  * Represents the current state of the Application UI.
  * This class holds all data required to render the screen.

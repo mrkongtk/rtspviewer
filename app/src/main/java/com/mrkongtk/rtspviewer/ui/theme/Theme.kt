@@ -1,5 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.theme
 
+import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.os.Build
 import androidx.activity.compose.LocalActivity
@@ -15,6 +16,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.mrkongtk.rtspviewer.data.database.MockAppDatabase
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
 import com.mrkongtk.rtspviewer.ui.screen.NavigationScreen
 import com.mrkongtk.rtspviewer.viewmode.AppViewModel
@@ -127,6 +129,7 @@ fun RTSPViewerTheme(
  * Note: This instantiates a [AppViewModel] with a repository implementation directly
  * for UI visualization purposes.
  */
+@SuppressLint("ViewModelConstructorInComposable")
 @Preview(
     name = "Day",
     showSystemUi = true,
@@ -147,7 +150,8 @@ fun RTSPViewerThemePreview() {
         val context = LocalContext.current
 
         // Initialize ViewModel with the repository for the preview context
-        val viewModel = AppViewModel(RTSPItemWithSampleInitRepositoryImpl(context))
+        val viewModel =
+            AppViewModel(RTSPItemWithSampleInitRepositoryImpl(context, MockAppDatabase()))
 
         // Render the main screen structure
         NavigationScreen(navController = navController, viewModel = viewModel)

@@ -3,7 +3,7 @@ package com.mrkongtk.rtspviewer.viewmode
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mrkongtk.rtspviewer.data.AppUiState
-import com.mrkongtk.rtspviewer.data.RTSPItem
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

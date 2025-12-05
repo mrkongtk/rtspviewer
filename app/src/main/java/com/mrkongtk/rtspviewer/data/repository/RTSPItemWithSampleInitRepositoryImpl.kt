@@ -3,7 +3,8 @@ package com.mrkongtk.rtspviewer.data.repository
 import android.content.Context
 import android.content.res.AssetManager
 import android.util.Log
-import com.mrkongtk.rtspviewer.data.RTSPItem
+import com.mrkongtk.rtspviewer.data.database.AppDatabase
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -15,82 +16,103 @@ import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 /**
- * A concrete implementation of [RTSPItemRepository] that serves as a data source
- * by loading and parsing a local JSON file from the Android application assets.
+ * A concrete implementation of [RTSPItemRepository] that handles data initialization and synchronization.
  *
- * @property context The application context injected via Hilt, required to access the [AssetManager].
+ * This repository employs a hybrid strategy to populate the UI:
+ * 1. Loads default sample data from a local JSON asset file (`rtsp_sample_data.json`).
+ * 2. Fetches existing user data from the local Room database.
+ * 3. Merges the two sources (giving the Database precedence for conflicting IDs).
+ * 4. Persists the merged result back to the database and emits it via [items].
+ *
+ * @property context The application context injected via Hilt, used to access [AssetManager].
+ * @property db The Room database instance used for persisting and retrieving user modifications.
  */
 class RTSPItemWithSampleInitRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val db: AppDatabase,
 ) : RTSPItemRepository {
 
     /**
-     * A tag used for logging, dynamically set to the class name.
+     * A dynamic tag for logging, set to the simple class name (e.g., "RTSPItemWithSampleInitRepositoryImpl").
      */
     private val debugTag: String
         get() = this.javaClass.simpleName
 
     /**
-     * Helper property to access the Android AssetManager.
+     * Helper property to access the Android AssetManager for file operations.
      */
     private val assetManager: AssetManager
         get() = context.assets
 
     /**
      * Internal mutable state flow that holds the current list of RTSP items.
-     * This acts as the "backing field" for the public [items] property.
+     * Acts as the single source of truth for the [items] stream.
      */
     private val _items = MutableStateFlow<List<RTSPItem>>(emptyList())
 
     /**
-     * Publicly exposed immutable [StateFlow] to be observed by the ViewModel or UI.
-     * It emits updates whenever the data inside [_items] changes.
+     * A public, immutable [StateFlow] observable by the ViewModel or UI.
+     * Emits the latest list of [RTSPItem]s whenever the data is loaded or updated.
      */
     override val items: StateFlow<List<RTSPItem>> = _items.asStateFlow()
 
     /**
-     * Configures the JSON parser.
-     * [ignoreUnknownKeys] is set to true so that the app doesn't crash if the
-     * JSON file contains fields that are not defined in the [RTSPItem] data class.
-     */
-    private val jsonDecoder = Json { ignoreUnknownKeys = true }
-
-    /**
-     * Triggers the asynchronous data loading process.
-     * It calls [loadSampleData] and updates the [_items] StateFlow with the result.
-     * If loading fails, an empty list is emitted to clear the state.
+     * Orchestrates the data loading and synchronization process.
+     *
+     * This function performs the following steps atomically:
+     * 1. Loads sample data from assets.
+     * 2. Loads existing data from the database.
+     * 3. **Merges** them: If an item exists in the DB, it overwrites the sample data (preserving user changes).
+     * 4. **Persists** the combined list back to the database (`insertAll` typically handles upserts).
+     * 5. Updates the [_items] StateFlow.
      */
     override suspend fun loadData() {
         _items.update { _ ->
-            // Update the state atomically with the result of the load operation
-            loadSampleData() ?: emptyList()
+            // 1. Load sample data and convert to a Map keyed by ID
+            val sampleItems = loadSampleData() ?: emptyList()
+            val mapping = sampleItems.associateBy { it.id }.toMutableMap()
+
+            // 2. Fetch all current items from the DB
+            val dbItems = db.rtspItemDao().getItems(0, Long.MAX_VALUE)
+
+            // 3. Merge: Database items overwrite asset items with the same ID
+            dbItems.forEach { item ->
+                mapping[item.id] = item
+            }
+
+            // 4. Convert back to list and persist the merged state to DB
+            val mergedList = mapping.values.toList()
+
+            // Note: This assumes insertAll acts as an UPSERT (Update if exists, Insert if new)
+            db.rtspItemDao().insertAll(mergedList)
+
+            // 5. Return the result to update the StateFlow
+            mergedList
         }
     }
 
     /**
-     * Reads the "rtsp_sample_data.json" file from the assets folder and deserializes it.
+     * Reads and parses the "rtsp_sample_data.json" file from the application assets.
      *
-     * This function is main-safe; it moves execution to the [Dispatchers.IO] thread
-     * to perform the blocking file I/O operations.
+     * This function is strictly for reading the initial seed data. It operates on the
+     * [Dispatchers.IO] thread to prevent blocking the main thread during file I/O.
      *
-     * @return A list of [RTSPItem] if successful, or null if an IO or parsing error occurs.
+     * @return A list of [RTSPItem] if parsing is successful; otherwise `null`.
      */
     private suspend fun loadSampleData(): List<RTSPItem>? {
-        // Switch to the IO dispatcher for disk operations
+        val jsonDecoder = Json { ignoreUnknownKeys = true }
+
         return withContext(Dispatchers.IO) {
             try {
-                // Open the asset file. The .use block ensures the InputStream is
-                // automatically closed after reading, preventing memory leaks.
+                // Open the asset file and read its content
                 val text = assetManager.open("rtsp_sample_data.json").use { inputStream ->
                     inputStream.bufferedReader().use { it.readText() }
                 }
 
-                // Deserialize the JSON string into a strongly-typed List
-                val data = jsonDecoder.decodeFromString<List<RTSPItem>>(text)
-                data
+                // Deserialize JSON string to objects
+                jsonDecoder.decodeFromString<List<RTSPItem>>(text)
             } catch (e: Exception) {
-                // Log the specific error for debugging purposes (e.g., FileNotFound, MalformedJson)
-                Log.e(debugTag, "Error reading or parsing sample data: $e")
+                Log.e(debugTag, "Error reading or parsing sample data", e)
                 null
             }
         }

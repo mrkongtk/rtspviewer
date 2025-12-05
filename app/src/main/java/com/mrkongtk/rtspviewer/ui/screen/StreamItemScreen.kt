@@ -16,7 +16,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import com.mrkongtk.rtspviewer.data.RTSPItem
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.RTSPVideoPlayer
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.viewmode.RTSPVideoPlayerViewModel

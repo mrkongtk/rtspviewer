@@ -18,7 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
-import com.mrkongtk.rtspviewer.data.RTSPItem
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.StreamListItem
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
