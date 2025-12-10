@@ -1,14 +1,9 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
-import android.annotation.SuppressLint
 import android.content.res.Configuration
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.systemBars
-import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.CenterAlignedTopAppBar
@@ -27,8 +22,6 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.NavHost
-import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rtspviewer.AppScreen
@@ -36,6 +29,7 @@ import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.AppUiState
 import com.mrkongtk.rtspviewer.data.database.MockAppDatabase
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
+import com.mrkongtk.rtspviewer.ui.compose.NavigationScreenContent
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.viewmode.AppViewModel
 import kotlinx.coroutines.flow.map
@@ -44,7 +38,8 @@ import kotlinx.coroutines.flow.map
  * A custom Top App Bar composable that manages the screen title and back navigation.
  *
  * This component dynamically generates the title by combining a static string resource template
- * (defined in [AppScreen]) with dynamic arguments observed from the [AppViewModel] (e.g., the name of the currently viewing stream).
+ * (defined in [AppScreen]) with dynamic arguments observed from the [AppViewModel]
+ * (e.g., the name of the currently viewing stream).
  *
  * @param currentScreen The current destination in the navigation graph; used to fetch the title resource ID.
  * @param canNavigateBack Boolean flag indicating if the back arrow should be visible.
@@ -60,9 +55,9 @@ fun AppBar(
     modifier: Modifier = Modifier,
     viewModel: AppViewModel = hiltViewModel()
 ) {
-    // Collect the selected item's name from the ViewModel state.
-    // map transform: If an item is selected, wrap the name in a list (e.g., ["Camera 1"]).
-    // If null, return an empty list. This list is used for string formatting later.
+    // Transform the UI state to extract the selected item's name.
+    // If a stream is selected, it returns a list containing that name.
+    // If null, it returns an empty list. This list is used for string template replacement below.
     val args: List<String> by viewModel.uiState.map {
         it.selectedItem?.name?.let { name ->
             listOf(name)
@@ -71,11 +66,11 @@ fun AppBar(
 
     CenterAlignedTopAppBar(
         title = {
-            // Dynamic Title Generation Logic:
-            // 1. Fetch the raw string template (e.g., "Watching %0") based on the current screen.
-            // 2. Prepend the template to the args list.
-            // 3. Use reduceIndexed to iterate through. It effectively replaces placeholders like "%0"
-            //    in the template (acc) with the values from the subsequent items in the list (new).
+            // Title Formatting Logic:
+            // 1. Get the base string resource associated with the current screen (e.g., "Watching %1").
+            // 2. Create a list starting with the template, followed by dynamic arguments (e.g., ["Watching %1", "Camera 1"]).
+            // 3. Use reduceIndexed to iterate. The 'acc' is the string being built, 'new' is the replacement value.
+            //    It replaces placeholders (like "%1") with the corresponding argument.
             Text(stringResource(currentScreen.title).let { titleTemplate ->
                 (listOf(titleTemplate) + args).reduceIndexed { index, acc, new ->
                     acc.replace("%$index", new)
@@ -109,114 +104,60 @@ fun AppBar(
  *
  * @param navController The central navigation controller. Defaults to [rememberNavController].
  * @param viewModel The shared [AppViewModel] instance, injected via Hilt.
+ * @param modifier Modifier to apply to the root layout.
  */
 @Composable
 fun NavigationScreen(
     navController: NavHostController = rememberNavController(),
     viewModel: AppViewModel = hiltViewModel(),
+    modifier: Modifier = Modifier,
 ) {
-    // Observe the current back stack entry to reactively update the UI when the route changes.
+    // Observe the back stack to determine the current route.
+    // This triggers a recomposition whenever the user navigates.
     val backStackEntry by navController.currentBackStackEntryAsState()
 
-    // Determine the current AppScreen enum based on the route string.
-    // We use a try-catch block to safely handle cases where the route might be null
-    // or not map to a valid enum (defaulting to AppScreen.Start).
+    // Resolve the current route string to an AppScreen enum.
+    // If the route is null or invalid (not found in enum), default to AppScreen.Start.
     val currentScreen = backStackEntry?.destination?.route?.let { route ->
         try {
             AppScreen.valueOf(route)
-        } catch (e: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             AppScreen.Start
         }
     } ?: AppScreen.Start
 
     Scaffold(
-        modifier = Modifier
-            .fillMaxSize()
-            // Apply padding to avoid drawing behind system bars (status/navigation bars).
-            .windowInsetsPadding(WindowInsets.systemBars)
+        modifier = modifier
             .background(MaterialTheme.colorScheme.background),
         topBar = {
             AppBar(
                 currentScreen = currentScreen,
-                // Only show the back button if the back stack has a previous entry.
+                // Show back button only if there is a previous entry in the back stack.
                 canNavigateBack = navController.previousBackStackEntry != null,
                 navigateUp = { navController.navigateUp() },
                 viewModel = viewModel
             )
         }
     ) { innerPadding ->
-        // The Scaffold provides 'innerPadding' which accounts for the height of the TopAppBar.
-        // We pass this to the content to ensure the top of the content isn't obscured.
-        NavigationScreenContent(navController, innerPadding, viewModel)
-    }
-}
+        // Collect the main UI state (list of items, selected item, etc.)
+        // in a lifecycle-aware manner.
+        val uiState by viewModel.uiState.collectAsStateWithLifecycle(AppUiState())
 
-/**
- * Contains the [NavHost] and defines the navigation graph for the application.
- *
- * This composable maps specific routes (defined in [AppScreen]) to their respective
- * composable screens. It also handles the passing of state and event callbacks
- * (like `onItemSelected`) between the ViewModel and the UI.
- *
- * @param navController The navigation controller used to navigate between screens.
- * @param innerPadding Padding values provided by the parent Scaffold.
- * @param viewModel The shared ViewModel containing the app state.
- */
-@Composable
-fun NavigationScreenContent(
-    navController: NavHostController = rememberNavController(),
-    innerPadding: PaddingValues,
-    viewModel: AppViewModel = hiltViewModel(),
-) {
-    // Collect the UI state in a lifecycle-aware manner.
-    // This ensures flow collection stops when the app goes to the background to save resources.
-    val uiState by viewModel.uiState.collectAsStateWithLifecycle(AppUiState())
-
-    NavHost(
-        navController = navController,
-        startDestination = AppScreen.Start.name,
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(innerPadding) // Apply the Scaffold padding here
-    ) {
-        // --- Route: Start (Stream List) ---
-        composable(route = AppScreen.Start.name) {
-            StreamListScreen(
-                itemList = uiState.items,
-                onItemSelected = { rtspItem ->
-                    // Set the active item in the VM and navigate to the player view
-                    viewModel.select(rtspItem)
-                    navController.navigate(AppScreen.RTSPDisplay.name)
-                },
-                onAddItemSelected = {
-                    navController.navigate(AppScreen.AddRTSPItem.name)
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
-
-        // --- Route: RTSP Display (Video Player) ---
-        composable(route = AppScreen.RTSPDisplay.name) {
-            // Only render the screen if a valid item is selected to avoid null pointer exceptions
-            uiState.selectedItem?.let { item ->
-                StreamItemScreen(
-                    item = item,
-                    modifier = Modifier.fillMaxSize()
-                )
+        // Render the main content navigation graph.
+        // We pass 'innerPadding' to ensure content is not obscured by the TopAppBar.
+        NavigationScreenContent(
+            navController = navController,
+            uiState = uiState,
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding),
+            onListingItemSelected = { item ->
+                viewModel.select(item)
+            },
+            onAddItemRequested = { item ->
+                viewModel.addItem(item)
             }
-        }
-
-        // --- Route: Add RTSP Item (Form) ---
-        composable(route = AppScreen.AddRTSPItem.name) {
-            AddStreamItemScreen(
-                onSave = { item ->
-                    // Save the new item to the database/state and return to the previous screen
-                    viewModel.addItem(item)
-                    navController.popBackStack()
-                },
-                modifier = Modifier.fillMaxSize()
-            )
-        }
+        )
     }
 }
 
@@ -224,11 +165,12 @@ fun NavigationScreenContent(
  * Preview for [NavigationScreen].
  *
  * Renders the UI in both Day and Night modes.
- * Note: Since ViewModels usually require Hilt injection, we manually construct
- * the ViewModel here using a [MockAppDatabase] and a sample repository.
- * This allows the preview to render without crashing due to missing dependencies.
+ *
+ * Note on Dependency Injection:
+ * Since standard Hilt injection does not work within @Preview composables,
+ * we manually instantiate the [AppViewModel] using a [MockAppDatabase] and
+ * a repository implementation initialized with sample data.
  */
-@SuppressLint("ViewModelConstructorInComposable")
 @Preview(
     name = "Day",
     showSystemUi = true,
@@ -244,7 +186,7 @@ private fun NavigationScreenPreview() {
     RTSPViewerTheme {
         val navController = rememberNavController()
 
-        // Manually inject dependencies for the Preview environment
+        // Manually construct ViewModel with mock dependencies for preview purposes.
         val viewModel = AppViewModel(
             RTSPItemWithSampleInitRepositoryImpl(
                 LocalContext.current,

@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.mrkongtk.rtspviewer.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
-import com.mrkongtk.rtspviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
+import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepositoryImpl
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -15,8 +15,8 @@ import javax.inject.Singleton
 /**
  * Dagger Hilt module responsible for providing application-level dependencies.
  *
- * This module is installed in the [SingletonComponent], meaning the dependencies
- * defined here will exist for the entire lifecycle of the application.
+ * This module is installed in the [SingletonComponent], which ensures that the dependencies
+ * provided here live as long as the application itself.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -25,20 +25,18 @@ object AppModule {
     /**
      * Provides a singleton instance of the [RTSPItemRepository].
      *
-     * It binds the interface to the [RTSPItemWithSampleInitRepositoryImpl] implementation,
-     * which initializes the repository with sample data.
+     * This method satisfies dependencies for the repository interface by returning
+     * the concrete [RTSPItemRepositoryImpl] implementation.
      *
-     * @param context The application context injected by Hilt.
-     * @param db The [AppDatabase] instance required by the repository.
+     * @param db The [AppDatabase] instance required to access the DAO.
      * @return The concrete implementation of the repository.
      */
     @Provides
     @Singleton
     fun provideRTSPItemRepository(
-        @ApplicationContext context: Context,
         db: AppDatabase
     ): RTSPItemRepository {
-        return RTSPItemWithSampleInitRepositoryImpl(context, db)
+        return RTSPItemRepositoryImpl(db)
     }
 
     /**
@@ -46,7 +44,7 @@ object AppModule {
      *
      * This method initializes the Room database with the name "RTSP_Viewer_database".
      *
-     * @param context The application context used to build the database.
+     * @param context The application context provided by Hilt, used to create the database builder.
      * @return The built Room database instance.
      */
     @Provides

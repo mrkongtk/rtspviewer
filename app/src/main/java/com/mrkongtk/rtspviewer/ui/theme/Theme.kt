@@ -1,36 +1,45 @@
 package com.mrkongtk.rtspviewer.ui.theme
 
-import android.annotation.SuppressLint
 import android.content.res.Configuration
 import android.os.Build
 import androidx.activity.compose.LocalActivity
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Done
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.SideEffect
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.navigation.NavHostController
-import androidx.navigation.compose.rememberNavController
-import com.mrkongtk.rtspviewer.data.database.MockAppDatabase
-import com.mrkongtk.rtspviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
-import com.mrkongtk.rtspviewer.ui.screen.NavigationScreen
-import com.mrkongtk.rtspviewer.viewmode.AppViewModel
 
 /**
  * Material Design 3 Dark Color Scheme.
  *
- * This property maps the project's specific dark color definitions (e.g., [PrimaryDark])
- * to the standard Material 3 color slots.
+ * This configuration maps the project's specific dark mode color definitions
+ * (e.g., [DarkPrimary], [DarkSurface]) to the standard Material 3 semantic slots.
  */
 private val DarkColorScheme = darkColorScheme(
     primary = DarkPrimary,
     onPrimary = DarkOnPrimary,
-    primaryContainer = DarkSurface, // Often used for card backgrounds in M3
+    primaryContainer = DarkSurface,
     onPrimaryContainer = DarkTextPrimary,
 
     background = DarkBackground,
@@ -40,7 +49,7 @@ private val DarkColorScheme = darkColorScheme(
     onSurface = DarkTextPrimary,
 
     secondary = DarkSecondary,
-    onSecondary = DarkTextSecondary, // Used for icons/text on secondary backgrounds
+    onSecondary = DarkTextSecondary,
 
     error = ErrorColor,
     onError = OnErrorColor,
@@ -49,8 +58,8 @@ private val DarkColorScheme = darkColorScheme(
 /**
  * Material Design 3 Light Color Scheme.
  *
- * This property maps the project's specific light color definitions (e.g., [PrimaryLight])
- * to the standard Material 3 color slots.
+ * This configuration maps the project's specific light mode color definitions
+ * (e.g., [LightPrimary], [LightSurface]) to the standard Material 3 semantic slots.
  */
 private val LightColorScheme = lightColorScheme(
     primary = LightPrimary,
@@ -72,18 +81,17 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * The core Theme Composable for the RTSPViewer application.
+ * The main Theme Composable for the RTSPViewer application.
  *
- * This wrapper performs three main functions:
- * 1. Determines the appropriate [colorScheme] based on system settings and OS version.
- * 2. Updates the System UI (Status Bar and Navigation Bar) colors to match the theme.
- * 3. Provides the [MaterialTheme] to the [content] hierarchy.
+ * This wrapper performs the following responsibilities:
+ * 1. **Color Resolution:** Selects between Dynamic (Material You), Dark, or Light schemes.
+ * 2. **System UI:** Updates the Status Bar and Navigation Bar colors to match the theme background.
+ * 3. **Provider:** Applies the calculated [colorScheme] and [Typography] to the content hierarchy.
  *
- * @param darkTheme Whether the dark mode color scheme should be applied.
- *                  Defaults to [isSystemInDarkTheme] to match the device setting.
- * @param dynamicColor Whether to enable Material You (Dynamic Colors) derived from the user's wallpaper.
- *                     Only applicable on Android 12 (API 31) and above. Defaults to false.
- * @param content The Composable content to be displayed within the theme context.
+ * @param darkTheme Whether to apply the dark color palette. Defaults to the system's global setting.
+ * @param dynamicColor Whether to use Material You dynamic colors (derived from wallpaper).
+ *                     Only available on Android 12+ (API 31+). Defaults to `false`.
+ * @param content The Composable content to render within this theme.
  */
 @Composable
 fun RTSPViewerTheme(
@@ -91,28 +99,26 @@ fun RTSPViewerTheme(
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // 1. Resolve the Color Scheme
+    // 1. Determine the appropriate ColorScheme based on arguments and OS capabilities
     val colorScheme = when {
-        // Check if Dynamic Color is requested AND supported by the OS (Android 12+)
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-        // Fallback to static defined schemes
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
-    // 2. Update System UI Colors (Status Bar & Navigation Bar)
-    // We access the current Activity window to modify the system bars directly.
+    // 2. Side Effect: Update System Bars (Status/Nav) to match the theme background
     LocalActivity.current?.window?.let { window ->
-        // Sets the status bar color to match the theme's background color
-        window.statusBarColor = colorScheme.background.toArgb()
-        // Sets the navigation bar color to match the theme's background color
-        window.navigationBarColor = colorScheme.background.toArgb()
+        SideEffect {
+            // Use the background color of the scheme for system bars to ensure seamless UI
+            window.statusBarColor = colorScheme.background.toArgb()
+            window.navigationBarColor = colorScheme.background.toArgb()
+        }
     }
 
-    // 3. Apply the Material Theme
+    // 3. Provide the MaterialTheme to the subtree
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
@@ -121,15 +127,12 @@ fun RTSPViewerTheme(
 }
 
 /**
- * Theme Preview for Android Studio.
+ * Theme Previews.
  *
- * This preview generates two configurations (Day Mode and Night Mode) to verify
- * how the [NavigationScreen] and the overall theme look in different environments.
- *
- * Note: This instantiates a [AppViewModel] with a repository implementation directly
- * for UI visualization purposes.
+ * Renders a dummy UI containing common components (Card, Text, Button, Icon)
+ * to visualize how the [RTSPViewerTheme] handles both Light and Dark modes
+ * within the Android Studio design view.
  */
-@SuppressLint("ViewModelConstructorInComposable")
 @Preview(
     name = "Day",
     showSystemUi = true,
@@ -145,15 +148,25 @@ fun RTSPViewerTheme(
 @Composable
 fun RTSPViewerThemePreview() {
     RTSPViewerTheme {
-        // Setup required dependencies for the preview
-        val navController: NavHostController = rememberNavController()
-        val context = LocalContext.current
-
-        // Initialize ViewModel with the repository for the preview context
-        val viewModel =
-            AppViewModel(RTSPItemWithSampleInitRepositoryImpl(context, MockAppDatabase()))
-
-        // Render the main screen structure
-        NavigationScreen(navController = navController, viewModel = viewModel)
+        Scaffold(
+            modifier = Modifier
+                .windowInsetsPadding(WindowInsets.systemBars)
+                .background(MaterialTheme.colorScheme.background),
+        ) { innerPadding ->
+            Card(
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+            ) {
+                // Dummy content to test color contrast and mapping
+                Text("Theme Test Title")
+                Button(onClick = {}) {
+                    Text("Primary Button")
+                }
+                IconButton(onClick = {}) {
+                    Icon(imageVector = Icons.Default.Done, contentDescription = "Icon Test")
+                }
+            }
+        }
     }
 }
