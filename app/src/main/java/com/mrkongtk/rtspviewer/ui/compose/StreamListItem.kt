@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.CardDefaults
@@ -23,44 +24,39 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.util.fastForEach
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.PaddingS
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.ui.theme.RoundedCornerSize
 
 /**
- * A list item component representing a single RTSP stream.
+ * A list item component representing a single RTSP stream configuration.
  *
- * This composable renders stream details within an [ElevatedCard]. It implements
- * a "zebra-striping" pattern (alternating background colors) to improve readability
- * in long lists.
+ * This composable renders a clickable [ElevatedCard] displaying the stream's name
+ * and a navigation indicator.
  *
- * @param index The index of the item in the list, used to calculate the background color.
- * @param data The [RTSPItem] data object containing stream details (name, URL, etc.).
- * @param modifier The modifier to be applied to the outer Card layout.
- * @param onClick Callback function invoked when the card is clicked. Passes the [data] item.
+ * @param data The [RTSPItem] domain object containing stream details (name, URL, etc.).
+ * @param modifier The [Modifier] to be applied to the outer Card layout.
+ * @param onClick A callback lambda triggered when the card is tapped; passes the associated [data].
  */
 @Composable
 fun StreamListItem(
-    index: Int,
     data: RTSPItem,
     modifier: Modifier = Modifier,
     onClick: (RTSPItem) -> Unit,
 ) {
-    // Determine colors based on index for the zebra-striping effect.
-    // Even indexes use Surface color, Odd indexes use SurfaceVariant.
-    val isEven = index % 2 == 0
-    val containerColor = if (isEven) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.surfaceVariant
-    val contentColor = if (isEven) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.onSurfaceVariant
-
     ElevatedCard(
-        colors = CardDefaults.cardColors(
-            containerColor = containerColor
+        colors = CardDefaults.elevatedCardColors(
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         ),
         elevation = CardDefaults.cardElevation(
             defaultElevation = PaddingS,
         ),
+        shape = RoundedCornerShape(RoundedCornerSize),
         modifier = modifier,
         onClick = { onClick(data) }
     ) {
@@ -68,24 +64,24 @@ fun StreamListItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(PaddingM),
-            // Pushes the Text to the start and Icon to the end
+            // Pushes content to the edges: Text to start, Icon to end
             horizontalArrangement = Arrangement.SpaceBetween,
-            // Vertically centers content within the row
+            // Vertically centers the text and icon within the row height
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Display the Stream Name
+            // Stream Name Display
             Text(
                 text = data.name,
-                color = contentColor,
-                modifier = Modifier.weight(1f) // Text takes up remaining space, preventing overlap with icon
+                // Weight 1f ensures the text takes up all available space, pushing the icon to the edge
+                // and truncating the text if it becomes too long, rather than pushing the icon off-screen.
+                modifier = Modifier.weight(1f),
             )
 
-            // Navigation Indicator
-            // Uses AutoMirrored icon to point the correct direction in RTL (Right-to-Left) languages
+            // Navigation Icon
+            // Uses 'AutoMirrored' to ensure the arrow points correctly in RTL (Right-to-Left) layouts.
             Icon(
                 imageVector = Icons.AutoMirrored.Default.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.detail), // Accessibility description
-                tint = contentColor
+                contentDescription = stringResource(R.string.detail), // Semantic description for accessibility
             )
         }
     }
@@ -94,8 +90,8 @@ fun StreamListItem(
 /**
  * Preview provider for [StreamListItem].
  *
- * Renders the component in both Light (Day) and Dark (Night) modes to ensure
- * theme consistency and verify the zebra-striping visual logic.
+ * Renders the component in both Light (Day) and Dark (Night) modes to verify
+ * theme adaptability and layout correctness.
  */
 @Preview(
     name = "Day",
@@ -112,30 +108,28 @@ fun StreamListItem(
 @Composable
 private fun StreamListItemPreview() {
     RTSPViewerTheme {
-        // Scaffold provides the standard app layout structure including system bar handling
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) { innerPadding ->
 
-            // Mock data designed to test alternating colors (Index 0 and 1)
+            // Mock data for preview purposes
             val mockItems = listOf(
                 RTSPItem(1, "Living Room Camera", "rtsp://192.168.1.10", emptyList(), 1),
                 RTSPItem(2, "Backyard Camera", "rtsp://192.168.1.11", emptyList(), 1)
             )
 
             Column(
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier
+                    .padding(innerPadding)
             ) {
-                // fastForEach is a performance-optimized loop for Compose lists
-                mockItems.forEachIndexed { index, item ->
+                mockItems.fastForEach { item ->
                     StreamListItem(
-                        index = index,
                         data = item,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(vertical = PaddingS), // Add slight spacing between items in preview
+                            .padding(vertical = PaddingS),
                         onClick = {}
                     )
                 }

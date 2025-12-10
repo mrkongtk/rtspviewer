@@ -20,4 +20,9 @@ enum class AppScreen(@StringRes val title: Int) {
      * The video playback screen where the RTSP stream is rendered.
      */
     RTSPDisplay(title = R.string.screen_rtsp_display),
+
+    /**
+     * The screen where the user can input details to add a new RTSP stream source.
+     */
+    AddRTSPItem(title = R.string.screen_add_rtsp_item),
 }

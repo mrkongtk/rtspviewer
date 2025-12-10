@@ -1,6 +1,5 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
-import android.annotation.SuppressLint
 import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -22,50 +21,48 @@ import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.viewmode.RTSPVideoPlayerViewModel
 
 /**
- * A Composable screen responsible for displaying the playback view of a specific RTSP stream.
+ * Displays the playback screen for a specific RTSP stream.
  *
- * This screen acts as a container that instantiates the necessary ViewModel and
- * initializes the video player component with the provided [RTSPItem] configuration.
+ * This Composable initializes the [RTSPVideoPlayerViewModel] using assisted injection
+ * to pass specific stream configuration (URI and TCP preference) and renders the
+ * video player component.
  *
- * @param modifier The modifier to be applied to the root layout of this screen.
- * @param item The data model containing stream details (URI, TCP preferences, etc.).
+ * @param item The [RTSPItem] containing the stream configuration details.
+ * @param modifier The [Modifier] to be applied to the layout.
  */
 @Composable
 fun StreamItemScreen(
-    modifier: Modifier = Modifier,
     item: RTSPItem,
+    modifier: Modifier = Modifier,
 ) {
-    // Root container: Using a Column to stack elements vertically.
-    // It is configured to align content to the top-center of the screen.
     Column(
         modifier = modifier,
         verticalArrangement = Arrangement.Top,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Hilt Dependency Injection:
-        // Retrieves the scoped ViewModel for the video player logic.
-        // This handles the lifecycle of the player separately from the UI.
-        val rtspViewModel: RTSPVideoPlayerViewModel = hiltViewModel()
+        // Initialize the ViewModel using Assisted Injection.
+        // This allows us to pass runtime arguments (URI, forceTcp) to the ViewModel factory.
+        val rtspViewModel: RTSPVideoPlayerViewModel =
+            hiltViewModel<RTSPVideoPlayerViewModel, RTSPVideoPlayerViewModel.Factory>(
+                creationCallback = { factory ->
+                    factory.create(item.uri, item.forceTcp)
+                }
+            )
 
-        // Render the actual Video Player component.
-        // We pass the URI and settings from the 'item' object and inject the ViewModel.
+        // Render the player, delegating logic to the ViewModel.
         RTSPVideoPlayer(
-            uri = item.uri,
-            forceTcp = item.forceTcp,
             viewModel = rtspViewModel,
-            modifier = Modifier.fillMaxWidth() // Player takes full width of the screen
+            modifier = Modifier.fillMaxWidth()
         )
     }
 }
 
 /**
- * Preview function for [StreamItemScreen].
+ * Preview for [StreamItemScreen].
  *
- * This renders the UI in both "Day" (Light) and "Night" (Dark) modes to verify
- * theming and contrast. It wraps the component in a full [Scaffold] to simulate
- * system insets (status bar/navigation bar) behavior.
+ * Renders the screen in both Light and Dark modes with a mock data item.
+ * Includes a [Scaffold] to simulate system window insets.
  */
-@SuppressLint("ViewModelConstructorInComposable")
 @Preview(
     name = "Day",
     showSystemUi = true,
@@ -81,16 +78,14 @@ fun StreamItemScreen(
 @Composable
 private fun StreamItemScreenPreview() {
     RTSPViewerTheme {
-        // Scaffold acts as the top-level container to mimic the actual application structure.
-        // It applies window insets so the preview respects the status bar and navigation bar areas.
+        // Scaffold allows us to apply window insets to visualize how the app
+        // handles the status bar and navigation bar.
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) { innerPadding ->
-
-            // Create a mock RTSPItem object with dummy data to populate the UI for the preview.
-            // This isolates the UI test from the actual database or network.
+            // Mock data for preview purposes
             val mockItem = RTSPItem(
                 id = 1,
                 name = "Living Room Camera",
@@ -99,7 +94,6 @@ private fun StreamItemScreenPreview() {
                 order = 1
             )
 
-            // Render the screen with the mock data and apply the Scaffold's content padding.
             StreamItemScreen(
                 item = mockItem,
                 modifier = Modifier

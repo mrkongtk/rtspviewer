@@ -2,31 +2,27 @@ package com.mrkongtk.rtspviewer.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-val PrimaryLight = Color(0xFF673AB7)
-val SecondaryLight = Color(0xFF7E57C2)
-val TertiaryLight = Color(0xFF9575CD)
-val SurfaceLight = Color(0xFF9FA8DA)
-val SurfaceVariantLight = Color(0xFFB39DDB)
-val BackgroundLight = Color(0xFFFFFDFD)
+// --- Dark Mode Colors (Deep Blue-Grey & Neon Cyan) ---
+val DarkBackground = Color(0xFF14161E) // Very dark blue-grey, almost black
+val DarkSurface = Color(0xFF1E222E)    // Slightly lighter for cards/lists
+val DarkPrimary = Color(0xFF00E5FF)    // Vibrant Cyan for FAB and active elements
+val DarkOnPrimary = Color(0xFF000000)  // Black text on the cyan button
+val DarkSecondary = Color(0xFF2D3242)  // For secondary buttons or inactive items
+val DarkTextPrimary = Color(0xFFFFFFFF)
+val DarkTextSecondary = Color(0xFF8F9BB3) // Muted blue-grey text
 
-val OnPrimaryLight = Color(0xFFffff00)
-val OnSecondaryLight = Color(0xFFe6e600)
-val OnTertiaryLight = Color(0xFFffff52)
-val OnSurfaceLight = Color(0xFFfcff66)
-val OnSurfaceVariantLight = Color(0xFFfcff66)
-val OnBackgroundLight = Color(0xFF000202)
+// --- Light Mode Colors (Clean White & Deep Teal) ---
+val LightBackground = Color(0xFFF5F7F9) // Very light cool gray
+val LightSurface = Color(0xFFFFFFFF)    // Pure white for cards
+val LightPrimary = Color(0xFF00B8D4)    // Darker Cyan/Teal for contrast on white
+val LightOnPrimary = Color(0xFFFFFFFF)  // White text on teal button
+val LightSecondary = Color(0xFFE0E5EB)  // Light gray for secondary elements
+val LightTextPrimary = Color(0xFF192038) // Dark blue-black for main text
+val LightTextSecondary = Color(0xFF707C97) // Soft gray for subtitles
 
+// --- Common Colors ---
+val ErrorColor = Color(0xFFFF5252)      // Soft Red for delete/errors
+val OnErrorColor = Color.White
 
-val PrimaryDark = Color(0xFF46277c)
-val SecondaryDark = Color(0xFF58388C)
-val TertiaryDark = Color(0xFF6F549D)
-val SurfaceDark = Color(0xFF8771AD)
-val SurfaceVariantDark = Color(0xFFA071AD)
-val BackgroundDark = Color(0xFF000202)
-
-val OnPrimaryDark = Color(0xff3ed0ce)
-val OnSecondaryDark = Color(0xFF44e9e6)
-val OnTertiaryDark = Color(0xff40e2e0)
-val OnSurfaceDark = Color(0xff39f3f0)
-val OnSurfaceVariantDark = Color(0xff3afdfa)
-val OnBackgroundDark = Color(0xFFa6a6a6)
+val OverlayerBackgroundColor = Color(0x80666666)
+val OnOverlayerBackgroundColor = Color.White

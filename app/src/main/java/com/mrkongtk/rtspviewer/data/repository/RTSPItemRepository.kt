@@ -26,4 +26,12 @@ interface RTSPItemRepository {
      * contained in [items].
      */
     suspend fun loadData()
+
+    /**
+     * Asynchronously adds a new [RTSPItem] to the data source.
+     *
+     * @param item The RTSP stream item to be persisted.
+     * @return The unique identifier (typically the row ID) of the newly inserted item.
+     */
+    suspend fun addItem(item: RTSPItem): Long
 }

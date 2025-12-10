@@ -16,15 +16,16 @@ import kotlinx.serialization.json.Json
 import javax.inject.Inject
 
 /**
- * A concrete implementation of [RTSPItemRepository] that handles data initialization and synchronization.
+ * A concrete implementation of [RTSPItemRepository] that orchestrates data initialization and synchronization.
  *
- * This repository employs a hybrid strategy to populate the UI:
- * 1. Loads default sample data from a local JSON asset file (`rtsp_sample_data.json`).
- * 2. Fetches existing user data from the local Room database.
- * 3. Merges the two sources (giving the Database precedence for conflicting IDs).
- * 4. Persists the merged result back to the database and emits it via [items].
+ * This repository employs a "Hybrid Seed & Sync" strategy to populate the UI:
+ * 1. **Seed:** Loads default sample data from a local JSON asset file (`rtsp_sample_data.json`).
+ * 2. **Fetch:** Retrieves existing user data from the local Room database.
+ * 3. **Merge:** Combines the two sources. If an ID conflict occurs, the Database version takes precedence
+ *    (preserving user edits over default values).
+ * 4. **Persist & Emit:** Saves the merged list back to the database and updates the [items] StateFlow.
  *
- * @property context The application context injected via Hilt, used to access [AssetManager].
+ * @property context The application context injected via Hilt, required to access [AssetManager].
  * @property db The Room database instance used for persisting and retrieving user modifications.
  */
 class RTSPItemWithSampleInitRepositoryImpl @Inject constructor(
@@ -33,38 +34,42 @@ class RTSPItemWithSampleInitRepositoryImpl @Inject constructor(
 ) : RTSPItemRepository {
 
     /**
-     * A dynamic tag for logging, set to the simple class name (e.g., "RTSPItemWithSampleInitRepositoryImpl").
+     * A dynamic tag for logging, derived from the simple class name.
      */
     private val debugTag: String
         get() = this.javaClass.simpleName
 
     /**
-     * Helper property to access the Android AssetManager for file operations.
+     * Helper property to access the Android [AssetManager] for file I/O operations.
      */
     private val assetManager: AssetManager
         get() = context.assets
 
     /**
-     * Internal mutable state flow that holds the current list of RTSP items.
-     * Acts as the single source of truth for the [items] stream.
+     * Internal mutable state flow acting as the "Single Source of Truth" for the UI data stream.
      */
     private val _items = MutableStateFlow<List<RTSPItem>>(emptyList())
 
     /**
      * A public, immutable [StateFlow] observable by the ViewModel or UI.
-     * Emits the latest list of [RTSPItem]s whenever the data is loaded or updated.
+     *
+     * This flow emits the current list of [RTSPItem]s and updates automatically whenever
+     * [loadData] completes.
      */
     override val items: StateFlow<List<RTSPItem>> = _items.asStateFlow()
 
     /**
-     * Orchestrates the data loading and synchronization process.
+     * Orchestrates the full data synchronization cycle.
      *
-     * This function performs the following steps atomically:
-     * 1. Loads sample data from assets.
-     * 2. Loads existing data from the database.
-     * 3. **Merges** them: If an item exists in the DB, it overwrites the sample data (preserving user changes).
-     * 4. **Persists** the combined list back to the database (`insertAll` typically handles upserts).
-     * 5. Updates the [_items] StateFlow.
+     * This function executes the following logic atomically within a state update:
+     * 1. **Load:** Reads `rtsp_sample_data.json` from assets.
+     * 2. **Fetch:** Queries all existing items from the Room database.
+     * 3. **Merge:** Maps items by ID. Database items overwrite asset items (ensuring user changes persist),
+     *    while new items from assets are added.
+     * 4. **Persist:** Writes the combined, sorted list back to the database (handling upserts).
+     * 5. **Publish:** Updates the [_items] StateFlow with the final list.
+     *
+     * Note: The list is sorted first by [RTSPItem.order] and then by [RTSPItem.name].
      */
     override suspend fun loadData() {
         _items.update { _ ->
@@ -80,10 +85,11 @@ class RTSPItemWithSampleInitRepositoryImpl @Inject constructor(
                 mapping[item.id] = item
             }
 
-            // 4. Convert back to list and persist the merged state to DB
+            // 4. Convert back to list, sort, and persist the merged state to DB
             val mergedList = mapping.values.toList()
+                .sortedWith(compareBy<RTSPItem> { it.order }.thenBy { it.name })
 
-            // Note: This assumes insertAll acts as an UPSERT (Update if exists, Insert if new)
+            // Note: Assumes insertAll acts as an UPSERT (Update if exists, Insert if new)
             db.rtspItemDao().insertAll(mergedList)
 
             // 5. Return the result to update the StateFlow
@@ -92,12 +98,23 @@ class RTSPItemWithSampleInitRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Reads and parses the "rtsp_sample_data.json" file from the application assets.
+     * Persists a new [RTSPItem] to the local database.
      *
-     * This function is strictly for reading the initial seed data. It operates on the
-     * [Dispatchers.IO] thread to prevent blocking the main thread during file I/O.
+     * @param item The RTSP item object to be inserted.
+     * @return The row ID of the newly inserted item.
+     */
+    override suspend fun addItem(item: RTSPItem): Long {
+        val insertedId = db.rtspItemDao().insert(item)
+        return insertedId
+    }
+
+    /**
+     * Reads and parses the `rtsp_sample_data.json` file from application assets.
      *
-     * @return A list of [RTSPItem] if parsing is successful; otherwise `null`.
+     * This operation is performed on the [Dispatchers.IO] thread to ensure the main thread
+     * is never blocked by file I/O or JSON parsing.
+     *
+     * @return A list of [RTSPItem]s if parsing is successful, or `null` if an exception occurs.
      */
     private suspend fun loadSampleData(): List<RTSPItem>? {
         val jsonDecoder = Json { ignoreUnknownKeys = true }

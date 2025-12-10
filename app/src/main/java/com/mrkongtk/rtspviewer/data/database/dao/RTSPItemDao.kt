@@ -10,49 +10,68 @@ import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 
 /**
  * Data Access Object (DAO) for the [RTSPItem] entity.
- * This interface defines the database interactions for the 'rtsp_item' table.
+ *
+ * This interface defines the standard CRUD (Create, Read, Update, Delete)
+ * database interactions for the 'rtsp_item' table.
  */
 @Dao
 interface RTSPItemDao {
 
     /**
-     * Inserts a list of [RTSPItem]s into the database.
+     * Inserts a single [RTSPItem] into the database.
      *
      * If an item with the same primary key already exists, the old item
-     * will be replaced by the new one (OnConflictStrategy.REPLACE).
+     * will be replaced by the new one.
      *
-     * @param items The list of RTSP items to insert.
+     * @param item The RTSP item to be inserted.
+     * @return The row ID of the newly inserted item.
      */
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun insertAll(items: List<RTSPItem>)
+    suspend fun insert(item: RTSPItem): Long
+
+    /**
+     * Inserts a list of [RTSPItem]s into the database efficiently.
+     *
+     * Geared towards bulk operations. Uses [OnConflictStrategy.REPLACE]
+     * to handle duplicate primary keys.
+     *
+     * @param items The list of RTSP items to insert.
+     * @return A list of row IDs for the inserted items.
+     */
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(items: List<RTSPItem>): List<Long>
 
     /**
      * Retrieves a paginated list of [RTSPItem]s from the database.
      *
-     * The results are sorted in ascending order based on the `order` column.
+     * The results are sorted primarily by the custom `order` column,
+     * and secondarily by `name` alphabetically.
      *
-     * @param offset The number of items to skip (used for pagination). Default is 0.
+     * @param offset The zero-based index of the first item to return (skip count). Default is 0.
      * @param limit The maximum number of items to return. Default is 10.
-     * @return A list of [RTSPItem]s.
+     * @return A list of [RTSPItem]s for the requested page.
      */
-    @Query("SELECT * FROM rtsp_item ORDER BY `order` ASC LIMIT :limit OFFSET :offset")
+    @Query("SELECT * FROM rtsp_item ORDER BY `order` ASC, `name` ASC LIMIT :limit OFFSET :offset")
     suspend fun getItems(offset: Long = 0, limit: Long = 10): List<RTSPItem>
 
     /**
      * Updates an existing [RTSPItem] in the database.
-     * Room matches the item against the database by its Primary Key.
      *
-     * @param user The RTSPItem with updated data to be saved.
+     * Room matches the item against the database entries using its Primary Key.
+     * All fields in the database row will be overwritten with the values from [item].
+     *
+     * @param item The RTSPItem with updated data to be persisted.
      */
     @Update
-    suspend fun update(user: RTSPItem)
+    suspend fun update(item: RTSPItem)
 
     /**
      * Deletes a specific [RTSPItem] from the database.
-     * Room finds the item to delete based on its Primary Key.
      *
-     * @param user The RTSPItem to remove.
+     * Room locates the item to delete based on its Primary Key.
+     *
+     * @param item The RTSPItem object to remove.
      */
     @Delete
-    suspend fun delete(user: RTSPItem)
+    suspend fun delete(item: RTSPItem)
 }

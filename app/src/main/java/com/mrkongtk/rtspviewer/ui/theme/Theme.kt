@@ -28,22 +28,22 @@ import com.mrkongtk.rtspviewer.viewmode.AppViewModel
  * to the standard Material 3 color slots.
  */
 private val DarkColorScheme = darkColorScheme(
-    primary = PrimaryDark,
-    onPrimary = OnPrimaryDark,
-    primaryContainer = PrimaryDark,
-    onPrimaryContainer = OnPrimaryDark,
-    secondary = SecondaryDark,
-    onSecondary = OnSecondaryDark,
-    secondaryContainer = SecondaryDark,
-    onSecondaryContainer = OnSecondaryDark,
-    tertiary = TertiaryDark,
-    onTertiary = OnTertiaryDark,
-    surface = SurfaceDark,
-    onSurface = OnSurfaceDark,
-    surfaceVariant = SurfaceVariantDark,
-    onSurfaceVariant = OnSurfaceVariantDark,
-    background = BackgroundDark,
-    onBackground = OnBackgroundDark
+    primary = DarkPrimary,
+    onPrimary = DarkOnPrimary,
+    primaryContainer = DarkSurface, // Often used for card backgrounds in M3
+    onPrimaryContainer = DarkTextPrimary,
+
+    background = DarkBackground,
+    onBackground = DarkTextPrimary,
+
+    surface = DarkSurface,
+    onSurface = DarkTextPrimary,
+
+    secondary = DarkSecondary,
+    onSecondary = DarkTextSecondary, // Used for icons/text on secondary backgrounds
+
+    error = ErrorColor,
+    onError = OnErrorColor,
 )
 
 /**
@@ -53,22 +53,22 @@ private val DarkColorScheme = darkColorScheme(
  * to the standard Material 3 color slots.
  */
 private val LightColorScheme = lightColorScheme(
-    primary = PrimaryLight,
-    onPrimary = OnPrimaryLight,
-    primaryContainer = PrimaryLight,
-    onPrimaryContainer = OnPrimaryLight,
-    secondary = SecondaryLight,
-    onSecondary = OnSecondaryLight,
-    secondaryContainer = SecondaryLight,
-    onSecondaryContainer = OnSecondaryLight,
-    tertiary = TertiaryLight,
-    onTertiary = OnTertiaryLight,
-    surface = SurfaceLight,
-    onSurface = OnSurfaceLight,
-    surfaceVariant = SurfaceVariantLight,
-    onSurfaceVariant = OnSurfaceVariantLight,
-    background = BackgroundLight,
-    onBackground = OnBackgroundLight
+    primary = LightPrimary,
+    onPrimary = LightOnPrimary,
+    primaryContainer = LightSurface,
+    onPrimaryContainer = LightTextPrimary,
+
+    background = LightBackground,
+    onBackground = LightTextPrimary,
+
+    surface = LightSurface,
+    onSurface = LightTextPrimary,
+
+    secondary = LightSecondary,
+    onSecondary = LightTextSecondary,
+
+    error = ErrorColor,
+    onError = OnErrorColor
 )
 
 /**

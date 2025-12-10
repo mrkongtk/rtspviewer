@@ -8,3 +8,5 @@ val PaddingS = 6.dp
 val PaddingM = 8.dp
 val PaddingL = 12.dp
 val PaddingXl = 16.dp
+
+val RoundedCornerSize = 8.dp
