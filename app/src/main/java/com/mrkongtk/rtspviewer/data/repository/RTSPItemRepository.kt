@@ -34,4 +34,16 @@ interface RTSPItemRepository {
      * @return The unique identifier (typically the row ID) of the newly inserted item.
      */
     suspend fun addItem(item: RTSPItem): Long
+
+    /**
+     * Asynchronously updates the order of the RTSP items in the data source.
+     *
+     * This is typically used to persist changes after a user has rearranged items
+     * in the UI (e.g., via drag-and-drop). The order in the database will be updated
+     * to match the sequence of the provided list.
+     *
+     * @param items The list of [RTSPItem]s sorted in the new desired order.
+     * @return The number of items successfully updated (rows affected).
+     */
+    suspend fun reorderItems(items: List<RTSPItem>): Int
 }

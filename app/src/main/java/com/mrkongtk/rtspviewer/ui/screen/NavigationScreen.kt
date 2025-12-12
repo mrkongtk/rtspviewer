@@ -1,5 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
+import android.annotation.SuppressLint
 import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
@@ -37,15 +38,15 @@ import kotlinx.coroutines.flow.map
 /**
  * A custom Top App Bar composable that manages the screen title and back navigation.
  *
- * This component dynamically generates the title by combining a static string resource template
- * (defined in [AppScreen]) with dynamic arguments observed from the [AppViewModel]
- * (e.g., the name of the currently viewing stream).
+ * This component handles dynamic title generation. It combines the static title resource
+ * defined in [AppScreen] with dynamic data (like the selected RTSP stream name)
+ * observed from the [AppViewModel].
  *
- * @param currentScreen The current destination in the navigation graph; used to fetch the title resource ID.
- * @param canNavigateBack Boolean flag indicating if the back arrow should be visible.
- * @param navigateUp Callback function invoked when the back arrow is clicked.
- * @param modifier Modifier to be applied to the layout.
- * @param viewModel The view model used to observe the currently selected RTSP item for title formatting.
+ * @param currentScreen The current navigation destination, used to determine the base title string.
+ * @param canNavigateBack Whether the back arrow button should be visible.
+ * @param navigateUp Callback invoked when the back button is clicked.
+ * @param modifier Modifier to apply to the TopAppBar.
+ * @param viewModel The ViewModel used to observe the currently selected item for title formatting.
  */
 @Composable
 fun AppBar(
@@ -55,9 +56,8 @@ fun AppBar(
     modifier: Modifier = Modifier,
     viewModel: AppViewModel = hiltViewModel()
 ) {
-    // Transform the UI state to extract the selected item's name.
-    // If a stream is selected, it returns a list containing that name.
-    // If null, it returns an empty list. This list is used for string template replacement below.
+    // Collect the selected item's name from the UI state to use as a title argument.
+    // If a name exists, wrap it in a list; otherwise, use an empty list.
     val args: List<String> by viewModel.uiState.map {
         it.selectedItem?.name?.let { name ->
             listOf(name)
@@ -66,11 +66,10 @@ fun AppBar(
 
     CenterAlignedTopAppBar(
         title = {
-            // Title Formatting Logic:
-            // 1. Get the base string resource associated with the current screen (e.g., "Watching %1").
-            // 2. Create a list starting with the template, followed by dynamic arguments (e.g., ["Watching %1", "Camera 1"]).
-            // 3. Use reduceIndexed to iterate. The 'acc' is the string being built, 'new' is the replacement value.
-            //    It replaces placeholders (like "%1") with the corresponding argument.
+            // Dynamic Title Formatting:
+            // 1. Get the template string from resources (e.g., "Watching %1").
+            // 2. Combine the template with the dynamic args (e.g., ["Watching %1", "Camera 1"]).
+            // 3. Use reduceIndexed to replace placeholders (like "%1") with the actual argument.
             Text(stringResource(currentScreen.title).let { titleTemplate ->
                 (listOf(titleTemplate) + args).reduceIndexed { index, acc, new ->
                     acc.replace("%$index", new)
@@ -96,15 +95,14 @@ fun AppBar(
 }
 
 /**
- * The root composable for the application's navigation structure.
+ * The root screen composable that hosts the Scaffold and Navigation logic.
  *
- * This component sets up the [Scaffold], which provides the standard Material Design layout structure
- * (TopBar, Content Area). It observes the navigation controller to update the TopBar title
- * as the user navigates between screens.
+ * This component acts as the main container. It observes the navigation controller's
+ * back stack to update the TopBar title and manages the global UI state flow.
  *
- * @param navController The central navigation controller. Defaults to [rememberNavController].
- * @param viewModel The shared [AppViewModel] instance, injected via Hilt.
- * @param modifier Modifier to apply to the root layout.
+ * @param navController The central Navigation Controller.
+ * @param viewModel The global AppViewModel (injected via Hilt).
+ * @param modifier Modifier to apply to the Scaffold.
  */
 @Composable
 fun NavigationScreen(
@@ -112,12 +110,11 @@ fun NavigationScreen(
     viewModel: AppViewModel = hiltViewModel(),
     modifier: Modifier = Modifier,
 ) {
-    // Observe the back stack to determine the current route.
-    // This triggers a recomposition whenever the user navigates.
+    // Observe the current back stack entry to react to navigation changes.
     val backStackEntry by navController.currentBackStackEntryAsState()
 
-    // Resolve the current route string to an AppScreen enum.
-    // If the route is null or invalid (not found in enum), default to AppScreen.Start.
+    // Determine the current screen enum based on the route string.
+    // Falls back to AppScreen.Start if the route is null or unknown.
     val currentScreen = backStackEntry?.destination?.route?.let { route ->
         try {
             AppScreen.valueOf(route)
@@ -132,19 +129,18 @@ fun NavigationScreen(
         topBar = {
             AppBar(
                 currentScreen = currentScreen,
-                // Show back button only if there is a previous entry in the back stack.
+                // Only show the back button if there is a previous screen in the stack.
                 canNavigateBack = navController.previousBackStackEntry != null,
                 navigateUp = { navController.navigateUp() },
                 viewModel = viewModel
             )
         }
     ) { innerPadding ->
-        // Collect the main UI state (list of items, selected item, etc.)
-        // in a lifecycle-aware manner.
+        // Collect the main UI state (list of RTSP items, loading state, etc.)
         val uiState by viewModel.uiState.collectAsStateWithLifecycle(AppUiState())
 
-        // Render the main content navigation graph.
-        // We pass 'innerPadding' to ensure content is not obscured by the TopAppBar.
+        // Render the content area, passing state and event callbacks.
+        // innerPadding ensures content isn't obscured by the TopBar.
         NavigationScreenContent(
             navController = navController,
             uiState = uiState,
@@ -156,7 +152,10 @@ fun NavigationScreen(
             },
             onAddItemRequested = { item ->
                 viewModel.addItem(item)
-            }
+            },
+            onItemsReordered = { itemsOrdered ->
+                viewModel.reorderItems(itemsOrdered)
+            },
         )
     }
 }
@@ -166,11 +165,11 @@ fun NavigationScreen(
  *
  * Renders the UI in both Day and Night modes.
  *
- * Note on Dependency Injection:
- * Since standard Hilt injection does not work within @Preview composables,
- * we manually instantiate the [AppViewModel] using a [MockAppDatabase] and
- * a repository implementation initialized with sample data.
+ * @SuppressLint("ViewModelConstructorInComposable") is required here because we are
+ * manually instantiating the ViewModel with mock dependencies. Hilt injection
+ * does not function within @Preview methods.
  */
+@SuppressLint("ViewModelConstructorInComposable")
 @Preview(
     name = "Day",
     showSystemUi = true,
@@ -186,7 +185,8 @@ private fun NavigationScreenPreview() {
     RTSPViewerTheme {
         val navController = rememberNavController()
 
-        // Manually construct ViewModel with mock dependencies for preview purposes.
+        // Manual dependency injection for Preview purposes.
+        // We use a Mock database and a repository populated with sample data.
         val viewModel = AppViewModel(
             RTSPItemWithSampleInitRepositoryImpl(
                 LocalContext.current,

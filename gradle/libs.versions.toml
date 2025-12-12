@@ -1,5 +1,5 @@
 [versions]
-agp = "8.13.1"
+agp = "8.13.2"
 googleDaggerHilt = "2.56.2"
 kotlin = "2.2.21"
 ksp = "2.2.21-2.0.4" # must match with the kotlin version

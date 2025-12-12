@@ -2,6 +2,7 @@ package com.mrkongtk.rtspviewer.data.repository
 
 import com.mrkongtk.rtspviewer.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItemOrderUpdate
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -11,9 +12,8 @@ import javax.inject.Inject
 /**
  * Concrete implementation of [RTSPItemRepository].
  *
- * This repository is responsible for managing data operations for RTSP items,
- * acting as a mediator between the database (Room) and the UI/Domain layer.
- * It utilizes [StateFlow] to provide a reactive stream of data updates.
+ * This repository manages data operations for RTSP items, acting as the single source
+ * of truth by mediating between the local Room database and the UI/Domain layer.
  *
  * @property db The Room database instance injected via Dependency Injection.
  */
@@ -21,20 +21,24 @@ class RTSPItemRepositoryImpl @Inject constructor(
     private val db: AppDatabase,
 ) : RTSPItemRepository {
 
-    // Internal mutable state flow to handle list updates
+    /**
+     * Internal mutable state flow to handle list updates.
+     * Acts as the backing field for the public [items] flow.
+     */
     private val _items = MutableStateFlow<List<RTSPItem>>(emptyList())
 
     /**
      * A read-only [StateFlow] observing the list of [RTSPItem]s.
-     * UI components should collect from this flow to receive real-time data updates.
+     * UI components should collect from this flow to receive real-time data updates
+     * whenever [loadData] is called.
      */
     override val items: StateFlow<List<RTSPItem>> = _items.asStateFlow()
 
     /**
-     * Fetches the complete list of RTSP items from the database and updates
-     * the [_items] StateFlow.
+     * Refreshes the local state by fetching the complete list of RTSP items from the database.
      *
-     * This method retrieves items from index 0 to [Long.MAX_VALUE].
+     * The results are emitted to the [items] StateFlow.
+     * Currently retrieves all items (from index 0 to [Long.MAX_VALUE]).
      */
     override suspend fun loadData() {
         _items.update { _ ->
@@ -45,7 +49,7 @@ class RTSPItemRepositoryImpl @Inject constructor(
     /**
      * Inserts a new [RTSPItem] into the database.
      *
-     * @param item The RTSP item entity to be added.
+     * @param item The RTSP item entity to be persisted.
      * @return The row ID of the newly inserted item.
      */
     override suspend fun addItem(item: RTSPItem): Long {
@@ -53,4 +57,20 @@ class RTSPItemRepositoryImpl @Inject constructor(
         return insertedId
     }
 
+    /**
+     * Updates the ordering of a list of RTSP items in the database.
+     *
+     * This method transforms the provided list into [RTSPItemOrderUpdate] objects
+     * to perform a partial update, modifying only the order field for the specific IDs.
+     *
+     * @param items The list of items containing the new order values.
+     * @return The number of rows affected by the update.
+     */
+    override suspend fun reorderItems(items: List<RTSPItem>): Int {
+        return items.map {
+            RTSPItemOrderUpdate(id = it.id, order = it.order)
+        }.let {
+            db.rtspItemDao().updateOrders(it)
+        }
+    }
 }

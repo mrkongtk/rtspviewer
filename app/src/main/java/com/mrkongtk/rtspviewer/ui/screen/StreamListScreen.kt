@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material3.Icon
@@ -27,37 +25,37 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.ui.compose.DraggableLazyColumn
 import com.mrkongtk.rtspviewer.ui.compose.StreamListItem
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 
 /**
- * The main screen responsible for displaying a list of configured RTSP streams.
+ * Screen responsible for displaying and managing the list of RTSP streams.
  *
- * This Composable is stateless (UI only) and renders based on the provided [itemList].
- * It handles the following UI states:
- * 1. **Empty State**: Displays a placeholder message when the list is empty.
- * 2. **Content State**: Displays a scrollable list of streams.
- * 3. **Action Overlay**: Always displays a floating button to add new items.
+ * This composable handles three main states/layers:
+ * 1. **Empty State:** Shows a placeholder when [itemList] is empty.
+ * 2. **List State:** Shows a reorderable list of streams.
+ * 3. **FAB Overlay:** An overlay button to trigger stream creation.
  *
- * @param itemList The current list of RTSP items to display.
- * @param onItemSelected Callback triggered when a user taps on a specific [RTSPItem].
- * @param onAddItemSelected Callback triggered when the "Add" (Floating Action) button is clicked.
- * @param modifier The modifier to apply to the container of this screen.
+ * @param itemList The current list of [RTSPItem]s to be rendered.
+ * @param onItemSelected Callback triggered when a list item is clicked.
+ * @param onAddItemSelected Callback triggered when the Floating Action Button is clicked.
+ * @param onItemsReordered Callback triggered when items are dragged and dropped.
+ *                         Returns a new list with updated [RTSPItem.order] values.
+ * @param modifier Modifier to be applied to the root layout.
  */
 @Composable
 fun StreamListScreen(
     itemList: List<RTSPItem>,
     onItemSelected: (RTSPItem) -> Unit,
     onAddItemSelected: () -> Unit,
+    onItemsReordered: (List<RTSPItem>) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    // -------------------------------------------------------------
-    // Content Layer: Logic to switch between Empty View and List View
-    // -------------------------------------------------------------
+    // Determine which content to show based on data availability
     if (itemList.isEmpty()) {
-        // --- Empty State UI ---
-        // Rendered when the data source returns no items to guide the user.
+        // Empty State: Centered placeholder text
         Column(
             modifier = modifier,
             verticalArrangement = Arrangement.Center
@@ -70,36 +68,34 @@ fun StreamListScreen(
             }
         }
     } else {
-        // --- List Content UI ---
-        // Uses LazyColumn for efficient memory usage (recycling views) during scrolling.
-        LazyColumn(
+        // List State: Reorderable list
+        DraggableLazyColumn(
             modifier = modifier
                 .fillMaxSize()
                 .padding(vertical = PaddingM),
-            verticalArrangement = Arrangement.spacedBy(PaddingM)
-        ) {
-            items(
-                items = itemList,
-                // key optimization: using ID helps Compose strictly identify items for smoother reordering/deletions
-                key = { item -> item.id }
-            ) { item ->
-                StreamListItem(
-                    data = item,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = PaddingM),
-                    onClick = { data ->
-                        onItemSelected(data)
-                    }
-                )
+            verticalArrangement = Arrangement.spacedBy(PaddingM),
+            items = itemList,
+            onReordered = { reorderedList ->
+                // When items are dropped, regenerate the list with updated 'order' properties
+                // based on their new index in the list.
+                val updatedOrderList = reorderedList.mapIndexed { index, item ->
+                    item.copy(order = index)
+                }
+                onItemsReordered(updatedOrderList)
             }
+        ) { modifier, item ->
+            StreamListItem(
+                data = item,
+                modifier = modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = PaddingM),
+                onClick = { data -> onItemSelected(data) }
+            )
         }
     }
 
-    // -------------------------------------------------------------
-    // Overlay Layer: Floating Action Button (FAB)
-    // -------------------------------------------------------------
-    // We use a Box to overlay the button on top of the list content.
+    // Overlay: Floating Action Button (FAB)
+    // Uses a Box to ensure the FAB floats above the list/empty content regardless of scroll state.
     Box(modifier = Modifier.fillMaxSize()) {
         Column(
             modifier = Modifier
@@ -124,8 +120,7 @@ fun StreamListScreen(
 /**
  * Preview provider for [StreamListScreen].
  *
- * Defines previews for both Light and Dark themes (Day/Night) to ensure
- * text contrast and background colors are correct.
+ * Validates the layout in both Light and Dark modes with mock data.
  */
 @Preview(
     name = "Day",
@@ -142,16 +137,12 @@ fun StreamListScreen(
 @Composable
 private fun StreamListScreenPreview() {
     RTSPViewerTheme {
-        // Scaffold acts as a container to mimic the actual screen structure,
-        // including handling system bar insets (status bar/navigation bar).
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) { innerPadding ->
-
-            // Generate mock data specifically for the preview environment
-            // to visualize how the list looks with content.
+            // Mock data to simulate a populated list
             val mockItems = listOf(
                 RTSPItem(
                     id = 1,
@@ -170,9 +161,10 @@ private fun StreamListScreenPreview() {
             )
 
             StreamListScreen(
-                onItemSelected = {}, // No-op for preview
                 itemList = mockItems,
+                onItemSelected = {},
                 onAddItemSelected = {},
+                onItemsReordered = {},
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

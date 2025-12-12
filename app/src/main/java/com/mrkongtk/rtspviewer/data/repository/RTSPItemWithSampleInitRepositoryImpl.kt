@@ -5,6 +5,7 @@ import android.content.res.AssetManager
 import android.util.Log
 import com.mrkongtk.rtspviewer.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItemOrderUpdate
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -69,7 +70,7 @@ class RTSPItemWithSampleInitRepositoryImpl @Inject constructor(
      * 4. **Persist:** Writes the combined, sorted list back to the database (handling upserts).
      * 5. **Publish:** Updates the [_items] StateFlow with the final list.
      *
-     * Note: The list is sorted first by [RTSPItem.order] and then by [RTSPItem.name].
+     * The list is sorted first by [RTSPItem.order] and then by [RTSPItem.name].
      */
     override suspend fun loadData() {
         _items.update { _ ->
@@ -132,6 +133,24 @@ class RTSPItemWithSampleInitRepositoryImpl @Inject constructor(
                 Log.e(debugTag, "Error reading or parsing sample data", e)
                 null
             }
+        }
+    }
+
+    /**
+     * Updates the persistence order for a list of items.
+     *
+     * This method is typically called after a drag-and-drop reordering event in the UI.
+     * It transforms the provided items into partial update entities ([RTSPItemOrderUpdate])
+     * to efficiently update only the 'order' column in the database, rather than replacing the entire rows.
+     *
+     * @param items The list of [RTSPItem]s in their new desired order.
+     * @return The number of rows updated in the database.
+     */
+    override suspend fun reorderItems(items: List<RTSPItem>): Int {
+        return items.map {
+            RTSPItemOrderUpdate(id = it.id, order = it.order)
+        }.let {
+            db.rtspItemDao().updateOrders(it)
         }
     }
 }

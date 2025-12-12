@@ -7,6 +7,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItemOrderUpdate
 
 /**
  * Data Access Object (DAO) for the [RTSPItem] entity.
@@ -66,6 +67,19 @@ interface RTSPItemDao {
     suspend fun update(item: RTSPItem)
 
     /**
+     * Batch updates the sort order of multiple items.
+     *
+     * This uses a partial update via the [RTSPItemOrderUpdate] entity to modify
+     * only the specific ordering columns. This is more efficient than full updates
+     * when reordering a list (e.g., via drag-and-drop).
+     *
+     * @param updates A list of partial entities containing the ID and the new order.
+     * @return The number of rows successfully updated in the database.
+     */
+    @Update(entity = RTSPItem::class)
+    suspend fun updateOrders(updates: List<RTSPItemOrderUpdate>): Int
+
+    /**
      * Deletes a specific [RTSPItem] from the database.
      *
      * Room locates the item to delete based on its Primary Key.
@@ -74,4 +88,5 @@ interface RTSPItemDao {
      */
     @Delete
     suspend fun delete(item: RTSPItem)
+
 }

@@ -17,3 +17,10 @@ data class RTSPItem(
     @ColumnInfo(name = "force_tcp")
     val forceTcp: Boolean = false,
 )
+
+data class RTSPItemOrderUpdate(
+    @ColumnInfo(name = "id")
+    val id: Long,
+    @ColumnInfo(name = "order")
+    val order: Int,
+)
