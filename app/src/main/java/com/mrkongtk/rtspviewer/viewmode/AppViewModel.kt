@@ -45,8 +45,11 @@ class AppViewModel @Inject constructor(
      */
     val uiState: Flow<AppUiState> =
         combine(_uiState, rtspItemRepository.items) { currentState, itemList ->
-        currentState.copy(items = itemList)
-    }
+            val selectedItem = currentState.selectedItem?.let { item ->
+                itemList.firstOrNull { it.id == item.id }
+            }
+            currentState.copy(items = itemList, selectedItem = selectedItem)
+        }
 
     init {
         // Triggers the initial data fetch from the repository when the ViewModel is instantiated.
@@ -98,6 +101,38 @@ class AppViewModel @Inject constructor(
                 if (rtspItemRepository.reorderItems(items) > 0) {
                     rtspItemRepository.loadData()
                 }
+            }
+        }
+    }
+
+    /**
+     * Asynchronously updates the details of an existing RTSP item in the database.
+     *
+     * This method is used when users edit properties like the name or URL.
+     * If the update affects the database (result > 0), the repository data is reloaded.
+     *
+     * @param rtspItem The [RTSPItem] containing the updated values.
+     */
+    fun editItem(rtspItem: RTSPItem) {
+        viewModelScope.launch {
+            if (rtspItemRepository.updateItem(rtspItem) > 0) {
+                rtspItemRepository.loadData()
+            }
+        }
+    }
+
+    /**
+     * Asynchronously deletes a specific RTSP item from the database.
+     *
+     * Upon successful deletion, the repository data is reloaded to ensure
+     * the item is removed from the UI list.
+     *
+     * @param rtspItem The [RTSPItem] to be deleted.
+     */
+    fun deleteItem(rtspItem: RTSPItem) {
+        viewModelScope.launch {
+            if (rtspItemRepository.deleteItem(rtspItem) > 0) {
+                rtspItemRepository.loadData()
             }
         }
     }

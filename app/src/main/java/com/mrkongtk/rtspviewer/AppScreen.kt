@@ -25,4 +25,9 @@ enum class AppScreen(@StringRes val title: Int) {
      * The screen where the user can input details to add a new RTSP stream source.
      */
     AddRTSPItem(title = R.string.screen_add_rtsp_item),
+
+    /**
+     * The screen where the user can modify the details of an existing RTSP stream source.
+     */
+    EditRTSPItem(title = R.string.screen_edit_rtsp_item)
 }

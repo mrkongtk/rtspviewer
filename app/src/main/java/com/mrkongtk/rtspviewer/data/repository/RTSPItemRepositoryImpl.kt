@@ -29,6 +29,7 @@ class RTSPItemRepositoryImpl @Inject constructor(
 
     /**
      * A read-only [StateFlow] observing the list of [RTSPItem]s.
+     *
      * UI components should collect from this flow to receive real-time data updates
      * whenever [loadData] is called.
      */
@@ -72,5 +73,27 @@ class RTSPItemRepositoryImpl @Inject constructor(
         }.let {
             db.rtspItemDao().updateOrders(it)
         }
+    }
+
+    /**
+     * Updates an existing [RTSPItem] in the database.
+     *
+     * This replaces the existing entry with the data provided in the [item] parameter.
+     *
+     * @param item The item containing the updated data (must have a matching ID).
+     * @return The number of rows affected (usually 1 if successful).
+     */
+    override suspend fun updateItem(item: RTSPItem): Int {
+        return db.rtspItemDao().update(item)
+    }
+
+    /**
+     * Permanently deletes an [RTSPItem] from the database.
+     *
+     * @param item The item to be removed.
+     * @return The number of rows affected (usually 1 if successful).
+     */
+    override suspend fun deleteItem(item: RTSPItem): Int {
+        return db.rtspItemDao().delete(item)
     }
 }

@@ -19,7 +19,7 @@ import javax.inject.Inject
 /**
  * A concrete implementation of [RTSPItemRepository] that orchestrates data initialization and synchronization.
  *
- * This repository employs a "Hybrid Seed & Sync" strategy to populate the UI:
+ * This repository employs a **"Hybrid Seed & Sync"** strategy to populate the UI:
  * 1. **Seed:** Loads default sample data from a local JSON asset file (`rtsp_sample_data.json`).
  * 2. **Fetch:** Retrieves existing user data from the local Room database.
  * 3. **Merge:** Combines the two sources. If an ID conflict occurs, the Database version takes precedence
@@ -70,7 +70,7 @@ class RTSPItemWithSampleInitRepositoryImpl @Inject constructor(
      * 4. **Persist:** Writes the combined, sorted list back to the database (handling upserts).
      * 5. **Publish:** Updates the [_items] StateFlow with the final list.
      *
-     * The list is sorted first by [RTSPItem.order] and then by [RTSPItem.name].
+     * The final list is sorted first by [RTSPItem.order] (ascending) and then by [RTSPItem.name].
      */
     override suspend fun loadData() {
         _items.update { _ ->
@@ -137,11 +137,11 @@ class RTSPItemWithSampleInitRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Updates the persistence order for a list of items.
+     * Updates the persistent order for a list of items.
      *
      * This method is typically called after a drag-and-drop reordering event in the UI.
      * It transforms the provided items into partial update entities ([RTSPItemOrderUpdate])
-     * to efficiently update only the 'order' column in the database, rather than replacing the entire rows.
+     * to efficiently update only the 'order' column in the database, rather than replacing entire rows.
      *
      * @param items The list of [RTSPItem]s in their new desired order.
      * @return The number of rows updated in the database.
@@ -152,5 +152,25 @@ class RTSPItemWithSampleInitRepositoryImpl @Inject constructor(
         }.let {
             db.rtspItemDao().updateOrders(it)
         }
+    }
+
+    /**
+     * Updates the properties of an existing item in the database.
+     *
+     * @param item The [RTSPItem] containing the updated values.
+     * @return The number of rows affected (should be 1 if the item exists).
+     */
+    override suspend fun updateItem(item: RTSPItem): Int {
+        return db.rtspItemDao().update(item)
+    }
+
+    /**
+     * Removes an item permanently from the database.
+     *
+     * @param item The [RTSPItem] to be deleted.
+     * @return The number of rows affected (should be 1 if the item existed).
+     */
+    override suspend fun deleteItem(item: RTSPItem): Int {
+        return db.rtspItemDao().delete(item)
     }
 }

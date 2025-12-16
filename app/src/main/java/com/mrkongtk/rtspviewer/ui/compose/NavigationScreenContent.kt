@@ -20,6 +20,7 @@ import com.mrkongtk.rtspviewer.AppScreen
 import com.mrkongtk.rtspviewer.data.AppUiState
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.screen.AddStreamItemScreen
+import com.mrkongtk.rtspviewer.ui.screen.EditStreamItemScreen
 import com.mrkongtk.rtspviewer.ui.screen.StreamItemScreen
 import com.mrkongtk.rtspviewer.ui.screen.StreamListScreen
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
@@ -37,6 +38,8 @@ import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
  * @param onListingItemSelected Callback triggered when a user taps on a specific stream in the list.
  * @param onAddItemRequested Callback triggered when the user submits the form to add a new RTSP stream.
  * @param onItemsReordered Callback triggered when the user reorders the list of streams (e.g., drag-and-drop).
+ * @param onEditItemRequested Callback triggered when the user submits changes to an existing RTSP stream.
+ * @param onDeleteItemRequested Callback triggered when the user confirms deletion of a specific stream.
  */
 @Composable
 fun NavigationScreenContent(
@@ -46,6 +49,8 @@ fun NavigationScreenContent(
     onListingItemSelected: (RTSPItem) -> Unit,
     onAddItemRequested: (RTSPItem) -> Unit,
     onItemsReordered: (List<RTSPItem>) -> Unit,
+    onEditItemRequested: (RTSPItem) -> Unit,
+    onDeleteItemRequested: (RTSPItem) -> Unit,
 ) {
     // NavHost connects the NavController to the navigation graph
     NavHost(
@@ -86,7 +91,17 @@ fun NavigationScreenContent(
             uiState.selectedItem?.let { item ->
                 StreamItemScreen(
                     item = item,
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.fillMaxSize(),
+                    onEditItemSelected = {
+                        // Navigate to the edit form for this specific item
+                        navController.navigate(AppScreen.EditRTSPItem.name)
+                    },
+                    onDeleteItemSelected = {
+                        // 1. Perform the delete operation via callback
+                        onDeleteItemRequested(item)
+                        // 2. Navigate back to the list since the item no longer exists
+                        navController.popBackStack()
+                    },
                 )
             }
         }
@@ -104,6 +119,25 @@ fun NavigationScreenContent(
                 },
                 modifier = Modifier.fillMaxSize()
             )
+        }
+
+        // =====================================================================
+        // Route: Edit RTSP Item (Form)
+        // =====================================================================
+        composable(route = AppScreen.EditRTSPItem.name) {
+            // Ensure the item still exists in state before rendering the edit screen
+            uiState.selectedItem?.let { selectedItem ->
+                EditStreamItemScreen(
+                    item = selectedItem,
+                    onSave = { updatedItem ->
+                        // 1. Persist the changes via the parent callback
+                        onEditItemRequested(updatedItem)
+                        // 2. Return to the previous screen (usually the Display screen)
+                        navController.popBackStack()
+                    },
+                    modifier = Modifier.fillMaxSize()
+                )
+            }
         }
     }
 }
@@ -123,7 +157,7 @@ private class NavigationScreenContentPreviewParameterProvider :
 
         // Case 2: Populated State
         AppUiState(
-            listOf(
+            items = listOf(
                 RTSPItem(
                     id = 1,
                     name = "Living Room Camera",
@@ -180,6 +214,8 @@ private fun NavigationScreenContentPreview(
                 onListingItemSelected = {},
                 onAddItemRequested = {},
                 onItemsReordered = {},
+                onEditItemRequested = {},
+                onDeleteItemRequested = {},
             )
         }
     }

@@ -2,22 +2,30 @@
     <string name="app_name">RTSP Viewer</string>
     <string name="back_button">Back</string>
     <string name="detail">Detail</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="clear_button">Clear</string>
+    <string name="save_button">Save</string>
     <string name="screen_rtsp_display">RTSP: %1</string>
-    <string name="no_streaming_items">No streaming items</string>
     <string name="screen_add_rtsp_item">Add stream</string>
+    <string name="screen_edit_rtsp_item">Edit: %1</string>
+
+    <string name="no_streaming_items">No streaming items</string>
     <string name="add_rtsp_button">Add stream</string>
     <string name="field_name">Name(*):</string>
     <string name="field_placeholder_name">Name cannot be empty or space only. eg: Garden</string>
     <string name="field_name_error">Name cannot be empty or space only.</string>
-    <string name="field_uri">Uri(*):</string>
+    <string name="field_uri">URL(*):</string>
     <string name="field_placeholder_uri">Start with rtsp://</string>
-    <string name="field_uri_error">Uri can only start with \"rtsp://\"</string>
+    <string name="field_uri_error">URL can only start with \"rtsp://\"</string>
     <string name="field_tags">Tags:</string>
     <string name="field_placeholder_tags">Separate with comma</string>
     <string name="checkbox_force_tcp">Force TCP:</string>
     <string name="checkbox_placeholder_force_tcp">Try enable it if the stream cannot be connect.</string>
-    <string name="clear_button">Clear</string>
-    <string name="save_button">Save</string>
     <string name="player_state_play">Play</string>
     <string name="player_state_pause">Pause</string>
+    <string name="label_name">Name:</string>
+    <string name="label_uri">URL:</string>
+    <string name="label_tags">Tags:</string>
+    <string name="label_force_tcp">Force TCP:</string>
 </resources>

@@ -46,4 +46,23 @@ interface RTSPItemRepository {
      * @return The number of items successfully updated (rows affected).
      */
     suspend fun reorderItems(items: List<RTSPItem>): Int
+
+    /**
+     * Asynchronously updates the details of an existing [RTSPItem].
+     *
+     * This should be called when the user modifies the properties of a stream
+     * (e.g., renaming the stream or changing the RTSP URL).
+     *
+     * @param item The item with updated values. It must contain the correct ID to map to the existing record.
+     * @return The number of rows affected (usually 1 if successful, 0 otherwise).
+     */
+    suspend fun updateItem(item: RTSPItem): Int
+
+    /**
+     * Asynchronously removes an [RTSPItem] from the data source.
+     *
+     * @param item The RTSP stream item to be deleted.
+     * @return The number of rows affected (usually 1 if successful, 0 otherwise).
+     */
+    suspend fun deleteItem(item: RTSPItem): Int
 }
