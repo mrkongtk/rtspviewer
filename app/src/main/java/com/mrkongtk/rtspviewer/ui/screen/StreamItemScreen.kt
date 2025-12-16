@@ -20,6 +20,8 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -29,6 +31,7 @@ import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -107,118 +110,138 @@ fun StreamItemScreen(
     onEditItemSelected: () -> Unit,
     onDeleteItemSelected: () -> Unit,
 ) {
-    Column(
+    // Local state to control the visibility of the delete confirmation dialog
+    var showDeleteConfirmationPrompt by remember { mutableStateOf(false) }
+
+    // Root container: Uses a Box to layer the FAB/Menu on top of the content
+    Box(
         modifier = modifier,
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
+        contentAlignment = Alignment.Center
     ) {
+        // Main Content Layer: Video + Info
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.Top,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
 
-        // State to manage the visibility of the "More Options" dropdown
-        var moreState by remember { mutableStateOf(MoreOptionState.fromValue(moreOption)) }
+            // 1. Top section: The Video Player
+            VideoPlayerCompose(Modifier.fillMaxWidth(), item)
 
-        // Top section: The Video Player
-        VideoPlayerCompose(Modifier.fillMaxWidth(), item)
+            // 2. Definition of UI Rows for Metadata
+            // Defined as lambdas to keep the main Column composition clean and repetitive logic isolated
 
-        // -- Definition of UI Rows for Metadata --
-
-        val nameRow: @Composable (Modifier) -> Unit = { modifier ->
-            Row(
-                modifier = modifier,
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    stringResource(R.string.label_name),
-                    color = MaterialTheme.colorScheme.onSecondary
-                )
-                Text(
-                    item.name,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    textAlign = TextAlign.End
-                )
-            }
-        }
-        val uriRow: @Composable (Modifier) -> Unit = { modifier ->
-            Row(
-                modifier = modifier,
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    stringResource(R.string.label_uri),
-                    color = MaterialTheme.colorScheme.onSecondary
-                )
-                Text(
-                    hideUriCredential(item.uri),
-                    color = MaterialTheme.colorScheme.onSecondary,
-                    textAlign = TextAlign.End
-                )
-            }
-        }
-        val tagsRow: @Composable (Modifier) -> Unit = { modifier ->
-            Row(
-                modifier = modifier,
-                verticalAlignment = Alignment.Top,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    stringResource(R.string.label_tags),
-                    color = MaterialTheme.colorScheme.onSecondary
-                )
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(
-                        PaddingS,
-                        alignment = Alignment.End
-                    )
+            // Row for the RTSP Stream Name
+            val nameRow: @Composable (Modifier) -> Unit = { modifier ->
+                Row(
+                    modifier = modifier,
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    item.tags.fastForEach { tag ->
-                        val modifier = Modifier.background(
-                            color = MaterialTheme.colorScheme.secondary,
-                            shape = RoundedCornerShape(PaddingXs)
+                    Text(
+                        stringResource(R.string.label_name),
+                        color = MaterialTheme.colorScheme.onSecondary
+                    )
+                    Text(
+                        item.name,
+                        color = MaterialTheme.colorScheme.onBackground,
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
+
+            // Row for the URI (Credentials are hidden via helper function)
+            val uriRow: @Composable (Modifier) -> Unit = { modifier ->
+                Row(
+                    modifier = modifier,
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        stringResource(R.string.label_uri),
+                        color = MaterialTheme.colorScheme.onSecondary
+                    )
+                    Text(
+                        hideUriCredential(item.uri),
+                        color = MaterialTheme.colorScheme.onSecondary,
+                        textAlign = TextAlign.End
+                    )
+                }
+            }
+
+            // Row for Tags (Uses FlowRow to wrap tags to the next line if space is limited)
+            val tagsRow: @Composable (Modifier) -> Unit = { modifier ->
+                Row(
+                    modifier = modifier,
+                    verticalAlignment = Alignment.Top,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        stringResource(R.string.label_tags),
+                        color = MaterialTheme.colorScheme.onSecondary
+                    )
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(
+                            PaddingS,
+                            alignment = Alignment.End
                         )
-                        Text(
-                            modifier = modifier.padding(horizontal = PaddingS),
-                            text = tag,
-                            color = MaterialTheme.colorScheme.onSecondary,
-                        )
+                    ) {
+                        item.tags.fastForEach { tag ->
+                            // Individual Tag Chip styling
+                            val modifier = Modifier.background(
+                                color = MaterialTheme.colorScheme.secondary,
+                                shape = RoundedCornerShape(PaddingXs)
+                            )
+                            Text(
+                                modifier = modifier.padding(horizontal = PaddingS),
+                                text = tag,
+                                color = MaterialTheme.colorScheme.onSecondary,
+                            )
+                        }
                     }
                 }
             }
-        }
-        val forceTcpRow: @Composable (Modifier) -> Unit = { modifier ->
-            Row(
-                modifier = modifier,
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    stringResource(R.string.label_force_tcp),
-                    color = MaterialTheme.colorScheme.onSecondary
+
+            // Row for the Force TCP setting
+            val forceTcpRow: @Composable (Modifier) -> Unit = { modifier ->
+                Row(
+                    modifier = modifier,
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        stringResource(R.string.label_force_tcp),
+                        color = MaterialTheme.colorScheme.onSecondary
+                    )
+                    // Read-only checkbox to show the setting state (user cannot toggle here)
+                    Checkbox(item.forceTcp, onCheckedChange = null, enabled = false)
+                }
+            }
+
+            // 3. Render the metadata rows dynamically
+            val rows = listOf(nameRow, uriRow, forceTcpRow, tagsRow)
+            rows.fastForEach { rowComposable ->
+                rowComposable(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PaddingM)
                 )
-                // Read-only checkbox to show the setting state
-                Checkbox(item.forceTcp, onCheckedChange = null, enabled = false)
             }
         }
 
-        // Render the metadata rows
-        val rows = listOf(nameRow, uriRow, forceTcpRow, tagsRow)
-        rows.fastForEach {
-            it(
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = PaddingM)
-            )
-        }
-
-        // Floating Action Button / Menu Container
+        // Overlay Layer: Floating Action Button & Dropdown Menu
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(PaddingM),
             contentAlignment = Alignment.BottomEnd
         ) {
+            // State to manage the visibility of the "More Options" dropdown
+            var moreState by remember { mutableStateOf(MoreOptionState.fromValue(moreOption)) }
+
             Column {
+                // The dropdown menu containing Edit/Delete actions
                 DropdownMenu(
                     expanded = moreState.value,
                     onDismissRequest = { moreState = CLOSED }
@@ -246,13 +269,15 @@ fun StreamItemScreen(
                         },
                         onClick = {
                             moreState = CLOSED
-                            onDeleteItemSelected()
+                            showDeleteConfirmationPrompt = true
                         }
                     )
                 }
+
+                // The FAB/Icon button that toggles the menu
                 IconButton(
                     onClick = {
-                        moreState = !moreState
+                        moreState = !moreState // Uses the custom operator 'not()'
                     },
                     colors = IconButtonDefaults.filledIconButtonColors()
                 ) {
@@ -266,6 +291,20 @@ fun StreamItemScreen(
                 }
             }
         }
+
+        // Dialog Layer: Confirmation when deleting an item
+        if (showDeleteConfirmationPrompt) {
+            DeleteConfirmDialogCompose(
+                rtspItem = item,
+                onDismissRequest = {
+                    showDeleteConfirmationPrompt = false
+                },
+                onConfirmation = {
+                    showDeleteConfirmationPrompt = false
+                    onDeleteItemSelected()
+                }
+            )
+        }
     }
 }
 
@@ -275,10 +314,6 @@ fun StreamItemScreen(
  * This handles the distinction between running in a UI Preview (where Hilt is unavailable)
  * and running in the actual application.
  *
- * - In **Preview Mode**: Renders a placeholder box.
- * - In **App Mode**: Initializes the [RTSPVideoPlayerViewModel] using Assisted Injection
- *   to pass the URI and TCP preferences, then renders the [RTSPVideoPlayer].
- *
  * @param modifier Modifier for the player container.
  * @param item The RTSP item containing connection details.
  */
@@ -287,7 +322,9 @@ private fun VideoPlayerCompose(
     modifier: Modifier = Modifier,
     item: RTSPItem
 ) {
+    // Check if we are running in Android Studio Preview mode
     if (LocalInspectionMode.current) {
+        // Show a placeholder to prevent crashing, as Hilt cannot inject ViewModels in preview
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -302,7 +339,8 @@ private fun VideoPlayerCompose(
         }
     } else {
         // Initialize the ViewModel using Assisted Injection.
-        // This allows us to pass runtime arguments (URI, forceTcp) to the ViewModel factory.
+        // The 'creationCallback' allows us to pass runtime arguments (URI, forceTcp)
+        // directly to the ViewModel's @AssistedFactory.
         val rtspViewModel: RTSPVideoPlayerViewModel =
             hiltViewModel<RTSPVideoPlayerViewModel, RTSPVideoPlayerViewModel.Factory>(
                 creationCallback = { factory ->
@@ -310,13 +348,58 @@ private fun VideoPlayerCompose(
                 }
             )
 
-        // Render the player, delegating logic to the ViewModel.
+        // Render the actual player, delegating logic to the ViewModel
         RTSPVideoPlayer(
             viewModel = rtspViewModel,
             modifier = modifier,
         )
     }
 }
+
+@Composable
+private fun DeleteConfirmDialogCompose(
+    rtspItem: RTSPItem,
+    onDismissRequest: () -> Unit,
+    onConfirmation: () -> Unit,
+) {
+    AlertDialog(
+        icon = {
+            Icon(Icons.Default.Warning, contentDescription = stringResource(R.string.delete))
+        },
+        title = {
+            Text(text = stringResource(R.string.delete_dialog_title).replace("%1", rtspItem.name))
+        },
+        text = {
+            Text(text = stringResource(R.string.delete_dialog_message))
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        iconContentColor = MaterialTheme.colorScheme.onBackground,
+        titleContentColor = MaterialTheme.colorScheme.onBackground,
+        textContentColor = MaterialTheme.colorScheme.onBackground,
+        onDismissRequest = {
+            onDismissRequest()
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirmation()
+                }
+            ) {
+                Text(stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = {
+                    onDismissRequest()
+                }
+            ) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
+}
+
 
 /**
  * Utility function to mask credentials in an RTSP URI for display purposes.
@@ -328,8 +411,16 @@ private fun VideoPlayerCompose(
  * @return The sanitized URI string suitable for UI display.
  */
 private fun hideUriCredential(uri: String): String {
+    // Regex Groups:
+    // 1: protocol (rtsp://)
+    // 2: username
+    // 3: separator (:)
+    // 4: password
+    // 5: separator (@)
     val regex = "(rtsp://)(.+)(:)(.+)(@)".toRegex()
+
     if (regex.containsMatchIn(uri)) {
+        // Replace groups 2 and 4 with asterisks
         val replacement = "\$1***\$3***\$5"
         return regex.replace(uri, replacement)
     } else {
@@ -366,6 +457,7 @@ private class StreamItemScreenPreviewParameterProvider :
 
     private val states = MoreOptionState.entries.asSequence()
 
+    // Creates a Cartesian product of Items x States for comprehensive previewing
     override val values = items.flatMap { item ->
         states.map {
             Pair(item, it)

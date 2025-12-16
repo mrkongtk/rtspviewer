@@ -4,6 +4,8 @@
     <string name="detail">Detail</string>
     <string name="delete">Delete</string>
     <string name="edit">Edit</string>
+    <string name="confirm">Confirm</string>
+    <string name="cancel">Cancel</string>
     <string name="clear_button">Clear</string>
     <string name="save_button">Save</string>
     <string name="screen_rtsp_display">RTSP: %1</string>
@@ -28,4 +30,6 @@
     <string name="label_uri">URL:</string>
     <string name="label_tags">Tags:</string>
     <string name="label_force_tcp">Force TCP:</string>
+    <string name="delete_dialog_title">Delete \"%1\"</string>
+    <string name="delete_dialog_message">Are you sure you want to delete this item? This action cannot be undone.</string>
 </resources>
