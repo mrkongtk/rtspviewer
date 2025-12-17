@@ -136,7 +136,7 @@ fun <T> DraggableLazyColumn(
                                     .lastOrNull { it.index == draggingItemIndex - 1 }
 
                                 // Check if we should swap DOWN
-                                if (itemBelow != null && currentBottom > itemBelow.offset + (itemBelow.size / 2)) {
+                                if (itemBelow != null && currentBottom > itemBelow.offset.toFloat() + (itemBelow.size.toFloat() / 2f)) {
                                     // Move data in the list
                                     items.add(
                                         draggingItemIndex + 1,
@@ -151,7 +151,7 @@ fun <T> DraggableLazyColumn(
                                     draggingItemOffset -= itemBelow.size
                                 }
                                 // Check if we should swap UP
-                                else if (itemAbove != null && currentTop < itemAbove.offset + (itemAbove.size / 2)) {
+                                else if (itemAbove != null && currentTop < itemAbove.offset.toFloat() + (itemAbove.size.toFloat() / 2f)) {
                                     // Move data in the list
                                     items.add(
                                         draggingItemIndex - 1,
