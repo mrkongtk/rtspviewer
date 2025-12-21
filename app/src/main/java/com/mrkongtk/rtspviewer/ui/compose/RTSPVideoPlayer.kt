@@ -47,7 +47,7 @@ import com.mrkongtk.rtspviewer.data.RTSPVideoPlayerPlaybackState
 import com.mrkongtk.rtspviewer.ui.theme.OnOverlayerBackgroundColor
 import com.mrkongtk.rtspviewer.ui.theme.OverlayerBackgroundColor
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.viewmode.RTSPVideoPlayerViewModel
+import com.mrkongtk.rtspviewer.viewmodel.RTSPVideoPlayerViewModel
 import kotlinx.coroutines.flow.map
 
 /**

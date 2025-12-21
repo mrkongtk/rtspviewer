@@ -32,7 +32,7 @@ import com.mrkongtk.rtspviewer.data.database.MockAppDatabase
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemWithSampleInitRepositoryImpl
 import com.mrkongtk.rtspviewer.ui.compose.NavigationScreenContent
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.viewmode.AppViewModel
+import com.mrkongtk.rtspviewer.viewmodel.AppViewModel
 import kotlinx.coroutines.flow.map
 
 /**

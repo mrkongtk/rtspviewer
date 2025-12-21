@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.viewmode
+package com.mrkongtk.rtspviewer.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.media3.common.PlaybackException

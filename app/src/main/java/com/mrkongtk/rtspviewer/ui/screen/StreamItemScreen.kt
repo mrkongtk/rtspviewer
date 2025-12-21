@@ -56,7 +56,7 @@ import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.PaddingS
 import com.mrkongtk.rtspviewer.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.viewmode.RTSPVideoPlayerViewModel
+import com.mrkongtk.rtspviewer.viewmodel.RTSPVideoPlayerViewModel
 
 /**
  * Represents the visibility state of the "More Options" dropdown menu.

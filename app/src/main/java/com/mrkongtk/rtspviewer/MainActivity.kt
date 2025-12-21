@@ -14,7 +14,7 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rtspviewer.ui.screen.NavigationScreen
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.viewmode.AppViewModel
+import com.mrkongtk.rtspviewer.viewmodel.AppViewModel
 import dagger.hilt.android.AndroidEntryPoint
 
 /**
