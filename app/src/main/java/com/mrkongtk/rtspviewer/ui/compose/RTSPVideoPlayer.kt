@@ -234,6 +234,7 @@ fun RTSPVideoPlayer(
  * @param videoAspectRatio The calculated aspect ratio to size the player Box.
  * @param errorMessage If not null, displays the error overlay instead of the video.
  */
+@OptIn(UnstableApi::class)
 @Composable
 fun RTSPVideoPlayerContent(
     modifier: Modifier = Modifier,
