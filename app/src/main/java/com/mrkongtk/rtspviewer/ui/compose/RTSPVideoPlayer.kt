@@ -33,6 +33,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -303,7 +304,9 @@ fun RTSPVideoPlayerContent(
 @Composable
 fun ErrorOverlay(modifier: Modifier = Modifier, errorMessage: String) {
     Column(
-        modifier = modifier.background(MaterialTheme.colorScheme.surface),
+        modifier = modifier
+            .testTag("error_overlay")
+            .background(MaterialTheme.colorScheme.surface),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
@@ -321,7 +324,7 @@ fun ErrorOverlay(modifier: Modifier = Modifier, errorMessage: String) {
 @Composable
 fun EmptyPlayerOverlay(modifier: Modifier = Modifier) {
     Column(
-        modifier = modifier,
+        modifier = modifier.testTag("empty_player_overlay"),
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -335,7 +338,9 @@ fun EmptyPlayerOverlay(modifier: Modifier = Modifier) {
 @Composable
 fun LoadingOverlay(modifier: Modifier = Modifier) {
     Box(
-        modifier = modifier.background(OverlayerBackgroundColor),
+        modifier = modifier
+            .testTag("loading_overlay")
+            .background(OverlayerBackgroundColor),
         contentAlignment = Alignment.Center
     ) {
         CircularProgressIndicator(
@@ -352,6 +357,7 @@ fun LoadingOverlay(modifier: Modifier = Modifier) {
 fun PlayButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
         modifier = modifier
+            .testTag("play_button_overlay")
             .background(OverlayerBackgroundColor)
             .clickable(onClick = onClick),
         contentAlignment = Alignment.Center
@@ -371,7 +377,9 @@ fun PlayButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Unit) {
 @Composable
 fun PauseButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
-        modifier = modifier.clickable(onClick = onClick),
+        modifier = modifier
+            .testTag("pause_button_overlay")
+            .clickable(onClick = onClick),
     ) {
     }
 }
