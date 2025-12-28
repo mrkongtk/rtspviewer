@@ -42,7 +42,7 @@ data class RTSPItem(
                 id.toString(),
                 name,
                 uri,
-                tags.joinToString(","),
+                tags.sorted().joinToString(","),
                 order.toString(),
                 forceTcp.toString()
             ).joinToString(";")
