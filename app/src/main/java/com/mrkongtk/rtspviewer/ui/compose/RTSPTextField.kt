@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.RoundedCornerSize
 
@@ -61,7 +62,9 @@ fun RTSPTextField(
             isError = errorMessage != null,
             singleLine = singleLine,
             shape = RoundedCornerShape(RoundedCornerSize),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .testTag("RTSPOutlinedTextField"),
             keyboardOptions = keyboardOptions,
             keyboardActions = keyboardActions,
 

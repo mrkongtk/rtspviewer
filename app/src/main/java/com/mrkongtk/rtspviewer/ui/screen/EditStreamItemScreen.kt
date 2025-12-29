@@ -33,6 +33,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -192,7 +193,9 @@ fun EditStreamItemScreen(
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("NameTextField"),
             )
 
             // 2. URI Input
@@ -219,7 +222,9 @@ fun EditStreamItemScreen(
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("UriTextField"),
             )
 
             // 3. Tags Input (Comma separated)
@@ -235,7 +240,9 @@ fun EditStreamItemScreen(
                 keyboardActions = KeyboardActions(
                     onDone = { focusManager.clearFocus() }
                 ),
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("TagsTextField"),
             )
 
             // 4. Force TCP Checkbox
@@ -246,11 +253,12 @@ fun EditStreamItemScreen(
             ) {
                 Text(
                     stringResource(R.string.checkbox_force_tcp),
-                    color = MaterialTheme.colorScheme.onSurface
+                    color = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.testTag("ForceTCPLabel")
                 )
                 Checkbox(checked = fieldsValue.forceTcp, onCheckedChange = {
                     fieldsValue = fieldsValue.copy(forceTcp = it)
-                })
+                }, modifier = Modifier.testTag("ForceTCPCheckbox"))
             }
         }
 
@@ -267,7 +275,8 @@ fun EditStreamItemScreen(
                 colors = IconButtonDefaults.iconButtonColors(
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                modifier = Modifier.testTag("ClearButton")
             ) {
                 Icon(imageVector = Icons.Default.Restore, stringResource(R.string.clear_button))
             }
@@ -282,7 +291,8 @@ fun EditStreamItemScreen(
                 colors = IconButtonDefaults.iconButtonColors(
                     contentColor = MaterialTheme.colorScheme.onSurface,
                     containerColor = MaterialTheme.colorScheme.surface
-                )
+                ),
+                modifier = Modifier.testTag("SaveButton")
             ) {
                 Icon(imageVector = Icons.Default.Save, stringResource(R.string.save_button))
             }
