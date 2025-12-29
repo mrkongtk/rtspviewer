@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import com.mrkongtk.rtspviewer.R
@@ -64,13 +65,17 @@ fun StreamListScreen(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.Center
             ) {
-                Text(text = stringResource(R.string.no_streaming_items))
+                Text(
+                    text = stringResource(R.string.no_streaming_items),
+                    modifier = Modifier.testTag("StreamListScreenEmptyText")
+                )
             }
         }
     } else {
         // List State: Reorderable list
         DraggableLazyColumn(
             modifier = modifier
+                .testTag("StreamListScreenListRoot")
                 .fillMaxSize()
                 .padding(vertical = PaddingM),
             verticalArrangement = Arrangement.spacedBy(PaddingM),
@@ -87,6 +92,7 @@ fun StreamListScreen(
             StreamListItem(
                 data = item,
                 modifier = modifier
+                    .testTag("StreamListItem: ${item.id}")
                     .fillMaxWidth()
                     .padding(horizontal = PaddingM),
                 onClick = { data -> onItemSelected(data) }
@@ -105,6 +111,7 @@ fun StreamListScreen(
             horizontalAlignment = Alignment.End
         ) {
             IconButton(
+                modifier = Modifier.testTag("AddButton"),
                 onClick = { onAddItemSelected() },
                 colors = IconButtonDefaults.filledIconButtonColors()
             ) {
