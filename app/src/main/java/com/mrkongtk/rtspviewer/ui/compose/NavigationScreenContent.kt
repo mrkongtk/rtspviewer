@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
@@ -56,7 +57,7 @@ fun NavigationScreenContent(
     NavHost(
         navController = navController,
         startDestination = AppScreen.Start.name,
-        modifier = modifier
+        modifier = modifier.testTag("NavHost")
     ) {
         // =====================================================================
         // Route: Start (Home/List Screen)
