@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
@@ -32,7 +33,7 @@ fun AddStreamItemScreen(
     // We provide a default "blank" item here. The ID is set to 0 to indicate
     // to the database (Room) that this is a new entry to be inserted, not updated.
     EditStreamItemScreen(
-        modifier = modifier,
+        modifier = modifier.testTag("AddStreamItemScreenRoot"),
         item = RTSPItem(
             id = 0,
             name = "",
