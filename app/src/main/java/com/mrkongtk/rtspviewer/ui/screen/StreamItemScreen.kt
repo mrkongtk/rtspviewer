@@ -40,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -115,7 +116,8 @@ fun StreamItemScreen(
 
     // Root container: Uses a Box to layer the FAB/Menu on top of the content
     Box(
-        modifier = modifier,
+        modifier = modifier
+            .testTag("StreamItemScreenRoot"),
         contentAlignment = Alignment.Center
     ) {
         // Main Content Layer: Video + Info
@@ -126,7 +128,11 @@ fun StreamItemScreen(
         ) {
 
             // 1. Top section: The Video Player
-            VideoPlayerCompose(Modifier.fillMaxWidth(), item)
+            VideoPlayerCompose(
+                Modifier
+                    .testTag("VideoPlayer")
+                    .fillMaxWidth(), item
+            )
 
             // 2. Definition of UI Rows for Metadata
             // Defined as lambdas to keep the main Column composition clean and repetitive logic isolated
@@ -145,7 +151,8 @@ fun StreamItemScreen(
                     Text(
                         item.name,
                         color = MaterialTheme.colorScheme.onBackground,
-                        textAlign = TextAlign.End
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.testTag("Name")
                     )
                 }
             }
@@ -164,7 +171,8 @@ fun StreamItemScreen(
                     Text(
                         hideUriCredential(item.uri),
                         color = MaterialTheme.colorScheme.onSecondary,
-                        textAlign = TextAlign.End
+                        textAlign = TextAlign.End,
+                        modifier = Modifier.testTag("Uri")
                     )
                 }
             }
@@ -189,14 +197,16 @@ fun StreamItemScreen(
                     ) {
                         item.tags.fastForEach { tag ->
                             // Individual Tag Chip styling
-                            val modifier = Modifier.background(
-                                color = MaterialTheme.colorScheme.secondary,
-                                shape = RoundedCornerShape(PaddingXs)
-                            )
+                            val modifier = Modifier
+                                .background(
+                                    color = MaterialTheme.colorScheme.secondary,
+                                    shape = RoundedCornerShape(PaddingXs)
+                                )
+                                .testTag("Tag $tag")
                             Text(
                                 modifier = modifier.padding(horizontal = PaddingS),
                                 text = tag,
-                                color = MaterialTheme.colorScheme.onSecondary,
+                                color = MaterialTheme.colorScheme.onSecondary
                             )
                         }
                     }
@@ -215,7 +225,12 @@ fun StreamItemScreen(
                         color = MaterialTheme.colorScheme.onSecondary
                     )
                     // Read-only checkbox to show the setting state (user cannot toggle here)
-                    Checkbox(item.forceTcp, onCheckedChange = null, enabled = false)
+                    Checkbox(
+                        item.forceTcp,
+                        onCheckedChange = {},
+                        enabled = false,
+                        modifier = Modifier.testTag("ForceTCP")
+                    )
                 }
             }
 
@@ -257,7 +272,8 @@ fun StreamItemScreen(
                         onClick = {
                             moreState = CLOSED
                             onEditItemSelected()
-                        }
+                        },
+                        modifier = Modifier.testTag("EditButton")
                     )
                     DropdownMenuItem(
                         text = { Text(stringResource(R.string.delete)) },
@@ -270,7 +286,8 @@ fun StreamItemScreen(
                         onClick = {
                             moreState = CLOSED
                             showDeleteConfirmationPrompt = true
-                        }
+                        },
+                        modifier = Modifier.testTag("DeleteButton")
                     )
                 }
 
@@ -279,7 +296,8 @@ fun StreamItemScreen(
                     onClick = {
                         moreState = !moreState // Uses the custom operator 'not()'
                     },
-                    colors = IconButtonDefaults.filledIconButtonColors()
+                    colors = IconButtonDefaults.filledIconButtonColors(),
+                    modifier = Modifier.testTag("MoreButton")
                 ) {
                     Icon(
                         imageVector = when (moreState) {
@@ -332,7 +350,9 @@ private fun VideoPlayerCompose(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("EmptyVideo"),
                 text = "Video Player Here",
                 textAlign = TextAlign.Center
             )
@@ -383,7 +403,8 @@ private fun DeleteConfirmDialogCompose(
             TextButton(
                 onClick = {
                     onConfirmation()
-                }
+                },
+                modifier = Modifier.testTag("DeleteConfirmButton")
             ) {
                 Text(stringResource(R.string.confirm))
             }
@@ -392,11 +413,13 @@ private fun DeleteConfirmDialogCompose(
             TextButton(
                 onClick = {
                     onDismissRequest()
-                }
+                },
+                modifier = Modifier.testTag("DeleteCancelButton")
             ) {
                 Text(stringResource(R.string.cancel))
             }
-        }
+        },
+        modifier = Modifier.testTag("DeleteConfirmDialog")
     )
 }
 
