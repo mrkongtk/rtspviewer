@@ -1,6 +1,5 @@
 package com.mrkongtk.rtspviewer.viewmodel
 
-import com.mrkongtk.rtspviewer.data.AppUiState
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import kotlinx.coroutines.Dispatchers
@@ -20,7 +19,6 @@ import org.mockito.Mock
 import org.mockito.Mockito.times
 import org.mockito.Mockito.verify
 import org.mockito.MockitoAnnotations
-import org.mockito.kotlin.any
 import org.mockito.kotlin.whenever
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -139,21 +137,25 @@ class AppViewModelTest {
     }
 
     @Test
-    fun `uiState invalidates selectedItem if it is removed from database`() = runTest(testDispatcher) {
-        // 1. Setup: Item exists and is selected
-        val item = RTSPItem(1, "A", "u", emptyList(), 0)
-        repoItemsFlow.value = listOf(item)
-        viewModel.select(item)
-        testScheduler.advanceUntilIdle()
+    fun `uiState invalidates selectedItem if it is removed from database`() =
+        runTest(testDispatcher) {
+            // 1. Setup: Item exists and is selected
+            val item = RTSPItem(1, "A", "u", emptyList(), 0)
+            repoItemsFlow.value = listOf(item)
+            viewModel.select(item)
+            testScheduler.advanceUntilIdle()
 
-        assertEquals(item, viewModel.uiState.first().selectedItem)
+            assertEquals(item, viewModel.uiState.first().selectedItem)
 
-        // 2. Action: Database updates (Item 1 is deleted/gone)
-        repoItemsFlow.value = emptyList()
-        testScheduler.advanceUntilIdle()
+            // 2. Action: Database updates (Item 1 is deleted/gone)
+            repoItemsFlow.value = emptyList()
+            testScheduler.advanceUntilIdle()
 
-        // 3. Assert: Selection should be cleared automatically by the 'combine' block
-        val newState = viewModel.uiState.first()
-        assertNull("Selected item should be null if not found in item list", newState.selectedItem)
-    }
+            // 3. Assert: Selection should be cleared automatically by the 'combine' block
+            val newState = viewModel.uiState.first()
+            assertNull(
+                "Selected item should be null if not found in item list",
+                newState.selectedItem
+            )
+        }
 }
