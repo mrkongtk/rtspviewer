@@ -1,16 +1,18 @@
 package com.mrkongtk.rtspviewer.viewmodel
 
+import android.content.Context
 import androidx.media3.common.PlaybackException
+import app.cash.turbine.test
 import com.mrkongtk.rtspviewer.data.RTSPVideoPlayerPlaybackState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
@@ -19,31 +21,33 @@ import org.mockito.kotlin.mock
 /**
  * Unit tests for [RTSPVideoPlayerViewModel].
  *
- * This class validates:
- * 1. State management (Playback status, Errors).
- * 2. Data flow emissions (URI and Configuration).
- * 3. Logic for Aspect Ratio calculations, including edge cases.
- *
- * It uses [StandardTestDispatcher] to simulate Coroutine behavior on the Main thread.
+ * **Testing Strategy:**
+ * 1. **ExoPlayer Handling:** The ViewModel initializes `ExoPlayer` in the `init` block. In a standard JVM
+ *    unit test environment (without Robolectric), `ExoPlayer.Builder(context).build()` throws an exception because
+ *    Android system classes are missing. We assert that the ViewModel catches this gracefully, sets `exoPlayer` to null,
+ *    and reports an initialization error.
+ * 2. **Internal Visibility:** Methods like `updatePlaybackState` are `internal`. Because this test resides in the
+ *    same package (`com.mrkongtk.rtspviewer.viewmodel`), we test them directly without needing reflection.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class RTSPVideoPlayerViewModelTest {
 
-    // TestDispatcher controls the execution of coroutines in tests (allows pausing/advancing time)
     private val testDispatcher = StandardTestDispatcher()
+    private lateinit var mockContext: Context
 
     /**
-     * Replaces the Main dispatcher with the test dispatcher before every test.
-     * This is necessary because ViewModels use `viewModelScope`, which defaults to Dispatchers.Main.
+     * Sets up the test environment.
+     * Swaps the Main dispatcher with a TestDispatcher to support coroutines in the ViewModel,
+     * and mocks the Android Context.
      */
     @Before
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        mockContext = mock()
     }
 
     /**
-     * Resets the Main dispatcher to the original after every test to prevent memory leaks
-     * or interference with other tests.
+     * Cleans up the test environment by resetting the Main dispatcher.
      */
     @After
     fun tearDown() {
@@ -51,123 +55,182 @@ class RTSPVideoPlayerViewModelTest {
     }
 
     /**
-     * Verifies that the ViewModel initializes with the expected default values:
-     * - Playback state is Idle.
-     * - No errors exist.
-     * - Aspect ratio defaults to 16:9.
+     * Helper to instantiate the ViewModel with optional parameters.
      */
-    @Test
-    fun `initial state is correct`() = runTest {
-        val viewModel = RTSPVideoPlayerViewModel("rtsp://test", true)
-
-        val currentState = viewModel.state.value
-        assertEquals(RTSPVideoPlayerPlaybackState.Idle, currentState.playback)
-        assertNull(currentState.error)
-        assertEquals(16f / 9f, viewModel.videoAspectRatio.value, 0.001f)
+    private fun createViewModel(
+        uri: String? = null,
+        forceTcp: Boolean = false
+    ): RTSPVideoPlayerViewModel {
+        return RTSPVideoPlayerViewModel(mockContext, uri, forceTcp)
     }
 
-    /**
-     * Verifies that calling [updatePlaybackState] correctly emits the new state
-     * to the observable state flow.
-     */
     @Test
-    fun `updatePlaybackState updates the state flow`() = runTest {
-        val viewModel = RTSPVideoPlayerViewModel("rtsp://test", true)
+    fun `init - catches ExoPlayer creation failure and sets error state`() = runTest {
+        val viewModel = createViewModel()
 
-        // Test transition to Buffering
-        viewModel.updatePlaybackState(RTSPVideoPlayerPlaybackState.Buffering)
-        assertEquals(RTSPVideoPlayerPlaybackState.Buffering, viewModel.state.value.playback)
+        // 1. Assert ExoPlayer is null (due to Builder failure in JVM test environment)
+        assertNull(
+            "ExoPlayer should be null in JVM tests due to Builder failure",
+            viewModel.exoPlayer
+        )
 
-        // Test transition to Playing
-        viewModel.updatePlaybackState(RTSPVideoPlayerPlaybackState.Playing)
-        assertEquals(RTSPVideoPlayerPlaybackState.Playing, viewModel.state.value.playback)
+        // 2. Verify the initial state emission contains the initialization error
+        viewModel.state.test {
+            val initialState = awaitItem()
+            assertEquals(RTSPVideoPlayerPlaybackState.Idle, initialState.playback)
+            assertNotNull(
+                "State should contain the exception from ExoPlayer builder",
+                initialState.error
+            )
+        }
     }
 
-    /**
-     * Verifies that exceptions are correctly stored in the state when an error occurs,
-     * and that passing null correctly clears the error state.
-     */
     @Test
-    fun `updatePlaybackError updates the error state`() = runTest {
-        val viewModel = RTSPVideoPlayerViewModel("rtsp://test", true)
-        val mockException = mock<PlaybackException>() // Create a mock object for the exception
+    fun `updatePlaybackState - updates the state flow correctly`() = runTest {
+        val viewModel = createViewModel()
 
-        // Set an error
-        viewModel.updatePlaybackError(mockException)
-        assertEquals(mockException, viewModel.state.value.error)
+        viewModel.state.test {
+            // Skip the initial state (which contains the init error from the JVM ExoPlayer failure)
+            skipItems(1)
 
-        // Verify we can clear the error by passing null
-        viewModel.updatePlaybackError(null)
-        assertNull(viewModel.state.value.error)
+            // Test transition to Buffering
+            viewModel.updatePlaybackState(RTSPVideoPlayerPlaybackState.Buffering)
+            val bufferingState = awaitItem()
+            assertEquals(RTSPVideoPlayerPlaybackState.Buffering, bufferingState.playback)
+
+            // Test transition to Playing
+            viewModel.updatePlaybackState(RTSPVideoPlayerPlaybackState.Playing)
+            val playingState = awaitItem()
+            assertEquals(RTSPVideoPlayerPlaybackState.Playing, playingState.playback)
+
+            // Test transition to Ready
+            viewModel.updatePlaybackState(RTSPVideoPlayerPlaybackState.Ready)
+            val readyState = awaitItem()
+            assertEquals(RTSPVideoPlayerPlaybackState.Ready, readyState.playback)
+        }
     }
 
-    /**
-     * Verifies that the combined data flow correctly emits the initialization parameters
-     * (URI and TCP preference).
-     */
     @Test
-    fun `data flow emits correct configuration`() = runTest {
-        val uri = "rtsp://192.168.1.1"
-        val forceTcp = true
-        val viewModel = RTSPVideoPlayerViewModel(uri, forceTcp)
+    fun `updateError - updates and clears the error state`() = runTest {
+        val viewModel = createViewModel()
+        val mockException = mock<PlaybackException>()
 
-        // collect the first emission from the flow
-        val data = viewModel.data.first()
+        viewModel.state.test {
+            skipItems(1) // Skip init error
 
-        assertEquals(uri, data?.uri)
-        assertEquals(true, data?.forceTcp)
+            // 1. Set a specific error
+            viewModel.updateError(mockException)
+            val errorState = awaitItem()
+            assertEquals(mockException, errorState.error)
+
+            // 2. Clear the error
+            viewModel.updateError(null)
+            val clearedState = awaitItem()
+            assertNull(clearedState.error)
+        }
     }
 
-    /**
-     * Verifies behavior when the URI provided is null.
-     * Ensures the ViewModel initializes without crashing and maintains a clean state.
-     */
     @Test
-    fun `data flow does not emit if URI is null`() = runTest {
-        // Initialize with null URI
-        val viewModel = RTSPVideoPlayerViewModel(null, false)
+    fun `updateVideoAspectRatio - calculates correct ratio`() = runTest {
+        val viewModel = createViewModel()
 
-        // This test primarily ensures no exception is thrown during init
-        // and that the error state remains clean.
-        assertNull(viewModel.state.value.error)
+        viewModel.videoAspectRatio.test {
+            val initialRatio = awaitItem()
+            assertEquals(16f / 9f, initialRatio, 0.001f)
+
+            // 1080x1920 (9:16 - Portrait) -> Expect ~0.5625
+            viewModel.updateVideoAspectRatio(1080f, 1920f)
+            val portraitRatio = awaitItem()
+            assertEquals(0.5625f, portraitRatio, 0.001f)
+
+            // 1920x1080 (16:9 - Landscape) -> Expect ~1.777
+            viewModel.updateVideoAspectRatio(1920f, 1080f)
+            val landscapeRatio = awaitItem()
+            assertEquals(1.777f, landscapeRatio, 0.001f)
+        }
     }
 
-    /**
-     * Verifies the mathematical calculation of the video aspect ratio (Width / Height).
-     * Tests both standard Landscape (16:9) and Portrait (9:16) scenarios.
-     */
     @Test
-    fun `updateVideoAspectRatio calculates correct ratio`() = runTest {
-        val viewModel = RTSPVideoPlayerViewModel("rtsp://test", false)
+    fun `updateVideoAspectRatio - handles invalid inputs by defaulting to 16_9`() = runTest {
+        val viewModel = createViewModel()
+        val defaultRatio = 16f / 9f
 
-        // 1920x1080 (16:9) -> Expect ~1.777
-        viewModel.updateVideoAspectRatio(1920f, 1080f)
-        assertEquals(1.777f, viewModel.videoAspectRatio.value, 0.001f)
+        viewModel.videoAspectRatio.test {
+            awaitItem() // Initial
 
-        // 1080x1920 (9:16 - Portrait) -> Expect ~0.5625
-        viewModel.updateVideoAspectRatio(1080f, 1920f)
-        assertEquals(0.5625f, viewModel.videoAspectRatio.value, 0.001f)
+            // Set to something valid first to ensure we detect a reset
+            viewModel.updateVideoAspectRatio(100f, 100f) // Square 1.0
+            assertEquals(1.0f, awaitItem(), 0.001f)
+
+            // Test: Zero width/height (Results in NaN)
+            viewModel.updateVideoAspectRatio(0f, 0f)
+            assertEquals("Should revert to 16:9 on 0x0", defaultRatio, awaitItem(), 0.001f)
+
+            // Reset to valid to detect next change
+            viewModel.updateVideoAspectRatio(100f, 100f)
+            awaitItem()
+
+            // Test: Zero height (Results in Infinity)
+            viewModel.updateVideoAspectRatio(1920f, 0f)
+            assertEquals("Should revert to 16:9 on div/0", defaultRatio, awaitItem(), 0.001f)
+
+            // Reset to valid to detect next change
+            viewModel.updateVideoAspectRatio(100f, 100f)
+            awaitItem()
+
+            // Test: Negative values
+            viewModel.updateVideoAspectRatio(-1920f, 1080f)
+            assertEquals(
+                "Should revert to 16:9 on negative dimensions",
+                defaultRatio,
+                awaitItem(),
+                0.001f
+            )
+        }
     }
 
-    /**
-     * Verifies robustness of the aspect ratio calculation.
-     * Ensures that invalid dimensions (Zero, Negative, or Infinite) fall back
-     * to the default 16:9 ratio to prevent UI layout crashes.
-     */
     @Test
-    fun `updateVideoAspectRatio handles invalid inputs gracefully`() = runTest {
-        val viewModel = RTSPVideoPlayerViewModel("rtsp://test", false)
+    fun `init - processes initial URI and TCP settings`() = runTest {
+        val testUri = "rtsp://camera"
+        val testTcp = true
 
-        // Zero width/height -> Should default to 16:9
-        viewModel.updateVideoAspectRatio(0f, 0f)
-        assertEquals(16f / 9f, viewModel.videoAspectRatio.value, 0.001f)
+        val viewModel = createViewModel(uri = testUri, forceTcp = testTcp)
 
-        // Negative values -> Should default to 16:9
-        viewModel.updateVideoAspectRatio(-100f, 100f)
-        assertEquals(16f / 9f, viewModel.videoAspectRatio.value, 0.001f)
+        // Verify the internal data flow was updated with arguments passed to Constructor
+        viewModel.data.test {
+            val data = awaitItem()
+            assertNotNull(data)
+            assertEquals(testUri, data?.uri)
+            assertEquals(testTcp, data?.forceTcp)
+        }
+    }
 
-        // Infinite values -> Should default to 16:9
-        viewModel.updateVideoAspectRatio(Float.POSITIVE_INFINITY, 100f)
-        assertEquals(16f / 9f, viewModel.videoAspectRatio.value, 0.001f)
+    @Test
+    fun `updateData - handles partial and full updates`() = runTest {
+        val viewModel = createViewModel(uri = null, forceTcp = false)
+
+        viewModel.data.test {
+            assertNull(awaitItem()) // Initially null
+
+            // 1. Set URI only (TCP should default or persist)
+            val uri1 = "rtsp://1"
+            viewModel.updateData(uri = uri1)
+            val state1 = awaitItem()
+            assertEquals(uri1, state1?.uri)
+            assertEquals(false, state1?.forceTcp)
+
+            // 2. Update TCP only (URI should persist)
+            viewModel.updateData(forceTcp = true)
+            val state2 = awaitItem()
+            assertEquals(uri1, state2?.uri) // URI persists
+            assertEquals(true, state2?.forceTcp) // TCP updates
+
+            // 3. Update both
+            val uri2 = "rtsp://2"
+            viewModel.updateData(uri = uri2, forceTcp = false)
+            val state3 = awaitItem()
+            assertEquals(uri2, state3?.uri)
+            assertEquals(false, state3?.forceTcp)
+        }
     }
 }
