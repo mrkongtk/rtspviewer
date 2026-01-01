@@ -46,7 +46,9 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
      * The Media3 ExoPlayer instance.
      * Use nullable to safely handle initialization failures (e.g., missing codecs or context issues).
      */
-    val exoPlayer: ExoPlayer?
+    private val _exoPlayer: ExoPlayer?
+    val player: Player?
+        get() = _exoPlayer
 
     // Backing property for the UI state.
     private val _state = MutableStateFlow(
@@ -85,7 +87,7 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
 
     init {
         // Initialize ExoPlayer safely
-        exoPlayer = try {
+        _exoPlayer = try {
             ExoPlayer.Builder(context).build()
         } catch (e: Throwable) {
             // If ExoPlayer initialization fails, update the state with the error and set exoPlayer to null.
@@ -101,7 +103,6 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
              */
             override fun onPlayerErrorChanged(error: PlaybackException?) {
                 super.onPlayerErrorChanged(error)
-                // Update the error state in the ViewModel.
                 updateError(error)
             }
 
@@ -112,11 +113,9 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
              */
             override fun onPlaybackStateChanged(playbackState: Int) {
                 super.onPlaybackStateChanged(playbackState)
-                // Convert the ExoPlayer playback state to our custom enum.
                 RTSPVideoPlayerPlaybackState.fromValue(playbackState)?.let {
                     updatePlaybackState(it)
                 } ?: run {
-                    // Log an error if an unknown playback state is encountered.
                     Log.e("RTSPVideoPlayer", "Unknown ExoPlayer state: $playbackState")
                 }
             }
@@ -130,11 +129,8 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
              */
             override fun onIsPlayingChanged(isPlaying: Boolean) {
                 super.onIsPlayingChanged(isPlaying)
-                // Update the playback state based on whether the player is currently playing.
                 if (isPlaying) {
                     updatePlaybackState(RTSPVideoPlayerPlaybackState.Playing)
-                } else {
-                    updatePlaybackState(RTSPVideoPlayerPlaybackState.Ready)
                 }
             }
 
@@ -144,21 +140,17 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
              */
             override fun onVideoSizeChanged(videoSize: VideoSize) {
                 super.onVideoSizeChanged(videoSize)
-                // Update the video aspect ratio based on the new video dimensions.
                 updateVideoAspectRatio(
                     videoSize.width.toFloat(),
                     videoSize.height.toFloat()
                 )
             }
         }
-        // Add the listener to the ExoPlayer instance.
-        exoPlayer?.addListener(listener)
+
+        _exoPlayer?.addListener(listener)
 
         // If a URI was passed via Assisted Injection, start loading immediately.
-        initialUri?.let { uri ->
-            // Set the initial data (URI and forceTcp preference) and prepare the player.
-            updateData(uri, initialForceTcp)
-        }
+        updateData(initialUri, initialForceTcp)
     }
 
     /**
@@ -167,8 +159,7 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
      */
     override fun onCleared() {
         super.onCleared()
-        // Stop and release the ExoPlayer when the ViewModel is no longer needed.
-        exoPlayer?.let { player ->
+        _exoPlayer?.let { player ->
             if (player.isPlaying) {
                 player.stop()
             }
@@ -186,25 +177,27 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
      */
     fun updateData(uri: String? = null, forceTcp: Boolean? = null) {
         _data.update { oldData ->
-            // Determine the new data based on provided parameters, merging with old data if necessary.
+            // Logic to merge new parameters with existing data
             val newData = uri?.let { newUri ->
                 forceTcp?.let { newForceTcp ->
-                    // If both URI and forceTcp are provided, create new Data object.
+                    // Case 1: Both URI and forceTcp are provided -> Create fresh data
                     Data(uri = newUri, forceTcp = newForceTcp)
-                } ?: oldData?.copy(uri = newUri) ?: Data(
-                    uri = newUri,
-                    forceTcp = false
-                ) // If only URI is provided, update URI, default forceTcp to false if no oldData.
+                }
+                    ?: oldData?.copy(uri = newUri) // Case 2: Only URI provided -> Update URI, keep old TCP setting
+                    ?: Data(
+                        uri = newUri,
+                        forceTcp = false
+                    ) // Case 3: Only URI provided, no old data -> Default TCP to false
             } ?: run {
                 forceTcp?.let {
-                    // If only forceTcp is provided, update forceTcp in oldData.
+                    // Case 4: Only forceTcp provided -> Update TCP setting in old data
                     oldData?.copy(forceTcp = it)
-                } ?: oldData // If neither is provided, keep the old data.
+                } ?: oldData // Case 5: Neither provided -> No change
             }
 
             // If we have valid data, configure and prepare the MediaSource
             newData?.let { data ->
-                exoPlayer?.let { player ->
+                _exoPlayer?.let { player ->
                     val mediaSource = RtspMediaSource.Factory()
                         // Critical for RTSP: Forces RTP over TCP (interleaved) if configured.
                         // This is required for viewing streams over the internet/WAN or through firewalls
@@ -212,7 +205,6 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
                         .setForceUseRtpTcp(data.forceTcp)
                         .createMediaSource(MediaItem.fromUri(data.uri))
 
-                    // Set the media source and prepare the player.
                     player.setMediaSource(mediaSource)
                     player.playWhenReady = true // Start playback automatically when ready.
                     player.prepare()
@@ -223,12 +215,46 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
     }
 
     /**
+     * Resumes or restarts playback based on the current player state.
+     *
+     * - If [RTSPVideoPlayerPlaybackState.Ready] (paused), it resumes playback.
+     * - If [RTSPVideoPlayerPlaybackState.Idle] or Ended, it calls prepare to reload.
+     * - If already playing or buffering, no action is taken.
+     */
+    fun playVideo() {
+        _exoPlayer?.let {
+            when (_state.value.playback) {
+                RTSPVideoPlayerPlaybackState.Ready -> it.play()
+                RTSPVideoPlayerPlaybackState.Buffering,
+                RTSPVideoPlayerPlaybackState.Playing -> { /* Already active, do nothing */
+                }
+
+                else -> it.prepare()
+            }
+        }
+    }
+
+    /**
+     * Stops playback and resets the player to the Idle state.
+     */
+    fun stopVideo() {
+        _exoPlayer?.stop()
+    }
+
+    /**
      * Updates the current playback state enum in the UI state flow.
      */
     internal fun updatePlaybackState(playback: RTSPVideoPlayerPlaybackState) {
-        // Update the playback state within the _state flow.
         _state.update {
-            it.copy(playback = playback)
+            // Auto-clear any persistent error message if the player successfully
+            // recovers (becomes Ready or Playing).
+            val error = when (playback) {
+                RTSPVideoPlayerPlaybackState.Ready,
+                RTSPVideoPlayerPlaybackState.Playing -> null
+
+                else -> it.error
+            }
+            it.copy(playback = playback, error = error)
         }
     }
 
@@ -237,7 +263,6 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
      * @param error The exception thrown, or null to clear the error.
      */
     internal fun updateError(error: Throwable?) {
-        // Update the error field in the _state flow.
         _state.update {
             it.copy(error = error)
         }
@@ -251,9 +276,7 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
      */
     internal fun updateVideoAspectRatio(width: Float, height: Float) {
         _videoAspectRatio.update {
-            // Calculate the aspect ratio.
             val result = width / height
-            // Update the aspect ratio only if it's a finite positive number, otherwise default to 16:9.
             if (result.isFinite() && result > 0) {
                 result
             } else {

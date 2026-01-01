@@ -35,8 +35,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.media3.common.Player
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.AspectRatioFrameLayout
 import androidx.media3.ui.PlayerView
 import com.mrkongtk.rtspviewer.data.RTSPVideoPlayerPlaybackState
@@ -66,24 +66,25 @@ fun RTSPVideoPlayer(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // -- State Observation --
-    // Collects the current playback state (e.g., Buffering, Ready, Playing)
+    // collectAsStateWithLifecycle is lifecycle-aware, meaning it stops collecting flows
+    // when the app goes to the background, saving resources.
     val playerState by viewModel.state.collectAsStateWithLifecycle(null)
 
     // Collects specific error messages to display in the UI (if any)
     val errorDescription by viewModel.state.map { it.error }.collectAsStateWithLifecycle(null)
 
-    // Collects the aspect ratio of the incoming video stream to resize the player container
+    // Collects the aspect ratio of the incoming video stream to resize the player container.
     // Defaults to 16:9 until metadata is available.
     val videoAspectRatio by viewModel.videoAspectRatio.collectAsStateWithLifecycle(16f / 9f)
 
     // -- Lifecycle Management --
     // It is critical to stop/release video players when the Activity pauses to prevent
-    // memory leaks and background data usage.
+    // memory leaks, battery drain, and background data usage.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
             when (event) {
                 // When user leaves the app (Home button, switching apps), stop the player.
-                Lifecycle.Event.ON_PAUSE -> viewModel.exoPlayer?.stop()
+                Lifecycle.Event.ON_PAUSE -> viewModel.stopVideo()
                 else -> Unit
             }
         }
@@ -98,25 +99,25 @@ fun RTSPVideoPlayer(
     // Render the stateless UI content
     RTSPVideoPlayerContent(
         modifier = modifier,
-        exoPlayer = viewModel.exoPlayer,
+        player = viewModel.player,
         playbackState = playerState?.playback ?: RTSPVideoPlayerPlaybackState.Idle,
         videoAspectRatio = videoAspectRatio,
         errorMessage = errorDescription?.localizedMessage,
-        onPlayClick = { viewModel.exoPlayer?.prepare() }, // Triggers stream preparation
-        onPauseClick = { viewModel.exoPlayer?.stop() }    // Stops the stream
+        onPlayClick = { viewModel.playVideo() }, // Triggers stream preparation
+        onPauseClick = { viewModel.stopVideo() }    // Stops the stream
     )
 }
 
 /**
  * The stateless UI renderer for the video player.
  *
- * It utilizes a [Box] to layer UI elements using Z-index logic:
+ * It utilizes a [Box] to layer UI elements using Z-index logic (first item is bottom, last is top):
  * 1. Bottom Layer: The Video Surface (AndroidView)
  * 2. Middle Layer: Error Messages (if present)
  * 3. Top Layer: Control Overlays (Loading spinners, Play/Pause buttons)
  *
  * @param modifier Modifier for styling.
- * @param exoPlayer The underlying Media3 ExoPlayer instance.
+ * @param player The underlying Media3 ExoPlayer instance.
  * @param playbackState The current status of the player (Buffering, Playing, etc.).
  * @param videoAspectRatio The ratio (width/height) to enforce on the video container.
  * @param errorMessage A readable error string, or null if no error exists.
@@ -125,9 +126,9 @@ fun RTSPVideoPlayer(
  */
 @OptIn(UnstableApi::class)
 @Composable
-fun RTSPVideoPlayerContent(
+internal fun RTSPVideoPlayerContent(
     modifier: Modifier = Modifier,
-    exoPlayer: ExoPlayer?,
+    player: Player?,
     playbackState: RTSPVideoPlayerPlaybackState,
     videoAspectRatio: Float,
     errorMessage: String?,
@@ -136,14 +137,17 @@ fun RTSPVideoPlayerContent(
 ) {
     Box(
         modifier = modifier
-            .aspectRatio(videoAspectRatio, false), // Dynamically sizing based on video content
+            .aspectRatio(
+                videoAspectRatio,
+                matchHeightConstraintsFirst = false
+            ), // Dynamically sizing based on video content
         contentAlignment = Alignment.Center,
     ) {
         // LAYER 1: Error Handling
         // If an error exists, we show it immediately and hide the player behind it (or don't render it).
         errorMessage?.let { msg ->
             ErrorOverlay(Modifier.fillMaxSize(), msg)
-        } ?: exoPlayer?.let { player ->
+        } ?: player?.let { player ->
 
             // LAYER 2: Video Surface
             // Since ExoPlayer relies on SurfaceView/TextureView, we use AndroidView to bridge
@@ -158,7 +162,8 @@ fun RTSPVideoPlayerContent(
                     }
                 },
                 update = { playerView ->
-                    // Binds the ExoPlayer instance to the View whenever the Composable recomposes
+                    // Binds the ExoPlayer instance to the View whenever the Composable recomposes.
+                    // The check ensures we don't re-assign the player unnecessarily, which can cause flickering.
                     if (playerView.player != player) {
                         playerView.player = player
                     }
@@ -171,6 +176,7 @@ fun RTSPVideoPlayerContent(
                 RTSPVideoPlayerPlaybackState.Buffering -> {
                     LoadingOverlay(Modifier.fillMaxSize())
                 }
+                RTSPVideoPlayerPlaybackState.Idle,
                 RTSPVideoPlayerPlaybackState.Ready -> {
                     PlayButtonOverlay(Modifier.fillMaxSize()) {
                         onPlayClick()
@@ -195,7 +201,7 @@ fun RTSPVideoPlayerContent(
  * Displays a centered error message with a solid background.
  */
 @Composable
-fun ErrorOverlay(modifier: Modifier = Modifier, errorMessage: String) {
+internal fun ErrorOverlay(modifier: Modifier = Modifier, errorMessage: String) {
     Column(
         modifier = modifier
             .testTag("error_overlay")
@@ -215,7 +221,7 @@ fun ErrorOverlay(modifier: Modifier = Modifier, errorMessage: String) {
  * Displays a placeholder text while the Player initializes.
  */
 @Composable
-fun EmptyPlayerOverlay(modifier: Modifier = Modifier) {
+internal fun EmptyPlayerOverlay(modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.testTag("empty_player_overlay"),
         verticalArrangement = Arrangement.Center,
@@ -230,7 +236,7 @@ fun EmptyPlayerOverlay(modifier: Modifier = Modifier) {
  * Used when the video is buffering or connecting to the RTSP stream.
  */
 @Composable
-fun LoadingOverlay(modifier: Modifier = Modifier) {
+internal fun LoadingOverlay(modifier: Modifier = Modifier) {
     Box(
         modifier = modifier
             .testTag("loading_overlay")
@@ -248,7 +254,7 @@ fun LoadingOverlay(modifier: Modifier = Modifier) {
  * Displays a large "Play" icon centered over the video area.
  */
 @Composable
-fun PlayButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Unit) {
+internal fun PlayButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
         modifier = modifier
             .testTag("play_button_overlay")
@@ -270,7 +276,7 @@ fun PlayButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Unit) {
  * Clicking this will trigger the [onPauseClick] action.
  */
 @Composable
-fun PauseButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Unit) {
+internal fun PauseButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Unit) {
     Box(
         modifier = modifier
             .testTag("pause_button_overlay")
