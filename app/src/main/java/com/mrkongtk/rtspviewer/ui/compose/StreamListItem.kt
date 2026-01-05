@@ -51,16 +51,17 @@ import com.mrkongtk.rtspviewer.ui.theme.RoundedCornerSize
 /**
  * A list item component representing a single RTSP stream configuration.
  *
- * This composable renders a clickable [ElevatedCard] containing:
- * - An optional snapshot/thumbnail of the stream.
- * - The stream's name.
- * - A navigation indicator arrow.
+ * This composable renders a clickable [ElevatedCard] designed to display:
+ * 1. An optional live snapshot/thumbnail of the stream.
+ * 2. The stream's display name.
+ * 3. A collection of tags associated with the stream (wrapped automatically).
+ * 4. A navigation indicator.
  *
  * @param modifier The [Modifier] to be applied to the outer Card layout.
- * @param data The [RTSPItem] domain object containing stream details (name, URL, etc.).
+ * @param data The [RTSPItem] domain entity containing stream details (name, URL, tags, etc.).
  * @param preview An optional [Bitmap] representing the latest snapshot of the stream.
- *                If null, the image section is hidden.
- * @param onClick A callback lambda triggered when the card is tapped; passes the associated [data].
+ *                If `null`, the image section is completely hidden.
+ * @param onClick A callback lambda triggered when the card is tapped; passes the associated [data] item.
  */
 @Composable
 fun StreamListItem(
@@ -85,61 +86,71 @@ fun StreamListItem(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(PaddingM),
-            // Pushes content to the edges: Content starts at left, Icon is pushed to right
+            // Distribute space: Content aligned to start, Icon aligned to end
             horizontalArrangement = Arrangement.SpaceBetween,
-            // Vertically centers the thumbnail, text, and icon within the row height
+            // Vertically center all elements (Thumbnail, Text block, Icon)
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Conditional rendering: Only show the image block if a valid bitmap exists
+            // --- Thumbnail Section ---
+            // Only render the image component if a valid bitmap is provided.
             preview?.let {
                 Image(
                     modifier = Modifier
                         .width(PreviewWidth)
-                        // maintain the aspect ratio based on the actual bitmap dimensions
+                        // Calculate aspect ratio dynamically based on the bitmap dimensions
                         .aspectRatio(it.width.toFloat() / it.height.toFloat())
                         .clip(RoundedCornerShape(RoundedCornerSize)),
                     bitmap = it.asImageBitmap(),
-                    // Accessibility: Formatting the string resource to include the stream name
+                    // Accessibility: injects the stream name into the description for screen readers
                     contentDescription = stringResource(R.string.rtsp_item_preview_description).replace(
                         "%1",
                         data.name
                     )
                 )
-                // Add spacing between the image and the text
+                // Spacing between Thumbnail and Text
                 Spacer(modifier = Modifier.width(PaddingM))
             }
 
+            // --- Details Section (Name & Tags) ---
+            // Using .weight(1f) ensures this column takes up all remaining space between
+            // the image and the arrow icon, preventing overlaps.
             Column(modifier = Modifier.weight(1f)) {
-                // Stream Name Display
-                Text(text = data.name)
-                FlowRow(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(
-                        space = PaddingS,
-                        alignment = Alignment.Start
-                    )
-                ) {
-                    data.tags.fastForEach { tag ->
-                        // Individual Tag Chip styling
-                        val modifier = Modifier
-                            .background(
-                                color = MaterialTheme.colorScheme.secondary,
-                                shape = RoundedCornerShape(PaddingXs)
+                Text(
+                    text = data.name,
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                // Render tags in a flexible row that wraps to new lines if space runs out
+                if (data.tags.isNotEmpty()) {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(
+                            space = PaddingS,
+                            alignment = Alignment.Start
+                        ),
+                        // verticalArrangement can be added here if spacing between rows is needed
+                    ) {
+                        data.tags.fastForEach { tag ->
+                            // Individual Tag Chip styling
+                            Text(
+                                modifier = Modifier
+                                    .background(
+                                        color = MaterialTheme.colorScheme.secondary,
+                                        shape = RoundedCornerShape(PaddingXs)
+                                    )
+                                    .padding(horizontal = PaddingS)
+                                    .testTag("Tag $tag"),
+                                text = tag,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondary
                             )
-                            .padding(horizontal = PaddingS)
-                            .testTag("Tag $tag")
-                        Text(
-                            modifier = modifier,
-                            text = tag,
-                            color = MaterialTheme.colorScheme.onSecondary
-                        )
+                        }
                     }
                 }
-
             }
 
-            // Navigation Icon
-            // Uses 'AutoMirrored' to ensure the arrow points correctly in RTL (Right-to-Left) layouts.
+            // --- Navigation Indicator ---
+            // Uses 'AutoMirrored' to ensure the arrow points correctly in RTL (Right-to-Left) locales.
             Icon(
                 imageVector = Icons.AutoMirrored.Default.KeyboardArrowRight,
                 contentDescription = stringResource(R.string.detail),
@@ -151,10 +162,10 @@ fun StreamListItem(
 /**
  * Preview provider for [StreamListItem].
  *
- * Renders the component in both Light (Day) and Dark (Night) modes.
- * It demonstrates two states:
- * 1. An item with a mocked snapshot (generated programmatically).
- * 2. An item without a snapshot.
+ * Demonstrates the component in the following scenarios:
+ * 1. **Day Mode**: Standard light theme.
+ * 2. **Night Mode**: Dark theme.
+ * 3. **Variations**: Items with/without previews and items with/without tags.
  */
 @Preview(
     name = "Day",
@@ -177,33 +188,52 @@ private fun StreamListItemPreview() {
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) { innerPadding ->
 
-            // Create a Mock Bitmap to simulate a camera preview
+            // --- Mock Data Generation ---
+            // Create a dummy Bitmap to simulate a camera snapshot
             val w = 1920
             val h = 1080
             val bmp = createBitmap(w, h).let {
                 val canvas = Canvas(it)
-                // Draw a solid color (ErrorColor) onto the canvas to visualize the bitmap
+                // Draw a placeholder color
                 canvas.drawColor(ErrorColor.toArgb())
                 it
             }
 
-            // Mock data items
+            // Define various RTSP items to test different UI states
             val mockItems = listOf(
+                // Case 1: Standard item with no tags
                 RTSPItem(1, "Living Room Camera", "rtsp://192.168.1.10", emptyList(), 1),
+                // Case 2: Item without preview image
                 RTSPItem(2, "Backyard Camera", "rtsp://192.168.1.11", emptyList(), 2),
-                RTSPItem(3, "Kitchen Camera", "rtsp://192.168.1.10", listOf("back", "123"), 1),
-                RTSPItem(4, "Back Camera", "rtsp://192.168.1.11", listOf("back", "123"), 3),
+                // Case 3: Item with tags
+                RTSPItem(
+                    3,
+                    "Kitchen Camera",
+                    "rtsp://192.168.1.10",
+                    listOf("indoor", "ground-floor"),
+                    1
+                ),
+                // Case 4: Item with tags but no preview
+                RTSPItem(
+                    4,
+                    "Garage Camera",
+                    "rtsp://192.168.1.11",
+                    listOf("outdoor", "security"),
+                    3
+                ),
             )
 
-            // Map IDs to previews (only item 1 has a preview)
+            // Map specific items to the mock bitmap (Items 1 and 3 get images)
             val mockPreviews = mapOf(
                 Pair(1L, bmp),
                 Pair(3L, bmp)
             )
 
+            // --- Preview Layout ---
             Column(
                 modifier = Modifier
                     .padding(innerPadding)
+                    .padding(PaddingS) // External margin for the list
             ) {
                 mockItems.fastForEach { item ->
                     StreamListItem(
