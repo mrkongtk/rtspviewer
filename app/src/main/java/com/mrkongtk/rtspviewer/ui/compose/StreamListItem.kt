@@ -4,8 +4,10 @@ import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -31,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.util.fastForEach
@@ -40,6 +43,7 @@ import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.theme.ErrorColor
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.PaddingS
+import com.mrkongtk.rtspviewer.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.ui.theme.PreviewWidth
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.ui.theme.RoundedCornerSize
@@ -105,13 +109,34 @@ fun StreamListItem(
                 Spacer(modifier = Modifier.width(PaddingM))
             }
 
-            // Stream Name Display
-            Text(
-                text = data.name,
-                // Weight 1f ensures the text takes up all available remaining space,
-                // pushing the icon to the edge and truncating the text if it becomes too long.
-                modifier = Modifier.weight(1f),
-            )
+            Column(modifier = Modifier.weight(1f)) {
+                // Stream Name Display
+                Text(text = data.name)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(
+                        space = PaddingS,
+                        alignment = Alignment.Start
+                    )
+                ) {
+                    data.tags.fastForEach { tag ->
+                        // Individual Tag Chip styling
+                        val modifier = Modifier
+                            .background(
+                                color = MaterialTheme.colorScheme.secondary,
+                                shape = RoundedCornerShape(PaddingXs)
+                            )
+                            .padding(horizontal = PaddingS)
+                            .testTag("Tag $tag")
+                        Text(
+                            modifier = modifier,
+                            text = tag,
+                            color = MaterialTheme.colorScheme.onSecondary
+                        )
+                    }
+                }
+
+            }
 
             // Navigation Icon
             // Uses 'AutoMirrored' to ensure the arrow points correctly in RTL (Right-to-Left) layouts.
@@ -165,12 +190,15 @@ private fun StreamListItemPreview() {
             // Mock data items
             val mockItems = listOf(
                 RTSPItem(1, "Living Room Camera", "rtsp://192.168.1.10", emptyList(), 1),
-                RTSPItem(2, "Backyard Camera", "rtsp://192.168.1.11", emptyList(), 1)
+                RTSPItem(2, "Backyard Camera", "rtsp://192.168.1.11", emptyList(), 2),
+                RTSPItem(3, "Kitchen Camera", "rtsp://192.168.1.10", listOf("back", "123"), 1),
+                RTSPItem(4, "Back Camera", "rtsp://192.168.1.11", listOf("back", "123"), 3),
             )
 
             // Map IDs to previews (only item 1 has a preview)
             val mockPreviews = mapOf(
-                Pair(1L, bmp)
+                Pair(1L, bmp),
+                Pair(3L, bmp)
             )
 
             Column(

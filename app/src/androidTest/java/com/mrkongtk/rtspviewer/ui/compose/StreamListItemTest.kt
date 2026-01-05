@@ -2,8 +2,10 @@ package com.mrkongtk.rtspviewer.ui.compose
 
 import android.graphics.Bitmap
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
@@ -12,15 +14,15 @@ import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import org.junit.Rule
 import org.junit.Test
-import org.mockito.Mockito.mock
-import org.mockito.Mockito.verify
+import org.mockito.kotlin.mock
 import org.mockito.kotlin.times
+import org.mockito.kotlin.verify
 
 /**
  * UI Test Suite for the [StreamListItem] Composable.
  *
  * This class uses the AndroidX Compose Test library to verify:
- * 1. UI Rendering: Ensuring data maps correctly to visual elements.
+ * 1. UI Rendering: Ensuring data maps correctly to visual elements (Text, Tags, Images).
  * 2. Visual Logic: Ensuring preview images appear/disappear based on data.
  * 3. User Interaction: Ensuring click events trigger the expected callbacks.
  */
@@ -81,6 +83,53 @@ class StreamListItemTest {
         composeTestRule
             .onNodeWithContentDescription(expectedIconDescription)
             .assertIsDisplayed()
+    }
+
+    /**
+     * Test: Content Verification (Tags).
+     * Scenario: A valid RTSPItem is provided with a list of tags.
+     * Expected Result: The tags are displayed and identifiable by their test tags.
+     */
+    @Test
+    fun streamListItem_displaysTags() {
+        // ---------------------------------------------------------------------
+        // ARRANGE
+        // ---------------------------------------------------------------------
+        val tags = listOf("Outdoor", "Security", "Home")
+        val testItem = RTSPItem(
+            id = 1L,
+            name = "Garden Cam",
+            uri = "rtsp://192.168.1.55",
+            tags = tags,
+            order = 0,
+            forceTcp = false
+        )
+
+        // ---------------------------------------------------------------------
+        // ACT
+        // ---------------------------------------------------------------------
+        composeTestRule.setContent {
+            RTSPViewerTheme {
+                StreamListItem(
+                    data = testItem,
+                    preview = null,
+                    onClick = {}
+                )
+            }
+        }
+
+        // ---------------------------------------------------------------------
+        // ASSERT
+        // ---------------------------------------------------------------------
+
+        // Verify every tag in the list is displayed using the testTag modifier logic
+        // defined in the Composable: .testTag("Tag $tag")
+        tags.forEach { tag ->
+            composeTestRule
+                .onNodeWithTag("Tag $tag", useUnmergedTree = true)
+                .assertIsDisplayed()
+                .assertTextEquals(tag)
+        }
     }
 
     /**
@@ -191,7 +240,7 @@ class StreamListItemTest {
             order = 1
         )
 
-        // Mock the callback function
+        // Mock the callback function using mockito-kotlin
         val mockOnClick = mock<Function1<RTSPItem, Unit>>()
 
         // ---------------------------------------------------------------------
