@@ -2,6 +2,7 @@ package com.mrkongtk.rtspviewer.ui.screen
 
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.Canvas
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,13 +23,16 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.graphics.createBitmap
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.DraggableLazyColumn
 import com.mrkongtk.rtspviewer.ui.compose.StreamListItem
+import com.mrkongtk.rtspviewer.ui.theme.ErrorColor
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 
@@ -177,9 +181,21 @@ private fun StreamListScreenPreview() {
                 )
             )
 
+            val w = 1920
+            val h = 1080
+            val bmp = createBitmap(w, h).let {
+                val canvas = Canvas(it)
+                // Draw a solid color (ErrorColor) onto the canvas to visualize the bitmap
+                canvas.drawColor(ErrorColor.toArgb())
+                it
+            }
+            val mockPreviews = mapOf(
+                Pair(1L, bmp)
+            )
+
             StreamListScreen(
                 itemList = mockItems,
-                previews = emptyMap(),
+                previews = mockPreviews,
                 onItemSelected = {},
                 onAddItemSelected = {},
                 onItemsReordered = {},
