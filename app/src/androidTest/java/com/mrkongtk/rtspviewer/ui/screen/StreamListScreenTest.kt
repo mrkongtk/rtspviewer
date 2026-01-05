@@ -83,6 +83,7 @@ class StreamListScreenTest {
         composeTestRule.setContent {
             StreamListScreen(
                 itemList = emptyList,
+                previews = emptyMap(), // Updated: Pass empty map for previews
                 onItemSelected = actions::onItemSelected,
                 onAddItemSelected = actions::onAddItemSelected,
                 onItemsReordered = actions::onItemsReordered
@@ -113,6 +114,7 @@ class StreamListScreenTest {
         composeTestRule.setContent {
             StreamListScreen(
                 itemList = items,
+                previews = emptyMap(), // Updated: Pass empty map for previews
                 onItemSelected = actions::onItemSelected,
                 onAddItemSelected = actions::onAddItemSelected,
                 onItemsReordered = actions::onItemsReordered
@@ -151,6 +153,7 @@ class StreamListScreenTest {
         composeTestRule.setContent {
             StreamListScreen(
                 itemList = emptyList(),
+                previews = emptyMap(), // Updated: Pass empty map for previews
                 onItemSelected = actions::onItemSelected,
                 onAddItemSelected = actions::onAddItemSelected,
                 onItemsReordered = actions::onItemsReordered
@@ -176,6 +179,7 @@ class StreamListScreenTest {
         composeTestRule.setContent {
             StreamListScreen(
                 itemList = items,
+                previews = emptyMap(), // Updated: Pass empty map for previews
                 onItemSelected = actions::onItemSelected,
                 onAddItemSelected = actions::onAddItemSelected,
                 onItemsReordered = actions::onItemsReordered
@@ -202,6 +206,7 @@ class StreamListScreenTest {
         composeTestRule.setContent {
             StreamListScreen(
                 itemList = items,
+                previews = emptyMap(), // Updated: Pass empty map for previews
                 onItemSelected = {},
                 onAddItemSelected = {},
                 onItemsReordered = {}

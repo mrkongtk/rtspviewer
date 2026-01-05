@@ -56,7 +56,8 @@ class RTSPVideoPlayerTest {
                 videoAspectRatio = 1.77f,
                 errorMessage = null,
                 onPlayClick = {},
-                onPauseClick = {}
+                onPauseClick = {},
+                onImageAvailable = {}
             )
         }
 
@@ -76,7 +77,8 @@ class RTSPVideoPlayerTest {
                 videoAspectRatio = 1.77f,
                 errorMessage = null,
                 onPlayClick = {},
-                onPauseClick = {}
+                onPauseClick = {},
+                onImageAvailable = {}
             )
         }
 
@@ -95,7 +97,8 @@ class RTSPVideoPlayerTest {
                 videoAspectRatio = 1.77f,
                 errorMessage = errorMsg, // Error is present
                 onPlayClick = {},
-                onPauseClick = {}
+                onPauseClick = {},
+                onImageAvailable = {}
             )
         }
 
@@ -122,7 +125,8 @@ class RTSPVideoPlayerTest {
                 videoAspectRatio = 1.77f,
                 errorMessage = null,
                 onPlayClick = {},
-                onPauseClick = {}
+                onPauseClick = {},
+                onImageAvailable = {}
             )
         }
 
@@ -146,7 +150,8 @@ class RTSPVideoPlayerTest {
                 videoAspectRatio = 1.77f,
                 errorMessage = null,
                 onPlayClick = { playClicked = true },
-                onPauseClick = {}
+                onPauseClick = {},
+                onImageAvailable = {}
             )
         }
 
@@ -168,7 +173,8 @@ class RTSPVideoPlayerTest {
                 videoAspectRatio = 1.77f,
                 errorMessage = null,
                 onPlayClick = {},
-                onPauseClick = { pauseClicked = true }
+                onPauseClick = { pauseClicked = true },
+                onImageAvailable = {}
             )
         }
 
@@ -203,7 +209,8 @@ class RTSPVideoPlayerTest {
                     videoAspectRatio = 2.0f, // Width / Height = 2.0
                     errorMessage = null,
                     onPlayClick = {},
-                    onPauseClick = {}
+                    onPauseClick = {},
+                    onImageAvailable = {}
                 )
             }
         }
@@ -239,7 +246,8 @@ class RTSPVideoPlayerTest {
                     videoAspectRatio = 0.5f,
                     errorMessage = null,
                     onPlayClick = {},
-                    onPauseClick = {}
+                    onPauseClick = {},
+                    onImageAvailable = {}
                 )
             }
         }

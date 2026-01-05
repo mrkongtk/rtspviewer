@@ -1,13 +1,15 @@
 package com.mrkongtk.rtspviewer.data.repository
 
+import android.graphics.Bitmap
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import kotlinx.coroutines.flow.StateFlow
+import java.io.File
 
 /**
  * Defines the contract for the repository responsible for managing RTSP stream items.
  *
  * This repository acts as the single source of truth for the application's data layer,
- * abstracting the underlying data sources (such as a local database or network).
+ * abstracting the underlying data sources (local database, file system, and memory cache).
  */
 interface RTSPItemRepository {
 
@@ -18,6 +20,14 @@ interface RTSPItemRepository {
      * update whenever the data source changes. It always holds the latest state.
      */
     val items: StateFlow<List<RTSPItem>>
+
+    /**
+     * A state holder exposing an in-memory cache of preview images.
+     *
+     * The Map key represents the [RTSPItem.id], and the value is the generated [Bitmap] preview.
+     * This allows the UI to display thumbnails immediately without reading from disk repeatedly.
+     */
+    val cachedPreviews: StateFlow<Map<Long, Bitmap>>
 
     /**
      * Asynchronously loads the RTSP items from the underlying data source.
@@ -65,4 +75,35 @@ interface RTSPItemRepository {
      * @return The number of rows affected (usually 1 if successful, 0 otherwise).
      */
     suspend fun deleteItem(item: RTSPItem): Int
+
+    /**
+     * Generates the file handle for the stored preview image of a specific item.
+     *
+     * This does not guarantee the file exists; it provides the path where the file
+     * *should* reside on the local filesystem.
+     *
+     * @param item The RTSP item for which the preview path is needed.
+     * @return A [File] object pointing to the expected location in the cache directory.
+     */
+    fun previewPathFor(item: RTSPItem): File
+
+    /**
+     * Updates the in-memory cache with a specific bitmap for an RTSP item.
+     *
+     * This method is responsible for managing memory usage, including the potential
+     * recycling of old bitmaps associated with the same ID.
+     *
+     * @param item The RTSP item the bitmap belongs to.
+     * @param bitmap The loaded bitmap image.
+     */
+    fun cachePreviewFor(item: RTSPItem, bitmap: Bitmap)
+
+    /**
+     * Clears all bitmaps from the in-memory cache.
+     *
+     * This should be called when the data is no longer needed (e.g., ViewModel cleared)
+     * to free up native memory by recycling the bitmaps.
+     */
+    fun removeCachedPreviews()
+
 }

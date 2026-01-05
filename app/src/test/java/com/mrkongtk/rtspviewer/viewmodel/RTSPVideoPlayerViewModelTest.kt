@@ -1,6 +1,7 @@
 package com.mrkongtk.rtspviewer.viewmodel
 
 import android.content.Context
+import android.graphics.Bitmap
 import androidx.media3.common.PlaybackException
 import app.cash.turbine.test
 import com.mrkongtk.rtspviewer.data.RTSPVideoPlayerPlaybackState
@@ -23,7 +24,7 @@ import org.mockito.kotlin.mock
  *
  * **Testing Strategy:**
  * 1. **ExoPlayer Handling:** In a standard JVM unit test environment, `ExoPlayer.Builder(context).build()`
- *    will throw an exception because Android system classes are not available.
+ *    will throw an exception because Android system classes are not available (unless using Robolectric).
  *    We utilize this behavior to verify the ViewModel's error handling in the `init` block.
  * 2. **Internal Method Testing:** Since we cannot easily mock the real ExoPlayer listeners without
  *    Robolectric or complex static mocking, we test the internal methods (`updatePlaybackState`,
@@ -48,35 +49,37 @@ class RTSPVideoPlayerViewModelTest {
 
     /**
      * Helper to instantiate the ViewModel with optional parameters.
+     * Updated to include the onImageAvailable callback.
      */
     private fun createViewModel(
         uri: String? = null,
-        forceTcp: Boolean = false
+        forceTcp: Boolean = false,
+        onImageAvailable: ((Bitmap) -> Unit)? = null
     ): RTSPVideoPlayerViewModel {
-        return RTSPVideoPlayerViewModel(mockContext, uri, forceTcp)
+        return RTSPVideoPlayerViewModel(mockContext, uri, forceTcp, onImageAvailable)
     }
 
     @Test
     fun `init - catches ExoPlayer creation failure, sets player to null and updates error state`() =
         runTest {
-        val viewModel = createViewModel()
+            val viewModel = createViewModel()
 
             // 1. Assert Player is null (due to Builder failure in JVM test environment)
-        assertNull(
-            "Public player property should be null in JVM tests due to Builder failure",
-            viewModel.player
-        )
-
-        // 2. Verify the initial state emission contains the initialization error
-        viewModel.state.test {
-            val initialState = awaitItem()
-            assertEquals(RTSPVideoPlayerPlaybackState.Idle, initialState.playback)
-            assertNotNull(
-                "State should contain the exception from ExoPlayer builder",
-                initialState.error
+            assertNull(
+                "Public player property should be null in JVM tests due to Builder failure",
+                viewModel.player
             )
+
+            // 2. Verify the initial state emission contains the initialization error
+            viewModel.state.test {
+                val initialState = awaitItem()
+                assertEquals(RTSPVideoPlayerPlaybackState.Idle, initialState.playback)
+                assertNotNull(
+                    "State should contain the exception from ExoPlayer builder",
+                    initialState.error
+                )
+            }
         }
-    }
 
     @Test
     fun `updatePlaybackState - updates the state flow correctly`() = runTest {
@@ -243,5 +246,21 @@ class RTSPVideoPlayerViewModelTest {
         } catch (e: Exception) {
             throw AssertionError("stopVideo threw exception when player was null", e)
         }
+    }
+
+    @Test
+    fun `imageAvailable - invokes callback with captured bitmap`() = runTest {
+        var capturedBitmap: Bitmap? = null
+        val mockBitmap = mock<Bitmap>()
+
+        val viewModel = createViewModel(onImageAvailable = { bitmap ->
+            capturedBitmap = bitmap
+        })
+
+        // Trigger the view model method
+        viewModel.imageAvailable(mockBitmap)
+
+        assertNotNull("Callback should have been triggered", capturedBitmap)
+        assertEquals("Callback should receive the exact bitmap", mockBitmap, capturedBitmap)
     }
 }

@@ -1,6 +1,7 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -102,6 +103,7 @@ private operator fun MoreOptionState.not(): MoreOptionState {
  * @param moreOption The initial state of the options menu (default is closed).
  * @param onEditItemSelected Callback triggered when the "Edit" menu item is clicked.
  * @param onDeleteItemSelected Callback triggered when the "Delete" menu item is clicked.
+ * @param onImageAvailable Callback triggered when a snapshot/bitmap is available from the player.
  */
 @Composable
 fun StreamItemScreen(
@@ -110,6 +112,7 @@ fun StreamItemScreen(
     moreOption: Boolean = false,
     onEditItemSelected: () -> Unit,
     onDeleteItemSelected: () -> Unit,
+    onImageAvailable: (RTSPItem, Bitmap) -> Unit,
 ) {
     // Local state to control the visibility of the delete confirmation dialog
     var showDeleteConfirmationPrompt by remember { mutableStateOf(false) }
@@ -131,7 +134,9 @@ fun StreamItemScreen(
             VideoPlayerCompose(
                 Modifier
                     .testTag("VideoPlayer")
-                    .fillMaxWidth(), item
+                    .fillMaxWidth(),
+                item,
+                onImageAvailable
             )
 
             // 2. Definition of UI Rows for Metadata
@@ -334,11 +339,13 @@ fun StreamItemScreen(
  *
  * @param modifier Modifier for the player container.
  * @param item The RTSP item containing connection details.
+ * @param onImageAvailable Callback used to pass captured frames back to the parent.
  */
 @Composable
 private fun VideoPlayerCompose(
     modifier: Modifier = Modifier,
-    item: RTSPItem
+    item: RTSPItem,
+    onImageAvailable: (RTSPItem, Bitmap) -> Unit,
 ) {
     // Check if we are running in Android Studio Preview mode
     if (LocalInspectionMode.current) {
@@ -364,7 +371,7 @@ private fun VideoPlayerCompose(
         val rtspViewModel: RTSPVideoPlayerViewModel =
             hiltViewModel<RTSPVideoPlayerViewModel, RTSPVideoPlayerViewModel.Factory>(
                 creationCallback = { factory ->
-                    factory.create(item.uri, item.forceTcp)
+                    factory.create(item.uri, item.forceTcp, { onImageAvailable(item, it) })
                 }
             )
 
@@ -376,6 +383,13 @@ private fun VideoPlayerCompose(
     }
 }
 
+/**
+ * Displays an alert dialog confirming the deletion of an RTSP item.
+ *
+ * @param rtspItem The item intended for deletion (used for display name).
+ * @param onDismissRequest Callback to close the dialog without action.
+ * @param onConfirmation Callback to proceed with deletion.
+ */
 @Composable
 private fun DeleteConfirmDialogCompose(
     rtspItem: RTSPItem,
@@ -443,7 +457,7 @@ private fun hideUriCredential(uri: String): String {
     val regex = "(rtsp://)(.+)(:)(.+)(@)".toRegex()
 
     if (regex.containsMatchIn(uri)) {
-        // Replace groups 2 and 4 with asterisks
+        // Replace groups 2 and 4 with asterisks, preserving syntax chars (1, 3, 5)
         val replacement = "\$1***\$3***\$5"
         return regex.replace(uri, replacement)
     } else {
@@ -526,6 +540,7 @@ private fun StreamItemScreenPreview(
                 moreOption = parameters.second.value,
                 onEditItemSelected = {},
                 onDeleteItemSelected = {},
+                onImageAvailable = { _, _ -> },
             )
         }
     }

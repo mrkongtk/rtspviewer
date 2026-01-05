@@ -1,12 +1,15 @@
 package com.mrkongtk.rtspviewer.viewmodel
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.util.Log
+import androidx.annotation.OptIn
 import androidx.lifecycle.ViewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
+import androidx.media3.common.util.UnstableApi
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.rtsp.RtspMediaSource
 import com.mrkongtk.rtspviewer.data.RTSPVideoPlayerPlaybackState
@@ -24,8 +27,13 @@ import kotlinx.coroutines.flow.update
  * ViewModel responsible for managing the state, configuration, and lifecycle of the RTSP Video Player.
  *
  * This class acts as the bridge between the UI (Compose/XML) and the Media3 ExoPlayer instance.
- * It handles the initialization of the player, processes RTSP streams, and exposes reactive
- * state flows for UI updates.
+ * It handles the initialization of the player, processes RTSP streams, manages error handling,
+ * and exposes reactive state flows for UI updates.
+ *
+ * **Key Features:**
+ * - Handles RTSP specific configurations (e.g., forcing TCP transport).
+ * - Manages the ExoPlayer lifecycle to prevent memory leaks.
+ * - Exposes aspect ratio changes to ensure correct video scaling in the UI.
  *
  * **Dependency Injection:**
  * This ViewModel uses Hilt's [AssistedInject] to combine compile-time dependencies (Context)
@@ -34,12 +42,14 @@ import kotlinx.coroutines.flow.update
  * @property context The application context used to build the ExoPlayer instance.
  * @property initialUri The initial RTSP URI provided when the screen is created.
  * @property initialForceTcp The initial user preference for forcing TCP transport.
+ * @property onImageAvailable A callback invoked when a frame (Bitmap) is captured (if supported).
  */
 @HiltViewModel(assistedFactory = RTSPVideoPlayerViewModel.Factory::class)
 class RTSPVideoPlayerViewModel @AssistedInject constructor(
     @ApplicationContext private val context: Context,
     @Assisted private val initialUri: String?,
-    @Assisted private val initialForceTcp: Boolean
+    @Assisted private val initialForceTcp: Boolean,
+    @Assisted private val onImageAvailable: ((Bitmap) -> Unit)?
 ) : ViewModel() {
 
     /**
@@ -47,10 +57,16 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
      * Use nullable to safely handle initialization failures (e.g., missing codecs or context issues).
      */
     private val _exoPlayer: ExoPlayer?
+
+    /**
+     * Public accessor for the player instance, primarily used by the UI's `AndroidView` or `PlayerView`.
+     */
     val player: Player?
         get() = _exoPlayer
 
-    // Backing property for the UI state.
+    /**
+     * Backing property for the UI state.
+     */
     private val _state = MutableStateFlow(
         RTSPVideoPlayerState(
             playback = RTSPVideoPlayerPlaybackState.Idle,
@@ -70,11 +86,14 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
 
     /**
      * Internal holder for the current stream configuration (URI and TCP mode).
+     * Used to detect changes in configuration during [updateData].
      */
     private val _data = MutableStateFlow<Data?>(null)
     internal val data: StateFlow<Data?> = _data
 
-    // Backing property for the video aspect ratio. Defaults to standard 16:9 (1.77).
+    /**
+     * Backing property for the video aspect ratio. Defaults to standard 16:9 (1.77).
+     */
     private val _videoAspectRatio = MutableStateFlow(16f / 9f)
 
     /**
@@ -110,6 +129,8 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
              * Called when the internal buffer/ready state changes.
              * We map the raw ExoPlayer integer constants to our domain-specific
              * [RTSPVideoPlayerPlaybackState] enum for easier UI consumption.
+             *
+             * @param playbackState The integer constant from [Player].
              */
             override fun onPlaybackStateChanged(playbackState: Int) {
                 super.onPlaybackStateChanged(playbackState)
@@ -171,10 +192,12 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
      * Updates the stream configuration and prepares the player.
      *
      * This function handles partial updates (e.g., changing only the TCP preference while keeping the URI).
+     * It reconstructs the [RtspMediaSource] whenever data changes.
      *
      * @param uri The new RTSP URI (optional).
      * @param forceTcp The new TCP preference (optional).
      */
+    @OptIn(UnstableApi::class)
     fun updateData(uri: String? = null, forceTcp: Boolean? = null) {
         _data.update { oldData ->
             // Logic to merge new parameters with existing data
@@ -198,6 +221,7 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
             // If we have valid data, configure and prepare the MediaSource
             newData?.let { data ->
                 _exoPlayer?.let { player ->
+                    // RtspMediaSource.Factory is used specifically to access RTSP-specific configs
                     val mediaSource = RtspMediaSource.Factory()
                         // Critical for RTSP: Forces RTP over TCP (interleaved) if configured.
                         // This is required for viewing streams over the internet/WAN or through firewalls
@@ -242,7 +266,19 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
     }
 
     /**
+     * Callback trigger when the player (or specific surface) has a bitmap frame available.
+     * Useful for taking snapshots of the feed.
+     *
+     * @param bitmap The captured video frame.
+     */
+    fun imageAvailable(bitmap: Bitmap) {
+        onImageAvailable?.invoke(bitmap)
+    }
+
+    /**
      * Updates the current playback state enum in the UI state flow.
+     *
+     * @param playback The new playback state.
      */
     internal fun updatePlaybackState(playback: RTSPVideoPlayerPlaybackState) {
         _state.update {
@@ -260,6 +296,7 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
 
     /**
      * Updates the error state in the UI state flow.
+     *
      * @param error The exception thrown, or null to clear the error.
      */
     internal fun updateError(error: Throwable?) {
@@ -273,6 +310,9 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
      *
      * Prevents layout crashes by checking for Infinite or NaN results (e.g., if height is 0).
      * Defaults to 16:9 if dimensions are invalid.
+     *
+     * @param width The video width.
+     * @param height The video height.
      */
     internal fun updateVideoAspectRatio(width: Float, height: Float) {
         _videoAspectRatio.update {
@@ -301,6 +341,10 @@ class RTSPVideoPlayerViewModel @AssistedInject constructor(
      */
     @AssistedFactory
     interface Factory {
-        fun create(initialUri: String?, initialForceTcp: Boolean): RTSPVideoPlayerViewModel
+        fun create(
+            initialUri: String?,
+            initialForceTcp: Boolean,
+            onImageAvailable: ((Bitmap) -> Unit)?
+        ): RTSPVideoPlayerViewModel
     }
 }

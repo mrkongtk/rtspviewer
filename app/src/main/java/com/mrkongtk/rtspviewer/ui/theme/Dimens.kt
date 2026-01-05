@@ -10,3 +10,5 @@ val PaddingL = 12.dp
 val PaddingXl = 16.dp
 
 val RoundedCornerSize = 8.dp
+
+val PreviewWidth = 100.dp

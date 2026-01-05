@@ -1,5 +1,6 @@
 package com.mrkongtk.rtspviewer.ui
 
+import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -49,6 +50,7 @@ class NavigationScreenContentTest {
     private val onItemsReordered: (List<RTSPItem>) -> Unit = mock()
     private val onEditItemRequested: (RTSPItem) -> Unit = mock()
     private val onDeleteItemRequested: (RTSPItem) -> Unit = mock()
+    private val onImageAvailable: (RTSPItem, Bitmap) -> Unit = mock()
 
     // -- Dummy Data for testing --
     private val sampleItem = RTSPItem(
@@ -85,7 +87,8 @@ class NavigationScreenContentTest {
                     onAddItemRequested = onAddItemRequested,
                     onItemsReordered = onItemsReordered,
                     onEditItemRequested = onEditItemRequested,
-                    onDeleteItemRequested = onDeleteItemRequested
+                    onDeleteItemRequested = onDeleteItemRequested,
+                    onImageAvailable = onImageAvailable
                 )
             }
         }

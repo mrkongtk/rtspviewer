@@ -2,6 +2,13 @@ package com.mrkongtk.rtspviewer.ui.compose
 
 import android.annotation.SuppressLint
 import android.content.res.Configuration
+import android.graphics.Bitmap
+import android.os.Handler
+import android.os.Looper
+import android.util.Log
+import android.view.PixelCopy
+import android.view.SurfaceView
+import android.view.TextureView
 import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -23,13 +30,18 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.graphics.createBitmap
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -44,7 +56,9 @@ import com.mrkongtk.rtspviewer.ui.theme.OnOverlayerBackgroundColor
 import com.mrkongtk.rtspviewer.ui.theme.OverlayerBackgroundColor
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.viewmodel.RTSPVideoPlayerViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.isActive
 
 /**
  * The main stateful entry point for the RTSP Video Player screen.
@@ -66,11 +80,11 @@ fun RTSPVideoPlayer(
     val lifecycleOwner = LocalLifecycleOwner.current
 
     // -- State Observation --
-    // collectAsStateWithLifecycle is lifecycle-aware, meaning it stops collecting flows
+    // collectAsStateWithLifecycle is lifecycle-aware; it stops collecting flows
     // when the app goes to the background, saving resources.
     val playerState by viewModel.state.collectAsStateWithLifecycle(null)
 
-    // Collects specific error messages to display in the UI (if any)
+    // Collects specific error messages to display in the UI (if any).
     val errorDescription by viewModel.state.map { it.error }.collectAsStateWithLifecycle(null)
 
     // Collects the aspect ratio of the incoming video stream to resize the player container.
@@ -90,7 +104,7 @@ fun RTSPVideoPlayer(
         }
         lifecycleOwner.lifecycle.addObserver(observer)
 
-        // Cleanup observer when the Composable is removed from the composition
+        // Cleanup observer when the Composable is removed from the composition.
         onDispose {
             lifecycleOwner.lifecycle.removeObserver(observer)
         }
@@ -104,7 +118,8 @@ fun RTSPVideoPlayer(
         videoAspectRatio = videoAspectRatio,
         errorMessage = errorDescription?.localizedMessage,
         onPlayClick = { viewModel.playVideo() }, // Triggers stream preparation
-        onPauseClick = { viewModel.stopVideo() }    // Stops the stream
+        onPauseClick = { viewModel.stopVideo() },    // Stops the stream
+        onImageAvailable = { viewModel.imageAvailable(it) }
     )
 }
 
@@ -123,6 +138,7 @@ fun RTSPVideoPlayer(
  * @param errorMessage A readable error string, or null if no error exists.
  * @param onPlayClick Callback triggered when the Play overlay is clicked.
  * @param onPauseClick Callback triggered when the active video area is clicked.
+ * @param onImageAvailable Callback triggered when a snapshot of the video is captured.
  */
 @OptIn(UnstableApi::class)
 @Composable
@@ -133,8 +149,28 @@ internal fun RTSPVideoPlayerContent(
     videoAspectRatio: Float,
     errorMessage: String?,
     onPlayClick: () -> Unit,
-    onPauseClick: () -> Unit
+    onPauseClick: () -> Unit,
+    onImageAvailable: (Bitmap) -> Unit,
 ) {
+    // Reference to the Android View system's PlayerView to access the underlying SurfaceView/TextureView
+    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
+
+    // Snapshot Loop: Captures a frame every 5 seconds while the component is active
+    LaunchedEffect(Unit) {
+        while (isActive) {
+            delay(5000)
+
+            playerViewRef?.let {
+                // Only capture if currently playing to avoid black/empty bitmaps
+                if (it.player?.isPlaying == true) {
+                    captureSnapshot(it) { bitmap ->
+                        onImageAvailable(bitmap)
+                    }
+                }
+            }
+        }
+    }
+
     Box(
         modifier = modifier
             .aspectRatio(
@@ -159,6 +195,7 @@ internal fun RTSPVideoPlayerContent(
                         resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
                         // We disable the native controller because we are drawing our own custom UI overlays
                         useController = false
+                        playerViewRef = this
                     }
                 },
                 update = { playerView ->
@@ -167,6 +204,7 @@ internal fun RTSPVideoPlayerContent(
                     if (playerView.player != player) {
                         playerView.player = player
                     }
+                    playerViewRef = playerView
                 },
             )
 
@@ -287,6 +325,46 @@ internal fun PauseButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Un
 }
 
 /**
+ * Captures a bitmap snapshot of the current video frame.
+ *
+ * This function handles the difference between [TextureView] and [SurfaceView] backends:
+ * 1. [TextureView]: Simple bitmap extraction via `getBitmap`.
+ * 2. [SurfaceView]: Requires the asynchronous [PixelCopy] API because the surface buffer is separate from the app window.
+ *
+ * @param playerView The [PlayerView] containing the video surface.
+ * @param onBitmapReady Callback invoked with the captured [Bitmap] on success.
+ */
+@OptIn(UnstableApi::class)
+internal fun captureSnapshot(playerView: PlayerView, onBitmapReady: (Bitmap) -> Unit) {
+
+    // Case 1: The underlying view is a TextureView (easier, but less performant for video)
+    (playerView.videoSurfaceView as? TextureView)?.let { textureView ->
+        textureView.bitmap?.let(onBitmapReady)
+    }
+    // Case 2: The underlying view is a SurfaceView (standard for ExoPlayer)
+        ?: (playerView.videoSurfaceView as? SurfaceView)?.let { surfaceView ->
+            try {
+                // Create a blank bitmap matching the surface dimensions
+                val bitmap = createBitmap(surfaceView.width, surfaceView.height)
+
+                // Request a copy of the Surface's pixels into the Bitmap
+                PixelCopy.request(
+                    surfaceView,
+                    bitmap,
+                    { result ->
+                        if (result == PixelCopy.SUCCESS) {
+                            onBitmapReady(bitmap)
+                        }
+                    },
+                    Handler(Looper.getMainLooper()) // Callback runs on the main thread
+                )
+            } catch (e: Exception) {
+                Log.e("RTSPVideoPlayer", "cannot capture bitmap", e)
+            }
+        }
+}
+
+/**
  * Preview Composable for UI development.
  * Note: Manually constructs the ViewModel as Hilt injection does not work in standard Previews.
  */
@@ -312,10 +390,11 @@ private fun RTSPVideoPlayerPreview() {
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) { innerPadding ->
             // Mock ViewModel setup for preview purposes
-            val viewModel = RTSPVideoPlayerViewModel(LocalContext.current, null, false)
+            val viewModel =
+                RTSPVideoPlayerViewModel(LocalContext.current, null, false, onImageAvailable = null)
             RTSPVideoPlayer(
                 viewModel = viewModel,
-                modifier = Modifier.padding(innerPadding)
+                modifier = Modifier.padding(innerPadding),
             )
         }
     }

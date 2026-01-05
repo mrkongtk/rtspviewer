@@ -3,6 +3,8 @@ package com.mrkongtk.rtspviewer.di
 import android.content.Context
 import androidx.room.Room
 import com.mrkongtk.rtspviewer.data.database.AppDatabase
+import com.mrkongtk.rtspviewer.data.repository.FileRepository
+import com.mrkongtk.rtspviewer.data.repository.FileRepositoryImpl
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepositoryImpl
 import dagger.Module
@@ -34,9 +36,10 @@ object AppModule {
     @Provides
     @Singleton
     fun provideRTSPItemRepository(
+        @ApplicationContext context: Context,
         db: AppDatabase
     ): RTSPItemRepository {
-        return RTSPItemRepositoryImpl(db)
+        return RTSPItemRepositoryImpl(context, db)
     }
 
     /**
@@ -53,5 +56,20 @@ object AppModule {
         return Room
             .databaseBuilder(context, AppDatabase::class.java, "RTSP_Viewer_database")
             .build()
+    }
+
+    /**
+     * Provides a singleton instance of the [FileRepository].
+     *
+     * This method satisfies dependencies for the file repository interface by returning
+     * the concrete [FileRepositoryImpl] implementation.
+     *
+     * @param context The application context provided by Hilt.
+     * @return The concrete implementation of the file repository.
+     */
+    @Provides
+    @Singleton
+    fun provideFileRepository(@ApplicationContext context: Context): FileRepository {
+        return FileRepositoryImpl(context)
     }
 }

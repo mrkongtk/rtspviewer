@@ -1,5 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
+import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.assertIsDisplayed
@@ -27,6 +28,7 @@ class StreamItemScreenTest {
     // Mock callbacks
     private val onEditMock: () -> Unit = mock()
     private val onDeleteMock: () -> Unit = mock()
+    private val onImageAvailableMock: (RTSPItem, Bitmap) -> Unit = mock()
 
     // Sample Data
     private val sampleItem = RTSPItem(
@@ -143,7 +145,8 @@ class StreamItemScreenTest {
                 StreamItemScreen(
                     item = item,
                     onEditItemSelected = onEditMock,
-                    onDeleteItemSelected = onDeleteMock
+                    onDeleteItemSelected = onDeleteMock,
+                    onImageAvailable = onImageAvailableMock
                 )
             }
         }

@@ -1,5 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
+import android.graphics.Bitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
@@ -14,6 +15,7 @@ import androidx.navigation.testing.TestNavHostController
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mrkongtk.rtspviewer.AppScreen
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.viewmodel.AppViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +29,7 @@ import org.mockito.kotlin.any
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
+import java.io.File
 
 /**
  * Instrumented UI Test for the Navigation Screen.
@@ -34,21 +37,20 @@ import org.mockito.kotlin.whenever
  * This test verifies the integration between the Navigation component, the AppViewModel,
  * and the UI screens (List Screen and Add Item Screen).
  *
- * It uses Mockito to mock the Repository layer to avoid touching the real database
- * and to allow deterministic control over the data state (Empty vs Populated).
+ * Updated to support dependency injection changes in AppViewModel (FileRepository).
  */
 @RunWith(AndroidJUnit4::class)
 class NavigationScreenTest {
 
     /**
-     * The ComposeTestRule allows us to set content and interact with Compose nodes
-     * (clicking, typing, checking visibility).
+     * The ComposeTestRule allows us to set content and interact with Compose nodes.
      */
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    // Mocking the Repository dependency to isolate the UI/ViewModel logic.
+    // Mocking the Repositories
     private val repository: RTSPItemRepository = mock()
+    private val fileRepository: FileRepository = mock()
 
     // The ViewModel under test.
     private lateinit var viewModel: AppViewModel
@@ -56,35 +58,40 @@ class NavigationScreenTest {
     // TestNavHostController allows us to assert current route and backstack state.
     private lateinit var navController: TestNavHostController
 
-    // A MutableStateFlow used to simulate real-time database updates from the Repository.
+    // MutableStateFlows used to simulate real-time database/cache updates.
     private val itemsFlow = MutableStateFlow<List<RTSPItem>>(emptyList())
+    private val cachedPreviewsFlow = MutableStateFlow<Map<Long, Bitmap>>(emptyMap())
 
     /**
      * Initial setup runs before every @Test.
-     * configures the mock behavior and initializes the ViewModel.
      */
     @Before
     fun setup() {
-        // 1. Define Mock Behavior
-        // When the ViewModel collects 'repository.items', return our local MutableStateFlow.
+        // 1. Define Mock Behavior for Flows
+        // AppViewModel combines these flows, so they must not be null.
         whenever(repository.items).thenReturn(itemsFlow)
+        whenever(repository.cachedPreviews).thenReturn(cachedPreviewsFlow)
 
-        // Mock CRUD operations to return valid row IDs (indicating success) without
-        // actually hitting a database.
+        // 2. Mock Suspend functions & File Logic
         runBlocking {
             whenever(repository.loadData()).thenAnswer { } // No-op
             whenever(repository.addItem(any())).thenReturn(1L)
             whenever(repository.updateItem(any())).thenReturn(1)
+
+            // AppViewModel init block calls these, so we must mock them to prevent crashes
+            whenever(repository.previewPathFor(any())).thenReturn(File("mock_path"))
+            whenever(fileRepository.readJPEG(any())).thenReturn(null)
         }
 
-        // 2. Initialize ViewModel with the mocked repository.
-        // Since this is an instrumented test, it runs on the emulator/device main thread.
-        viewModel = AppViewModel(repository)
+        // Mock cleanup
+        whenever(repository.removeCachedPreviews()).thenAnswer { }
+
+        // 3. Initialize ViewModel with BOTH mocked repositories.
+        viewModel = AppViewModel(repository, fileRepository)
     }
 
     /**
      * Helper function to set the Compose content.
-     * It initializes the Navigation Controller and renders the main NavigationScreen.
      */
     private fun launchScreen() {
         composeTestRule.setContent {
@@ -206,9 +213,6 @@ class NavigationScreenTest {
 
     /**
      * Helper to find a specific text field within the Add Item form.
-     * Since the TextField is often nested inside a wrapper (like OutlinedTextField),
-     * this looks for a node with the generic tag "RTSPOutlinedTextField" that also
-     * has an ancestor with the specific [tag] (e.g., "NameTextField").
      */
     private fun onRTSPField(tag: String) = composeTestRule.onNode(
         hasTestTag("RTSPOutlinedTextField") and hasAnyAncestor(hasTestTag(tag))

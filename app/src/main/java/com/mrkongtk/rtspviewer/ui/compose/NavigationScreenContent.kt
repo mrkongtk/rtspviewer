@@ -1,6 +1,7 @@
 package com.mrkongtk.rtspviewer.ui.compose
 
 import android.content.res.Configuration
+import android.graphics.Bitmap
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -31,16 +32,17 @@ import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
  *
  * This function hosts the [NavHost] and defines the mapping between navigation routes
  * (defined in [AppScreen]) and their corresponding screen composables. It acts as the
- * wiring between the UI Layer and the Navigation Controller.
+ * central hub connecting the UI Layer, Navigation Controller, and ViewModel events.
  *
  * @param modifier The modifier to be applied to the NavHost container.
  * @param navController The [NavHostController] that manages app navigation. Defaults to [rememberNavController].
  * @param uiState The current UI state of the application, containing the list of RTSP items and the currently selected item.
- * @param onListingItemSelected Callback triggered when a user taps on a specific stream in the list.
+ * @param onListingItemSelected Callback triggered when a user taps on a specific stream in the list to view it.
  * @param onAddItemRequested Callback triggered when the user submits the form to add a new RTSP stream.
  * @param onItemsReordered Callback triggered when the user reorders the list of streams (e.g., drag-and-drop).
  * @param onEditItemRequested Callback triggered when the user submits changes to an existing RTSP stream.
  * @param onDeleteItemRequested Callback triggered when the user confirms deletion of a specific stream.
+ * @param onImageAvailable Callback triggered when the video player generates a snapshot/preview of the stream.
  */
 @Composable
 fun NavigationScreenContent(
@@ -52,21 +54,24 @@ fun NavigationScreenContent(
     onItemsReordered: (List<RTSPItem>) -> Unit,
     onEditItemRequested: (RTSPItem) -> Unit,
     onDeleteItemRequested: (RTSPItem) -> Unit,
+    onImageAvailable: (RTSPItem, Bitmap) -> Unit,
 ) {
-    // NavHost connects the NavController to the navigation graph
+    // NavHost connects the NavController to the navigation graph.
+    // The startDestination is the first screen shown when the graph is loaded.
     NavHost(
         navController = navController,
         startDestination = AppScreen.Start.name,
         modifier = modifier.testTag("NavHost")
     ) {
         // =====================================================================
-        // Route: Start (Home/List Screen)
+        // Route: Start (Home/Stream List Screen)
         // =====================================================================
         composable(route = AppScreen.Start.name) {
             StreamListScreen(
                 itemList = uiState.items,
+                previews = uiState.cachedPreviews,
                 onItemSelected = { rtspItem ->
-                    // 1. Update the UI state to reflect the currently selected item
+                    // 1. Notify parent/ViewModel to update "selected item" state
                     onListingItemSelected(rtspItem)
                     // 2. Navigate to the detail/player screen
                     navController.navigate(AppScreen.RTSPDisplay.name)
@@ -88,7 +93,7 @@ fun NavigationScreenContent(
         // =====================================================================
         composable(route = AppScreen.RTSPDisplay.name) {
             // Guard clause: Ensure we actually have a selected item before trying to render the player.
-            // If selectedItem is null, nothing is rendered for this frame.
+            // If selectedItem is null (e.g., deep linking edge cases), nothing renders or we could redirect.
             uiState.selectedItem?.let { item ->
                 StreamItemScreen(
                     item = item,
@@ -103,12 +108,13 @@ fun NavigationScreenContent(
                         // 2. Navigate back to the list since the item no longer exists
                         navController.popBackStack()
                     },
+                    onImageAvailable = onImageAvailable
                 )
             }
         }
 
         // =====================================================================
-        // Route: Add RTSP Item (Form)
+        // Route: Add RTSP Item (Creation Form)
         // =====================================================================
         composable(route = AppScreen.AddRTSPItem.name) {
             AddStreamItemScreen(
@@ -123,7 +129,7 @@ fun NavigationScreenContent(
         }
 
         // =====================================================================
-        // Route: Edit RTSP Item (Form)
+        // Route: Edit RTSP Item (Modification Form)
         // =====================================================================
         composable(route = AppScreen.EditRTSPItem.name) {
             // Ensure the item still exists in state before rendering the edit screen
@@ -146,9 +152,9 @@ fun NavigationScreenContent(
 /**
  * A [PreviewParameterProvider] that generates mock data for the [NavigationScreenContent] preview.
  *
- * It provides two states:
- * 1. An empty state (to verify empty list handling).
- * 2. A populated state (to verify list rendering with data).
+ * It provides two scenarios to ensure the UI handles different data states correctly:
+ * 1. **Empty State:** Checks how the list screen behaves with no items.
+ * 2. **Populated State:** Checks how the list renders with mock RTSP items.
  */
 private class NavigationScreenContentPreviewParameterProvider :
     PreviewParameterProvider<AppUiState> {
@@ -181,8 +187,10 @@ private class NavigationScreenContentPreviewParameterProvider :
 /**
  * Preview for [NavigationScreenContent].
  *
- * Renders the UI in both Light and Dark themes within a [Scaffold] to simulate
- * actual device bounds and system bar insets.
+ * This renders the navigation component in both Light (Day) and Dark (Night) themes.
+ * It uses a [Scaffold] to simulate actual device bounds and proper system bar insets.
+ *
+ * @param state The mock UI state provided by [NavigationScreenContentPreviewParameterProvider].
  */
 @Preview(
     name = "Day",
@@ -217,6 +225,7 @@ private fun NavigationScreenContentPreview(
                 onItemsReordered = {},
                 onEditItemRequested = {},
                 onDeleteItemRequested = {},
+                onImageAvailable = { _, _ -> }
             )
         }
     }
