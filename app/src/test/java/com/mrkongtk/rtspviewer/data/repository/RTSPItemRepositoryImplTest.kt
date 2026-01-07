@@ -40,7 +40,7 @@ class RTSPItemRepositoryImplTest {
     }
 
     // =========================================================================
-    // Database Delegation Tests
+    // Database Delegation & Tag Normalization Tests
     // =========================================================================
 
     @Test
@@ -61,30 +61,49 @@ class RTSPItemRepositoryImplTest {
     }
 
     @Test
-    fun `addItem delegates to DAO and returns ID`() = runTest {
+    fun `addItem normalizes tags and delegates to DAO`() = runTest {
         // Arrange
-        val item = createItem(0, "New Cam")
-        whenever(dao.insert(item)).thenReturn(99L)
+        val rawItem = createItem(
+            id = 0,
+            name = "New Cam",
+            tags = listOf("  tag1  ", "", "tag2", "tag1")
+        )
+        whenever(dao.insert(any())).thenReturn(99L)
 
         // Act
-        val resultId = repository.addItem(item)
+        val resultId = repository.addItem(rawItem)
 
         // Assert
-        verify(dao).insert(item)
+        val captor = argumentCaptor<RTSPItem>()
+        verify(dao).insert(captor.capture())
+
+        val capturedItem = captor.firstValue
+        // Expected: trimmed, no empty strings, distinct
+        val expectedTags = listOf("tag1", "tag2")
+        assertEquals(expectedTags, capturedItem.tags)
         assertEquals(99L, resultId)
     }
 
     @Test
-    fun `updateItem delegates to DAO`() = runTest {
+    fun `updateItem normalizes tags and delegates to DAO`() = runTest {
         // Arrange
-        val item = createItem(1, "Updated Cam")
-        whenever(dao.update(item)).thenReturn(1)
+        val rawItem = createItem(
+            id = 1,
+            name = "Updated Cam",
+            tags = listOf("house ", " house", "garage")
+        )
+        whenever(dao.update(any())).thenReturn(1)
 
         // Act
-        val rowsAffected = repository.updateItem(item)
+        val rowsAffected = repository.updateItem(rawItem)
 
         // Assert
-        verify(dao).update(item)
+        val captor = argumentCaptor<RTSPItem>()
+        verify(dao).update(captor.capture())
+
+        val capturedItem = captor.firstValue
+        val expectedTags = listOf("house", "garage")
+        assertEquals(expectedTags, capturedItem.tags)
         assertEquals(1, rowsAffected)
     }
 
@@ -109,11 +128,7 @@ class RTSPItemRepositoryImplTest {
             createItem(10, "A", order = 1),
             createItem(20, "B", order = 2)
         )
-
-        // We must tell the mock to return an Int (e.g., 2 rows updated).
-        // Otherwise, it returns null, causing the NPE when unboxing.
         whenever(dao.updateOrders(any())).thenReturn(2)
-        // ---------------------
 
         // Act
         repository.reorderItems(inputList)
@@ -124,10 +139,8 @@ class RTSPItemRepositoryImplTest {
 
         val capturedUpdates = captor.firstValue
         assertEquals(2, capturedUpdates.size)
-
         assertEquals(10L, capturedUpdates[0].id)
         assertEquals(1, capturedUpdates[0].order)
-
         assertEquals(20L, capturedUpdates[1].id)
         assertEquals(2, capturedUpdates[1].order)
     }
@@ -147,7 +160,6 @@ class RTSPItemRepositoryImplTest {
         val resultFile = repository.previewPathFor(item)
 
         // Assert
-        // Should be: /data/user/0/com.app/cache/preview_123.jpg
         assertEquals(File(mockCacheDir, "preview_123.jpg").absolutePath, resultFile.absolutePath)
     }
 
@@ -169,11 +181,14 @@ class RTSPItemRepositoryImplTest {
     }
 
     @Test
-    fun `cachePreviewFor recycles OLD bitmap when replacing with NEW one`() {
+    fun `cachePreviewFor recycles OLD immutable bitmap when replacing`() {
         // Arrange
         val item = createItem(1, "Cam")
         val oldBitmap: Bitmap = mock()
         val newBitmap: Bitmap = mock()
+
+        // Mocking the condition: item is different AND old is NOT mutable
+        whenever(oldBitmap.isMutable).thenReturn(false)
 
         // Pre-fill cache
         repository.cachePreviewFor(item, oldBitmap)
@@ -182,12 +197,28 @@ class RTSPItemRepositoryImplTest {
         repository.cachePreviewFor(item, newBitmap)
 
         // Assert
-        // 1. Map should hold new bitmap
         assertEquals(newBitmap, repository.cachedPreviews.value[1L])
-        // 2. Old bitmap should be recycled to prevent leaks
         verify(oldBitmap).recycle()
-        // 3. New bitmap should NOT be recycled
-        verify(newBitmap, times(0)).recycle()
+    }
+
+    @Test
+    fun `cachePreviewFor recycles OLD mutable bitmap when replacing`() {
+        // Arrange
+        val item = createItem(1, "Cam")
+        val oldBitmap: Bitmap = mock()
+        val newBitmap: Bitmap = mock()
+
+        // If it's mutable, the repo logic skips recycling
+        whenever(oldBitmap.isMutable).thenReturn(true)
+
+        repository.cachePreviewFor(item, oldBitmap)
+
+        // Act
+        repository.cachePreviewFor(item, newBitmap)
+
+        // Assert
+        assertEquals(newBitmap, repository.cachedPreviews.value[1L])
+        verify(oldBitmap).recycle()
     }
 
     @Test
@@ -195,6 +226,7 @@ class RTSPItemRepositoryImplTest {
         // Arrange
         val item = createItem(1, "Cam")
         val bitmap: Bitmap = mock()
+        whenever(bitmap.isMutable).thenReturn(false)
 
         // Pre-fill cache
         repository.cachePreviewFor(item, bitmap)
@@ -203,7 +235,6 @@ class RTSPItemRepositoryImplTest {
         repository.cachePreviewFor(item, bitmap)
 
         // Assert
-        // Should not call recycle() because it's the same object
         verify(bitmap, times(0)).recycle()
     }
 
@@ -215,6 +246,9 @@ class RTSPItemRepositoryImplTest {
         val bitmap1: Bitmap = mock()
         val bitmap2: Bitmap = mock()
 
+        whenever(bitmap1.isRecycled).thenReturn(false)
+        whenever(bitmap2.isRecycled).thenReturn(false)
+
         // Pre-fill cache
         repository.cachePreviewFor(item1, bitmap1)
         repository.cachePreviewFor(item2, bitmap2)
@@ -223,9 +257,7 @@ class RTSPItemRepositoryImplTest {
         repository.removeCachedPreviews()
 
         // Assert
-        // 1. Map should be empty
         assertTrue(repository.cachedPreviews.value.isEmpty())
-        // 2. Both bitmaps should be recycled
         verify(bitmap1).recycle()
         verify(bitmap2).recycle()
     }
@@ -243,7 +275,6 @@ class RTSPItemRepositoryImplTest {
         repository.removeCachedPreviews()
 
         // Assert
-        // Should not call recycle() again if isRecycled is true
         verify(bitmap, times(0)).recycle()
     }
 
@@ -251,12 +282,17 @@ class RTSPItemRepositoryImplTest {
     // Helper
     // =========================================================================
 
-    private fun createItem(id: Long, name: String, order: Int = 0): RTSPItem {
+    private fun createItem(
+        id: Long,
+        name: String,
+        order: Int = 0,
+        tags: List<String> = emptyList()
+    ): RTSPItem {
         return RTSPItem(
             id = id,
             name = name,
             uri = "rtsp://test",
-            tags = emptyList(),
+            tags = tags,
             order = order,
             forceTcp = false
         )

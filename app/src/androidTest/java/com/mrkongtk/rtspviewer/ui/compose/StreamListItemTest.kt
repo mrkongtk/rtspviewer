@@ -21,30 +21,21 @@ import org.mockito.kotlin.verify
 /**
  * UI Test Suite for the [StreamListItem] Composable.
  *
- * This class uses the AndroidX Compose Test library to verify:
- * 1. UI Rendering: Ensuring data maps correctly to visual elements (Text, Tags, Images).
- * 2. Visual Logic: Ensuring preview images appear/disappear based on data.
- * 3. User Interaction: Ensuring click events trigger the expected callbacks.
+ * This suite verifies the mapping between the [RTSPItem] domain model and the
+ * Material 3 ElevatedCard UI, ensuring that tags, previews, and interaction
+ * callbacks behave as expected.
  */
 class StreamListItemTest {
 
-    /**
-     * The [createComposeRule] is required to set the content and interact with
-     * the Compose hierarchy. It acts as the entry point for all UI testing actions.
-     */
     @get:Rule
     val composeTestRule = createComposeRule()
 
     /**
-     * Test: Content Verification (Basic).
-     * Scenario: A valid RTSPItem is provided without a preview image.
-     * Expected Result: The item's name and the navigation icon are visible.
+     * Test: Basic Metadata Rendering.
+     * Verifies that the item name and the navigation chevron are present.
      */
     @Test
     fun streamListItem_displaysCorrectInfo() {
-        // ---------------------------------------------------------------------
-        // ARRANGE
-        // ---------------------------------------------------------------------
         val testItem = RTSPItem(
             id = 1L,
             name = "Front Door Camera",
@@ -57,57 +48,6 @@ class StreamListItemTest {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val expectedIconDescription = context.getString(R.string.detail)
 
-        // ---------------------------------------------------------------------
-        // ACT
-        // ---------------------------------------------------------------------
-        composeTestRule.setContent {
-            RTSPViewerTheme {
-                StreamListItem(
-                    data = testItem,
-                    preview = null, // Testing state without image
-                    onClick = {}
-                )
-            }
-        }
-
-        // ---------------------------------------------------------------------
-        // ASSERT
-        // ---------------------------------------------------------------------
-
-        // 1. Verify the camera name is displayed
-        composeTestRule
-            .onNodeWithText("Front Door Camera")
-            .assertIsDisplayed()
-
-        // 2. Verify the icon is displayed using its Content Description
-        composeTestRule
-            .onNodeWithContentDescription(expectedIconDescription)
-            .assertIsDisplayed()
-    }
-
-    /**
-     * Test: Content Verification (Tags).
-     * Scenario: A valid RTSPItem is provided with a list of tags.
-     * Expected Result: The tags are displayed and identifiable by their test tags.
-     */
-    @Test
-    fun streamListItem_displaysTags() {
-        // ---------------------------------------------------------------------
-        // ARRANGE
-        // ---------------------------------------------------------------------
-        val tags = listOf("Outdoor", "Security", "Home")
-        val testItem = RTSPItem(
-            id = 1L,
-            name = "Garden Cam",
-            uri = "rtsp://192.168.1.55",
-            tags = tags,
-            order = 0,
-            forceTcp = false
-        )
-
-        // ---------------------------------------------------------------------
-        // ACT
-        // ---------------------------------------------------------------------
         composeTestRule.setContent {
             RTSPViewerTheme {
                 StreamListItem(
@@ -118,12 +58,44 @@ class StreamListItemTest {
             }
         }
 
-        // ---------------------------------------------------------------------
-        // ASSERT
-        // ---------------------------------------------------------------------
+        // Verify Name visibility
+        composeTestRule
+            .onNodeWithText("Front Door Camera")
+            .assertIsDisplayed()
 
-        // Verify every tag in the list is displayed using the testTag modifier logic
-        // defined in the Composable: .testTag("Tag $tag")
+        // Verify Navigation Icon visibility (via accessibility description)
+        composeTestRule
+            .onNodeWithContentDescription(expectedIconDescription)
+            .assertIsDisplayed()
+    }
+
+    /**
+     * Test: Tag FlowRow Rendering.
+     * Verifies that multiple tags are rendered and identifiable by the
+     * dynamic test tags generated in the Composable logic.
+     */
+    @Test
+    fun streamListItem_displaysTags_withCorrectTestTags() {
+        val tags = listOf("Outdoor", "Security", "4K")
+        val testItem = RTSPItem(
+            id = 1L,
+            name = "Garden Cam",
+            uri = "rtsp://192.168.1.55",
+            tags = tags,
+            order = 0
+        )
+
+        composeTestRule.setContent {
+            RTSPViewerTheme {
+                StreamListItem(
+                    data = testItem,
+                    preview = null,
+                    onClick = {}
+                )
+            }
+        }
+
+        // Validate each tag specifically using the pattern: .testTag("Tag $tag")
         tags.forEach { tag ->
             composeTestRule
                 .onNodeWithTag("Tag $tag", useUnmergedTree = true)
@@ -133,62 +105,49 @@ class StreamListItemTest {
     }
 
     /**
-     * Test: Preview Image Logic (Visible).
-     * Scenario: A valid Bitmap is provided.
-     * Expected Result: An Image node exists with the formatted content description.
+     * Test: Preview Image Visibility.
+     * Verifies that when a bitmap is provided, an Image is rendered with the
+     * correct dynamic content description.
      */
     @Test
-    fun streamListItem_showsPreviewImage_whenAvailable() {
-        // ---------------------------------------------------------------------
-        // ARRANGE
-        // ---------------------------------------------------------------------
+    fun streamListItem_showsPreviewImage_withDynamicDescription() {
+        val itemName = "Garage"
         val testItem = RTSPItem(
             id = 2L,
-            name = "Garage",
+            name = itemName,
             uri = "rtsp://192.168.1.55",
             tags = emptyList(),
             order = 0
         )
 
-        // Create a dummy bitmap for testing
         val dummyBitmap = Bitmap.createBitmap(100, 100, Bitmap.Config.ARGB_8888)
-
-        // Construct the expected accessibility description: "Preview for Garage"
         val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val expectedDescription = context.getString(R.string.rtsp_item_preview_description)
-            .replace("%1", testItem.name)
 
-        // ---------------------------------------------------------------------
-        // ACT
-        // ---------------------------------------------------------------------
+        // The implementation uses .replace("%1", data.name)
+        val expectedDescription = context.getString(R.string.rtsp_item_preview_description)
+            .replace("%1", itemName)
+
         composeTestRule.setContent {
             RTSPViewerTheme {
                 StreamListItem(
                     data = testItem,
-                    preview = dummyBitmap, // Provide bitmap
+                    preview = dummyBitmap,
                     onClick = {}
                 )
             }
         }
 
-        // ---------------------------------------------------------------------
-        // ASSERT
-        // ---------------------------------------------------------------------
         composeTestRule
             .onNodeWithContentDescription(expectedDescription)
             .assertIsDisplayed()
     }
 
     /**
-     * Test: Preview Image Logic (Hidden).
-     * Scenario: The preview bitmap is null.
-     * Expected Result: The Image node with the preview description does not exist in the hierarchy.
+     * Test: Conditional Rendering (Null Preview).
+     * Ensures that no Image component is present in the layout tree if no preview exists.
      */
     @Test
-    fun streamListItem_hidesPreviewImage_whenNull() {
-        // ---------------------------------------------------------------------
-        // ARRANGE
-        // ---------------------------------------------------------------------
+    fun streamListItem_doesNotRenderImage_whenPreviewIsNull() {
         val testItem = RTSPItem(
             id = 3L,
             name = "Kitchen",
@@ -197,41 +156,28 @@ class StreamListItemTest {
             order = 0
         )
 
-        val context = InstrumentationRegistry.getInstrumentation().targetContext
-        val expectedDescription = context.getString(R.string.rtsp_item_preview_description)
-            .replace("%1", testItem.name)
-
-        // ---------------------------------------------------------------------
-        // ACT
-        // ---------------------------------------------------------------------
         composeTestRule.setContent {
             RTSPViewerTheme {
                 StreamListItem(
                     data = testItem,
-                    preview = null, // Null bitmap
+                    preview = null,
                     onClick = {}
                 )
             }
         }
 
-        // ---------------------------------------------------------------------
-        // ASSERT
-        // ---------------------------------------------------------------------
+        // We search for any node that matches the preview description pattern and ensure it's missing
         composeTestRule
-            .onNodeWithContentDescription(expectedDescription)
+            .onNodeWithContentDescription("Preview", substring = true)
             .assertDoesNotExist()
     }
 
     /**
-     * Test: Interaction Verification.
-     * Scenario: The user clicks on the StreamListItem.
-     * Expected Result: The onClick callback is invoked exactly once with the correct data item.
+     * Test: Click Interaction.
+     * Verifies that clicking the Card triggers the callback with the correct [RTSPItem].
      */
     @Test
-    fun streamListItem_onClick_triggersCallback() {
-        // ---------------------------------------------------------------------
-        // ARRANGE
-        // ---------------------------------------------------------------------
+    fun streamListItem_onClick_triggersCallbackWithCorrectData() {
         val testItem = RTSPItem(
             id = 100L,
             name = "Backyard",
@@ -240,33 +186,25 @@ class StreamListItemTest {
             order = 1
         )
 
-        // Mock the callback function using mockito-kotlin
-        val mockOnClick = mock<Function1<RTSPItem, Unit>>()
+        // Using Mockito to verify the functional interface
+        val mockOnClick: (RTSPItem) -> Unit = mock()
 
-        // ---------------------------------------------------------------------
-        // ACT
-        // ---------------------------------------------------------------------
         composeTestRule.setContent {
             RTSPViewerTheme {
                 StreamListItem(
                     data = testItem,
                     preview = null,
-                    // Pass the mock's invoke method as the callback
-                    onClick = { mockOnClick.invoke(it) }
+                    onClick = mockOnClick
                 )
             }
         }
 
-        // Simulate a user click on the node containing the text "Backyard"
+        // Perform click on the item
         composeTestRule
             .onNodeWithText("Backyard")
             .performClick()
 
-        // ---------------------------------------------------------------------
-        // ASSERT
-        // ---------------------------------------------------------------------
-
-        // Verify that the mock function was called exactly 1 time with 'testItem'
+        // Assert that the callback was executed exactly once with the provided item
         verify(mockOnClick, times(1)).invoke(testItem)
     }
 }

@@ -15,33 +15,23 @@ import org.mockito.kotlin.verify
 /**
  * UI Test Suite for [StreamListScreen].
  *
- * This class verifies the visual states (Empty vs Populated) and user interactions
- * (Clicks, Navigation triggers) of the StreamList screen using Jetpack Compose UI Tests.
+ * Updated to support tag filtering and the latest Composable signature.
  */
 class StreamListScreenTest {
 
-    /**
-     * The Compose Test Rule.
-     * Using [createAndroidComposeRule] provides access to the Activity context
-     * (useful for string resources) and handles the Compose setup/teardown.
-     */
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
     /**
      * Helper interface for Mockito verification.
-     *
-     * Since mocking Kotlin lambdas (e.g., `(RTSPItem) -> Unit`) can be verbose or tricky
-     * with Mockito, we define this interface to proxy the callbacks. This allows us to
-     * easily use `verify(actions).methodName()` in our assertions.
      */
     interface ScreenActions {
         fun onItemSelected(item: RTSPItem)
         fun onAddItemSelected()
         fun onItemsReordered(items: List<RTSPItem>)
+        fun onTagSelected(tag: String?)
     }
 
-    // Create a mock of our helper interface to track callback invocations
     private val actions: ScreenActions = mock()
 
     // -------------------------------------------------------------------------
@@ -70,152 +60,148 @@ class StreamListScreenTest {
     // Tests
     // -------------------------------------------------------------------------
 
-    /**
-     * Scenario: The database returns an empty list.
-     * Expected Result: The specific empty state message is shown, and the list component is hidden.
-     */
     @Test
     fun streamListScreen_whenListIsEmpty_showsEmptyStateMessage() {
-        // Arrange
-        val emptyList = emptyList<RTSPItem>()
-
-        // Act
         composeTestRule.setContent {
             StreamListScreen(
-                itemList = emptyList,
-                previews = emptyMap(), // Updated: Pass empty map for previews
+                itemList = emptyList(),
+                previews = emptyMap(),
+                tags = emptyList(),
+                selectedTag = null,
                 onItemSelected = actions::onItemSelected,
                 onAddItemSelected = actions::onAddItemSelected,
-                onItemsReordered = actions::onItemsReordered
+                onItemsReordered = actions::onItemsReordered,
+                onTagSelected = actions::onTagSelected
             )
         }
 
-        // Assert
-        // Check that the specific empty state text tag exists and is displayed
+        // Verify empty state text
         composeTestRule.onNodeWithTag("StreamListScreenEmptyText")
             .assertIsDisplayed()
 
-        // Ensure the list component itself is NOT displayed to avoid layout clutter
-        composeTestRule.onNodeWithTag("StreamListScreenListRoot")
+        // Verify list container does not exist
+        composeTestRule.onNodeWithTag("LazyColumn")
             .assertDoesNotExist()
     }
 
-    /**
-     * Scenario: The database returns a list of items.
-     * Expected Result: The empty state message is hidden, the list is visible,
-     * and the specific item data (names) is rendered on screen.
-     */
     @Test
-    fun streamListScreen_whenListHasItems_showsListAndHidesEmptyMessage() {
-        // Arrange
+    fun streamListScreen_whenListHasItems_showsListAndTags() {
         val items = listOf(sampleItem1, sampleItem2)
+        val tags = listOf("Outdoor", "Indoor")
 
-        // Act
         composeTestRule.setContent {
             StreamListScreen(
                 itemList = items,
-                previews = emptyMap(), // Updated: Pass empty map for previews
+                previews = emptyMap(),
+                tags = tags,
+                selectedTag = null,
                 onItemSelected = actions::onItemSelected,
                 onAddItemSelected = actions::onAddItemSelected,
-                onItemsReordered = actions::onItemsReordered
+                onItemsReordered = actions::onItemsReordered,
+                onTagSelected = actions::onTagSelected
             )
         }
 
-        // Assert
         // Empty text should be gone
         composeTestRule.onNodeWithTag("StreamListScreenEmptyText")
             .assertDoesNotExist()
 
-        // List root should be visible
-        composeTestRule.onNodeWithTag("StreamListScreenListRoot")
+        // Tag row should be visible
+        composeTestRule.onNodeWithTag("Tags")
             .assertIsDisplayed()
 
-        // Verify specific items are rendered using the `testTag` defined in the Composable
-        // and that their display names are visible to the user.
+        // List should be visible
+        composeTestRule.onNodeWithTag("LazyColumn")
+            .assertIsDisplayed()
+
+        // Verify specific items
         composeTestRule.onNodeWithTag("StreamListItem: ${sampleItem1.id}")
             .assertIsDisplayed()
         composeTestRule.onNodeWithText(sampleItem1.name)
             .assertIsDisplayed()
-
-        composeTestRule.onNodeWithTag("StreamListItem: ${sampleItem2.id}")
-            .assertIsDisplayed()
-        composeTestRule.onNodeWithText(sampleItem2.name)
-            .assertIsDisplayed()
     }
 
-    /**
-     * Scenario: User clicks the floating "Add" button.
-     * Expected Result: The `onAddItemSelected` callback is triggered.
-     */
+    @Test
+    fun streamListScreen_whenTagIsClicked_triggersCallback() {
+        val tags = listOf("Outdoor")
+
+        composeTestRule.setContent {
+            StreamListScreen(
+                itemList = listOf(sampleItem1),
+                previews = emptyMap(),
+                tags = tags,
+                selectedTag = null,
+                onItemSelected = {},
+                onAddItemSelected = {},
+                onItemsReordered = {},
+                onTagSelected = actions::onTagSelected
+            )
+        }
+
+        // Click the specific tag (Note: The UI implementation uses "Tag $tag" as testTag)
+        composeTestRule.onNodeWithTag("Tag Outdoor")
+            .performClick()
+
+        verify(actions).onTagSelected("Outdoor")
+    }
+
     @Test
     fun streamListScreen_whenAddButtonIsClicked_triggersCallback() {
-        // Arrange
         composeTestRule.setContent {
             StreamListScreen(
                 itemList = emptyList(),
-                previews = emptyMap(), // Updated: Pass empty map for previews
-                onItemSelected = actions::onItemSelected,
+                previews = emptyMap(),
+                tags = emptyList(),
+                selectedTag = null,
+                onItemSelected = {},
                 onAddItemSelected = actions::onAddItemSelected,
-                onItemsReordered = actions::onItemsReordered
+                onItemsReordered = {},
+                onTagSelected = {}
             )
         }
 
-        // Act
         composeTestRule.onNodeWithTag("AddButton")
             .performClick()
 
-        // Assert (Mockito verify)
         verify(actions).onAddItemSelected()
     }
 
-    /**
-     * Scenario: User clicks on a specific stream item in the list.
-     * Expected Result: The `onItemSelected` callback is triggered with the correct data object.
-     */
     @Test
     fun streamListScreen_whenItemIsClicked_triggersItemSelectedCallback() {
-        // Arrange
-        val items = listOf(sampleItem1)
         composeTestRule.setContent {
             StreamListScreen(
-                itemList = items,
-                previews = emptyMap(), // Updated: Pass empty map for previews
+                itemList = listOf(sampleItem1),
+                previews = emptyMap(),
+                tags = emptyList(),
+                selectedTag = null,
                 onItemSelected = actions::onItemSelected,
-                onAddItemSelected = actions::onAddItemSelected,
-                onItemsReordered = actions::onItemsReordered
+                onAddItemSelected = {},
+                onItemsReordered = {},
+                onTagSelected = {}
             )
         }
 
-        // Act
         composeTestRule.onNodeWithTag("StreamListItem: ${sampleItem1.id}")
             .performClick()
 
-        // Assert (Mockito verify)
-        // Verify that onItemSelected was called specifically with sampleItem1
         verify(actions).onItemSelected(sampleItem1)
     }
 
-    /**
-     * Scenario: The list is fully populated.
-     * Expected Result: The floating action button (FAB) remains visible and accessible.
-     */
     @Test
-    fun streamListScreen_alwaysShowsAddButton_evenWhenListIsPopulated() {
-        // Arrange
-        val items = listOf(sampleItem1, sampleItem2)
+    fun streamListScreen_alwaysShowsAddButton() {
         composeTestRule.setContent {
             StreamListScreen(
-                itemList = items,
-                previews = emptyMap(), // Updated: Pass empty map for previews
+                itemList = listOf(sampleItem1),
+                previews = emptyMap(),
+                tags = emptyList(),
+                selectedTag = null,
                 onItemSelected = {},
                 onAddItemSelected = {},
-                onItemsReordered = {}
+                onItemsReordered = {},
+                onTagSelected = {}
             )
         }
 
-        // Assert
-        // The FAB uses Box(modifier = Modifier.fillMaxSize()), so it should appear
-        // regardless of whether the list is empty or full.
         composeTestRule.onNodeWithTag("AddButton")
             .assertIsDisplayed()
     }

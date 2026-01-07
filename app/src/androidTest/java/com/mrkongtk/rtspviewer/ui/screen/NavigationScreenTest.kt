@@ -13,7 +13,9 @@ import androidx.compose.ui.test.performTextInput
 import androidx.navigation.compose.ComposeNavigator
 import androidx.navigation.testing.TestNavHostController
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.test.platform.app.InstrumentationRegistry
 import com.mrkongtk.rtspviewer.AppScreen
+import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
@@ -34,72 +36,48 @@ import java.io.File
 /**
  * Instrumented UI Test for the Navigation Screen.
  *
- * This test verifies the integration between the Navigation component, the AppViewModel,
- * and the UI screens (List Screen and Add Item Screen).
- *
- * Updated to support dependency injection changes in AppViewModel (FileRepository).
+ * Updated to reflect:
+ * 1. Tag filtering logic in StreamListScreen.
+ * 2. RTSPTextField nested tag structure.
+ * 3. AppViewModel dependency on FileRepository.
  */
 @RunWith(AndroidJUnit4::class)
 class NavigationScreenTest {
 
-    /**
-     * The ComposeTestRule allows us to set content and interact with Compose nodes.
-     */
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    // Mocking the Repositories
     private val repository: RTSPItemRepository = mock()
     private val fileRepository: FileRepository = mock()
-
-    // The ViewModel under test.
     private lateinit var viewModel: AppViewModel
-
-    // TestNavHostController allows us to assert current route and backstack state.
     private lateinit var navController: TestNavHostController
 
-    // MutableStateFlows used to simulate real-time database/cache updates.
     private val itemsFlow = MutableStateFlow<List<RTSPItem>>(emptyList())
     private val cachedPreviewsFlow = MutableStateFlow<Map<Long, Bitmap>>(emptyMap())
 
-    /**
-     * Initial setup runs before every @Test.
-     */
     @Before
     fun setup() {
-        // 1. Define Mock Behavior for Flows
-        // AppViewModel combines these flows, so they must not be null.
         whenever(repository.items).thenReturn(itemsFlow)
         whenever(repository.cachedPreviews).thenReturn(cachedPreviewsFlow)
 
-        // 2. Mock Suspend functions & File Logic
         runBlocking {
-            whenever(repository.loadData()).thenAnswer { } // No-op
+            whenever(repository.loadData()).thenAnswer { }
             whenever(repository.addItem(any())).thenReturn(1L)
             whenever(repository.updateItem(any())).thenReturn(1)
-
-            // AppViewModel init block calls these, so we must mock them to prevent crashes
             whenever(repository.previewPathFor(any())).thenReturn(File("mock_path"))
             whenever(fileRepository.readJPEG(any())).thenReturn(null)
         }
 
-        // Mock cleanup
         whenever(repository.removeCachedPreviews()).thenAnswer { }
 
-        // 3. Initialize ViewModel with BOTH mocked repositories.
         viewModel = AppViewModel(repository, fileRepository)
     }
 
-    /**
-     * Helper function to set the Compose content.
-     */
     private fun launchScreen() {
         composeTestRule.setContent {
-            // Create a TestNavController to verify navigation events
             navController = TestNavHostController(LocalContext.current)
             navController.navigatorProvider.addNavigator(ComposeNavigator())
 
-            // Render the screen, injecting our test ViewModel and NavController
             NavigationScreen(
                 navController = navController,
                 viewModel = viewModel
@@ -107,114 +85,110 @@ class NavigationScreenTest {
         }
     }
 
-    /**
-     * Scenario: The database is empty.
-     * Expected: The UI should display the "No Streaming" placeholder text.
-     */
     @Test
     fun emptyState_showsNoStreamingMessage() {
-        // GIVEN: Repository flow emits an empty list
         itemsFlow.value = emptyList()
-
-        // WHEN: Screen launches
         launchScreen()
 
-        // THEN: The empty state text component is visible on screen
         composeTestRule
             .onNodeWithTag("StreamListScreenEmptyText")
             .assertIsDisplayed()
     }
 
-    /**
-     * Scenario: The database has data.
-     * Expected: The UI should display the list item with the correct name.
-     */
     @Test
-    fun populatedList_showsItems() {
-        // GIVEN: Repository flow emits a list containing one item
-        val item1 = RTSPItem(1, "Cam One", "rtsp://1", emptyList(), 0)
+    fun populatedList_showsItemsAndTags() {
+        val item1 = RTSPItem(1, "Cam One", "rtsp://1", listOf("LivingRoom"), 0)
         itemsFlow.value = listOf(item1)
 
-        // WHEN: Screen launches
         launchScreen()
 
-        // THEN: A node with the text "Cam One" exists and is displayed
-        composeTestRule
-            .onNodeWithText("Cam One")
-            .assertIsDisplayed()
+        // Verify Item is displayed
+        composeTestRule.onNodeWithText("Cam One").assertIsDisplayed()
+
+        // Verify Tag filtering chip is displayed
+        composeTestRule.onNodeWithTag("Tag LivingRoom").assertIsDisplayed()
     }
 
-    /**
-     * Scenario: User clicks the Floating Action Button (FAB).
-     * Expected: The app navigates to the 'AddRTSPItem' screen.
-     */
+    @Test
+    fun tagFiltering_filtersListCorrectly() {
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val allLabel = context.getString(R.string.tags_all)
+
+        val item1 = RTSPItem(1, "Kitchen", "rtsp://1", listOf("Indoor"), 0)
+        val item2 = RTSPItem(2, "Gate", "rtsp://2", listOf("Outdoor"), 1)
+        itemsFlow.value = listOf(item1, item2)
+
+        launchScreen()
+
+        // Initially both are visible
+        composeTestRule.onNodeWithText("Kitchen").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Gate").assertIsDisplayed()
+
+        // Click "Outdoor" tag
+        composeTestRule.onNodeWithTag("Tag Outdoor").performClick()
+
+        // Kitchen should disappear, Gate remains
+        composeTestRule.onNodeWithText("Gate").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Kitchen").assertDoesNotExist()
+
+        // Click "All" to reset
+        composeTestRule.onNodeWithTag("Tag $allLabel").performClick()
+
+        composeTestRule.onNodeWithText("Kitchen").assertIsDisplayed()
+        composeTestRule.onNodeWithText("Gate").assertIsDisplayed()
+    }
+
     @Test
     fun clickAddButton_navigatesToAddScreen() {
-        // GIVEN: Screen is launched with an empty list
         itemsFlow.value = emptyList()
         launchScreen()
 
-        // WHEN: User clicks the Add (FAB) button
-        composeTestRule
-            .onNodeWithTag("AddButton")
-            .performClick()
+        composeTestRule.onNodeWithTag("AddButton").performClick()
 
-        // THEN: Verify the Navigation Controller's current route matches the Add Screen
         composeTestRule.waitForIdle()
         assertEquals(
             AppScreen.AddRTSPItem.name,
             navController.currentBackStackEntry?.destination?.route
         )
-
-        // AND: The root component of the Add Screen is visible
-        composeTestRule
-            .onNodeWithTag("AddStreamItemScreenRoot")
-            .assertIsDisplayed()
+        composeTestRule.onNodeWithTag("AddStreamItemScreenRoot").assertIsDisplayed()
     }
 
-    /**
-     * Scenario: Full flow of adding a new item.
-     * 1. Click Add.
-     * 2. Type Name and URI.
-     * 3. Click Save.
-     * Expected: Repository.addItem is called with correct data, and App navigates back Home.
-     */
     @Test
     fun addItemFlow_verifiesRepositoryCall() {
-        // GIVEN: Screen is launched
         itemsFlow.value = emptyList()
         launchScreen()
 
-        // Navigate to add screen
         composeTestRule.onNodeWithTag("AddButton").performClick()
 
-        // WHEN: User enters valid data into the form
-        onRTSPField("NameTextField").performTextInput("New Cam")
-        onRTSPField("UriTextField").performTextInput("rtsp://192.168.1.50")
+        // Use the helper to interact with custom RTSPTextFields
+        onRTSPField("NameTextField").performTextInput("Front Door")
+        onRTSPField("UriTextField").performTextInput("rtsp://admin:admin@192.168.1.50")
+        onRTSPField("TagsTextField").performTextInput("Home,Security")
 
-        // AND: User clicks the Save button
+        // Force TCP toggle (Testing the Checkbox in EditStreamItemScreen)
+        composeTestRule.onNodeWithTag("ForceTCPCheckbox").performClick()
+
         composeTestRule.onNodeWithTag("SaveButton").performClick()
 
-        // THEN: Verify the Mock Repository received the 'addItem' call with the text input by the user
         runBlocking {
             verify(repository).addItem(org.mockito.kotlin.check { item ->
-                assertEquals("New Cam", item.name)
-                assertEquals("rtsp://192.168.1.50", item.uri)
+                assertEquals("Front Door", item.name)
+                assertEquals("rtsp://admin:admin@192.168.1.50", item.uri)
+                assertEquals(listOf("Home", "Security"), item.tags)
+                assertEquals(true, item.forceTcp)
             })
         }
 
-        // AND: Verify the app navigated back to the Start screen
         composeTestRule.waitForIdle()
-        assertEquals(
-            AppScreen.Start.name,
-            navController.currentBackStackEntry?.destination?.route
-        )
+        assertEquals(AppScreen.Start.name, navController.currentBackStackEntry?.destination?.route)
     }
 
     /**
-     * Helper to find a specific text field within the Add Item form.
+     * Helper to find the actual input field inside the RTSPTextField component.
+     * It looks for the OutlinedTextField (tagged in RTSPTextField.kotlin)
+     * that is a child of the specific form row tag.
      */
-    private fun onRTSPField(tag: String) = composeTestRule.onNode(
-        hasTestTag("RTSPOutlinedTextField") and hasAnyAncestor(hasTestTag(tag))
+    private fun onRTSPField(parentTag: String) = composeTestRule.onNode(
+        hasTestTag("RTSPOutlinedTextField") and hasAnyAncestor(hasTestTag(parentTag))
     )
 }

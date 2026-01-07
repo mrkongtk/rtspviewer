@@ -8,9 +8,8 @@ import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -32,45 +31,62 @@ class AppViewModel @Inject constructor(
 ) : ViewModel() {
 
     /**
-     * Internal mutable state flow used to track transient UI state, such as the
-     * currently selected item, independent of the database data.
+     * Internal mutable state flow used to track transient UI state.
      */
     private val _uiState = MutableStateFlow(AppUiState())
 
     /**
-     * Public immutable [Flow] representing the distinct, combined state of the UI.
-     *
-     * This flow combines:
-     * 1. The internal UI state (e.g., current selection).
-     * 2. The persistent data stream from the repository (the list of RTSP items).
-     * 3. The in-memory cache of preview bitmaps.
-     *
-     * By combining these streams, the UI automatically updates whenever the database changes
-     * (Single Source of Truth) while maintaining the current user selection and image cache.
+     * Public read-only StateFlow exposed to the UI (Compose/Views).
+     * Any change in the underlying data or selection will trigger a UI recomposition.
      */
-    val uiState: Flow<AppUiState> =
-        combine(
-            _uiState,
-            rtspItemRepository.items,
-            rtspItemRepository.cachedPreviews
-        ) { currentState, itemList, cachedPreviews ->
-            // Ensure the selected item in the UI state is still valid regarding the latest DB list
-            val selectedItem = currentState.selectedItem?.let { item ->
-                itemList.firstOrNull { it.id == item.id }
-            }
-            currentState.copy(
-                items = itemList,
-                selectedItem = selectedItem,
-                cachedPreviews = cachedPreviews
-            )
-        }
+    val uiState: StateFlow<AppUiState> = _uiState
 
     init {
-        // Triggers the initial data fetch and loads saved previews from disk into memory.
+        // Observe the list of RTSP items from the repository
+        viewModelScope.launch {
+            rtspItemRepository.items.collect { itemList ->
+                _uiState.update { currentState ->
+                    // 1. Validate currently selected item:
+                    // If the list changed, ensure the selected item still exists in the DB.
+                    val selectedItem = currentState.selectedItem?.let { item ->
+                        itemList.firstOrNull { it.id == item.id }
+                    }
+
+                    // 2. Extract and Sort Tags:
+                    // Collect all unique tags from all items, sort them alphabetically.
+                    val tags = itemList.flatMap { it.tags }.toSortedSet().toList()
+
+                    // 3. Validate selected tag:
+                    // If the current filter tag no longer exists in the new list, reset to null.
+                    val selectedTag = currentState.selectedTag?.let {
+                        if (tags.contains(it)) it else null
+                    }
+
+                    currentState.copy(
+                        items = itemList,
+                        selectedItem = selectedItem,
+                        tags = tags,
+                        selectedTag = selectedTag,
+                    )
+                }
+            }
+        }
+
+        // Observe changes to the preview cache (bitmaps)
+        viewModelScope.launch {
+            rtspItemRepository.cachedPreviews.collect { cachedPreviews ->
+                _uiState.update { currentState ->
+                    currentState.copy(cachedPreviews = cachedPreviews)
+                }
+            }
+        }
+
+        // Initial Data Loading: Triggers the DB fetch and populates the memory cache from disk.
         viewModelScope.launch {
             rtspItemRepository.loadData()
 
-            // Iterate through loaded items to hydrate the preview cache from the file system
+            // Iterate through loaded items to hydrate the preview cache from the file system.
+            // This prevents UI lag by loading images into memory once on startup.
             rtspItemRepository.items.value.forEach { rtspItem ->
                 val file = rtspItemRepository.previewPathFor(rtspItem)
                 fileRepository.readJPEG(file)?.let { bitmap ->
@@ -82,7 +98,7 @@ class AppViewModel @Inject constructor(
 
     /**
      * Cleanup method called when the ViewModel is destroyed.
-     * Clears the in-memory bitmap cache to prevent memory leaks.
+     * Clears the in-memory bitmap cache to prevent memory leaks and free up resources.
      */
     override fun onCleared() {
         super.onCleared()
@@ -95,8 +111,25 @@ class AppViewModel @Inject constructor(
      * @param rtspItem The [RTSPItem] clicked or selected by the user.
      */
     fun select(rtspItem: RTSPItem) {
-        _uiState.update { currentState ->
-            currentState.copy(selectedItem = rtspItem)
+        viewModelScope.launch {
+            _uiState.update { currentState ->
+                currentState.copy(selectedItem = rtspItem)
+            }
+        }
+    }
+
+    /**
+     * Updates the UI state to filter the list by a specific tag.
+     *
+     * @param selectedTag The tag string to filter by. Passing `null` clears the filter.
+     */
+    fun select(selectedTag: String?) {
+        viewModelScope.launch {
+            _uiState.update { currentState ->
+                // Only update if the tag actually exists in the current list or if we are clearing it
+                val validTag = selectedTag?.takeIf { currentState.tags.contains(it) }
+                currentState.copy(selectedTag = validTag)
+            }
         }
     }
 
@@ -183,6 +216,7 @@ class AppViewModel @Inject constructor(
         viewModelScope.launch {
             val file = rtspItemRepository.previewPathFor(rtspItem)
             if (fileRepository.writeJPEG(file, bitmap)) {
+                // Update memory cache only after successful file write
                 rtspItemRepository.cachePreviewFor(rtspItem, bitmap)
             }
         }

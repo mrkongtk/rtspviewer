@@ -13,14 +13,14 @@ import java.io.File
 import javax.inject.Inject
 
 /**
- * Concrete implementation of [RTSPItemRepository].
+ * Implementation of [RTSPItemRepository] that coordinates data access.
  *
- * This repository manages data operations for RTSP items, acting as the single source
- * of truth by mediating between the local Room database, the file system (for images),
- * and the UI/Domain layer.
+ * This repository acts as the Single Source of Truth (SSOT) for the application's RTSP stream
+ * configurations. It synchronizes data between the Room database, the device's internal
+ * cache for preview images, and the UI via reactive streams.
  *
- * @property context The application context, used to access the file system cache directory.
- * @property db The Room database instance injected via Dependency Injection.
+ * @property context Used to resolve internal file system paths for image caching.
+ * @property db The primary persistence layer for stream metadata.
  */
 class RTSPItemRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
@@ -28,116 +28,117 @@ class RTSPItemRepositoryImpl @Inject constructor(
 ) : RTSPItemRepository {
 
     /**
-     * Internal mutable state flow to handle list updates.
-     * Acts as the backing field for the public [items] flow.
+     * Backing property for the list of RTSP items currently in memory.
      */
     private val _items = MutableStateFlow<List<RTSPItem>>(emptyList())
 
     /**
-     * A read-only [StateFlow] observing the list of [RTSPItem]s.
-     *
-     * UI components should collect from this flow to receive real-time data updates
-     * whenever [loadData] is called.
+     * An observable stream of the RTSP item list.
+     * UI components should observe this to remain in sync with the database state.
      */
     override val items: StateFlow<List<RTSPItem>> = _items
 
     /**
-     * Internal mutable state flow for the bitmap cache.
+     * Backing property for the in-memory bitmap cache to avoid redundant disk I/O.
      */
     private val _cachedPreviews = MutableStateFlow<Map<Long, Bitmap>>(emptyMap())
 
     /**
-     * A read-only [StateFlow] exposing the map of cached Bitmaps.
-     * Key: RTSPItem ID, Value: Bitmap.
+     * An observable map of cached bitmaps where the key is the [RTSPItem.id].
+     * Provides fast access to stream snapshots for the UI.
      */
     override val cachedPreviews: StateFlow<Map<Long, Bitmap>> = _cachedPreviews
 
 
     /**
-     * Refreshes the local state by fetching the complete list of RTSP items from the database.
-     *
-     * The results are emitted to the [items] StateFlow.
-     * Currently retrieves all items (from index 0 to [Long.MAX_VALUE]).
+     * Fetches the latest data from the local database and pushes it to the [items] flow.
+     * This triggers a UI refresh for all active collectors.
      */
     override suspend fun loadData() {
         _items.update { _ ->
+            // Fetches all items; range 0 to Max effectively returns the entire sorted collection.
             db.rtspItemDao().getItems(0, Long.MAX_VALUE)
         }
     }
 
     /**
-     * Inserts a new [RTSPItem] into the database.
+     * Persists a new [RTSPItem].
      *
-     * @param item The RTSP item entity to be persisted.
-     * @return The row ID of the newly inserted item.
+     * Logic includes sanitizing tags by trimming whitespace, removing empty strings,
+     * and filtering out duplicates before insertion.
+     *
+     * @param item The model to save.
+     * @return The unique database ID assigned to the new entry.
      */
     override suspend fun addItem(item: RTSPItem): Long {
-        val insertedId = db.rtspItemDao().insert(item)
-        return insertedId
+        val sanitizedItem = item.copy(
+            tags = item.tags.mapNotNull { it.trim().ifEmpty { null } }.distinct()
+        )
+        return db.rtspItemDao().insert(sanitizedItem)
     }
 
     /**
-     * Updates the ordering of a list of RTSP items in the database.
+     * Batch updates the display order of RTSP items.
      *
-     * This method transforms the provided list into [RTSPItemOrderUpdate] objects
-     * to perform a partial update, modifying only the order field for the specific IDs.
+     * Uses a lightweight projection ([RTSPItemOrderUpdate]) to minimize database
+     * write overhead by only modifying the 'order' column.
      *
-     * @param items The list of items containing the new order values.
-     * @return The number of rows affected by the update.
+     * @param items List of items containing the updated sequence indices.
+     * @return Total number of successfully updated rows.
      */
     override suspend fun reorderItems(items: List<RTSPItem>): Int {
-        return items.map {
-            RTSPItemOrderUpdate(id = it.id, order = it.order)
-        }.let {
-            db.rtspItemDao().updateOrders(it)
-        }
+        val updates = items.map { RTSPItemOrderUpdate(id = it.id, order = it.order) }
+        return db.rtspItemDao().updateOrders(updates)
     }
 
     /**
-     * Updates an existing [RTSPItem] in the database.
+     * Updates an existing record in the database.
      *
-     * This replaces the existing entry with the data provided in the [item] parameter.
+     * Similar to [addItem], this method cleanses the tag list before persistence.
      *
-     * @param item The item containing the updated data (must have a matching ID).
-     * @return The number of rows affected (usually 1 if successful).
+     * @param item The entity to update (matched by ID).
+     * @return Number of rows affected (1 for success, 0 if ID not found).
      */
     override suspend fun updateItem(item: RTSPItem): Int {
-        return db.rtspItemDao().update(item)
+        val sanitizedItem = item.copy(
+            tags = item.tags.mapNotNull { it.trim().ifEmpty { null } }.distinct()
+        )
+        return db.rtspItemDao().update(sanitizedItem)
     }
 
     /**
-     * Permanently deletes an [RTSPItem] from the database.
+     * Deletes an RTSP item from the local database.
      *
-     * @param item The item to be removed.
-     * @return The number of rows affected (usually 1 if successful).
+     * @param item The entity to remove.
+     * @return Number of rows affected.
      */
     override suspend fun deleteItem(item: RTSPItem): Int {
         return db.rtspItemDao().delete(item)
     }
 
     /**
-     * Determines the cache file path for a given item's preview image.
+     * Generates the file system path for a specific stream's preview thumbnail.
      *
-     * The file is named "preview_{id}.jpg" and is located in the application's cache directory.
+     * Files are stored in the application's internal cache directory to ensure they
+     * are cleared if the OS needs space or the app is uninstalled.
      */
     override fun previewPathFor(item: RTSPItem): File {
-        val cacheDir: File = context.cacheDir
-        val filePath = File(cacheDir, "preview_${item.id}.jpg")
-        return filePath
+        return File(context.cacheDir, "preview_${item.id}.jpg")
     }
 
     /**
-     * Caches a bitmap for the specific item in memory.
+     * Stores a [Bitmap] in the memory cache for immediate UI access.
      *
-     * If a bitmap already exists for this ID, and it differs from the new one,
-     * the old bitmap is explicitly recycled to prevent memory leaks.
+     * This method includes memory management logic: if an existing bitmap is
+     * replaced, it is explicitly [Bitmap.recycle]'d to free up native memory
+     * and prevent OOM (Out Of Memory) errors.
      */
     override fun cachePreviewFor(item: RTSPItem, bitmap: Bitmap) {
-        _cachedPreviews.update {
-            val newMap = it.toMutableMap()
+        _cachedPreviews.update { currentMap ->
+            val newMap = currentMap.toMutableMap()
+            // Explicitly recycle the old bitmap if it's no longer used
             newMap.put(item.id, bitmap)?.let { oldBitmap ->
-                // Ensure we don't leak memory by holding onto replaced bitmaps
-                if (oldBitmap != bitmap && !oldBitmap.isMutable) {
+                if (oldBitmap != bitmap && !oldBitmap.isRecycled) {
                     oldBitmap.recycle()
                 }
             }
@@ -146,14 +147,14 @@ class RTSPItemRepositoryImpl @Inject constructor(
     }
 
     /**
-     * Clears the entire preview cache and recycles all contained bitmaps.
+     * Clears all bitmaps from memory and invokes [Bitmap.recycle] on each.
      *
-     * This iterates through the current map values and calls [Bitmap.recycle]
-     * on any bitmap that hasn't already been recycled.
+     * This should be called during high-memory pressure events or when the
+     * feature visibility is lifecycle-stopped to ensure resources are returned to the system.
      */
     override fun removeCachedPreviews() {
-        _cachedPreviews.update {
-            it.values.forEach { bitmap ->
+        _cachedPreviews.update { currentMap ->
+            currentMap.values.forEach { bitmap ->
                 if (!bitmap.isRecycled) {
                     bitmap.recycle()
                 }
@@ -161,5 +162,4 @@ class RTSPItemRepositoryImpl @Inject constructor(
             emptyMap()
         }
     }
-
 }

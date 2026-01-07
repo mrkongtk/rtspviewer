@@ -30,11 +30,11 @@ class StreamItemScreenTest {
     private val onDeleteMock: () -> Unit = mock()
     private val onImageAvailableMock: (RTSPItem, Bitmap) -> Unit = mock()
 
-    // Sample Data
+    // Sample Data matching the entity structure
     private val sampleItem = RTSPItem(
         id = 1L,
         name = "Backyard Cam",
-        // URI with credentials to test masking logic
+        // URI with credentials to test the masking regex: (rtsp://)(.+)(:)(.+)(@)
         uri = "rtsp://admin:12345@192.168.1.50:554/stream",
         tags = listOf("Outdoor", "Security"),
         order = 0,
@@ -42,90 +42,89 @@ class StreamItemScreenTest {
     )
 
     @Test
-    fun displaysCorrectMetadataAndMasksUri() {
+    fun displaysCorrectMetadata_AndPlaceholder_InInspectionMode() {
         setContentWithInspectionMode(sampleItem)
 
-        // 1. Check Name
+        // 1. Verify Video Placeholder (Logic in VideoPlayerCompose for Inspection Mode)
+        composeTestRule.onNodeWithTag("EmptyVideo")
+            .assertIsDisplayed()
+            .assertTextEquals("Video Player Preview")
+
+        // 2. Check Name Row
         composeTestRule.onNodeWithTag("Name")
             .assertIsDisplayed()
             .assertTextEquals("Backyard Cam")
 
-        // 2. Check URI Masking
-        // The regex in your code replaces credentials with ***
-        // rtsp://admin:12345@... -> rtsp://***:***@...
+        // 3. Check URI Masking logic (hideUriCredential)
+        // Group 2 (admin) and Group 4 (12345) should be replaced by ***
         val expectedMaskedUri = "rtsp://***:***@192.168.1.50:554/stream"
         composeTestRule.onNodeWithTag("Uri")
             .assertIsDisplayed()
             .assertTextEquals(expectedMaskedUri)
 
-        // 3. Check Tags
+        // 4. Check Tags (rendered via FlowRow with testTag("Tag $tag"))
         composeTestRule.onNodeWithTag("Tag Outdoor").assertIsDisplayed()
         composeTestRule.onNodeWithTag("Tag Security").assertIsDisplayed()
 
-        // 4. Check Force TCP Checkbox (Should be checked and disabled)
+        // 5. Check Force TCP Checkbox (state check)
         composeTestRule.onNodeWithTag("ForceTCP")
             .assertIsDisplayed()
-            .assertIsOn() // Since forceTcp = true in sample data
+            .assertIsOn()
     }
 
     @Test
-    fun verifiesEditAction() {
+    fun verifiesEditAction_TriggersCallback() {
         setContentWithInspectionMode(sampleItem)
 
-        // Open the "More Options" menu
+        // Open the "More Options" dropdown
         composeTestRule.onNodeWithTag("MoreButton").performClick()
 
-        // Assert Edit button is visible and click it
+        // Click Edit
         composeTestRule.onNodeWithTag("EditButton")
             .assertIsDisplayed()
             .performClick()
 
-        // Verify the callback was invoked
+        // Verify ViewModel/Navigation callback
         verify(onEditMock).invoke()
     }
 
     @Test
-    fun verifiesDeleteAction_CancelsDialog() {
+    fun verifiesDeleteFlow_Confirm() {
         setContentWithInspectionMode(sampleItem)
 
-        // 1. Open Menu -> Click Delete
+        // Open Menu -> Click Delete
         composeTestRule.onNodeWithTag("MoreButton").performClick()
         composeTestRule.onNodeWithTag("DeleteButton").performClick()
 
-        // 2. Assert Confirmation Dialog is visible
+        // Verify Dialog appears
         composeTestRule.onNodeWithTag("DeleteConfirmDialog").assertIsDisplayed()
 
-        // 3. Click Cancel
-        composeTestRule.onNodeWithTag("DeleteCancelButton").performClick()
+        // Click Confirm
+        composeTestRule.onNodeWithTag("DeleteConfirmButton").performClick()
 
-        // 4. Verify Dialog is gone
+        // Verify callback was called and dialog is dismissed
+        verify(onDeleteMock).invoke()
         composeTestRule.onNodeWithTag("DeleteConfirmDialog").assertDoesNotExist()
-
-        // 5. Verify the actual delete callback was NEVER called
-        verify(onDeleteMock, never()).invoke()
     }
 
     @Test
-    fun verifiesDeleteAction_ConfirmsDialog() {
+    fun verifiesDeleteFlow_Cancel() {
         setContentWithInspectionMode(sampleItem)
 
-        // 1. Open Menu -> Click Delete
+        // Open Menu -> Click Delete
         composeTestRule.onNodeWithTag("MoreButton").performClick()
         composeTestRule.onNodeWithTag("DeleteButton").performClick()
 
-        // 2. Click Confirm
-        composeTestRule.onNodeWithTag("DeleteConfirmButton").performClick()
+        // Click Cancel
+        composeTestRule.onNodeWithTag("DeleteCancelButton").performClick()
 
-        // 3. Verify the actual delete callback WAS called
-        verify(onDeleteMock).invoke()
-
-        // 4. Verify Dialog is gone
+        // Verify callback was NOT called and dialog is dismissed
+        verify(onDeleteMock, never()).invoke()
         composeTestRule.onNodeWithTag("DeleteConfirmDialog").assertDoesNotExist()
     }
 
     @Test
-    fun verifiesForceTcpFalseState() {
-        // Create an item with ForceTCP = false
+    fun verifiesForceTcpOffState() {
         val tcpOffItem = sampleItem.copy(forceTcp = false)
         setContentWithInspectionMode(tcpOffItem)
 
@@ -134,10 +133,9 @@ class StreamItemScreenTest {
     }
 
     /**
-     * Helper function to set content.
-     * Crucially, this sets LocalInspectionMode to true.
-     * This triggers the logic in VideoPlayerCompose to show a placeholder Text
-     * instead of trying to load Hilt/ExoPlayer, preventing crashes in UI tests.
+     * Helper to inject LocalInspectionMode.
+     * This prevents the Hilt-based hiltViewModel() call inside VideoPlayerCompose
+     * from executing, which would fail in a functional UI test environment.
      */
     private fun setContentWithInspectionMode(item: RTSPItem) {
         composeTestRule.setContent {
