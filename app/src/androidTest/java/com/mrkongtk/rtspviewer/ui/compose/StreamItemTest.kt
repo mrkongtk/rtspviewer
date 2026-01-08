@@ -19,13 +19,13 @@ import org.mockito.kotlin.times
 import org.mockito.kotlin.verify
 
 /**
- * UI Test Suite for the [StreamListItem] Composable.
+ * UI Test Suite for the [StreamItem] Composable.
  *
  * This suite verifies the mapping between the [RTSPItem] domain model and the
  * Material 3 ElevatedCard UI, ensuring that tags, previews, and interaction
  * callbacks behave as expected.
  */
-class StreamListItemTest {
+class StreamItemTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
@@ -50,7 +50,7 @@ class StreamListItemTest {
 
         composeTestRule.setContent {
             RTSPViewerTheme {
-                StreamListItem(
+                StreamItem(
                     data = testItem,
                     preview = null,
                     onClick = {}
@@ -87,7 +87,7 @@ class StreamListItemTest {
 
         composeTestRule.setContent {
             RTSPViewerTheme {
-                StreamListItem(
+                StreamItem(
                     data = testItem,
                     preview = null,
                     onClick = {}
@@ -129,7 +129,7 @@ class StreamListItemTest {
 
         composeTestRule.setContent {
             RTSPViewerTheme {
-                StreamListItem(
+                StreamItem(
                     data = testItem,
                     preview = dummyBitmap,
                     onClick = {}
@@ -158,7 +158,7 @@ class StreamListItemTest {
 
         composeTestRule.setContent {
             RTSPViewerTheme {
-                StreamListItem(
+                StreamItem(
                     data = testItem,
                     preview = null,
                     onClick = {}
@@ -191,7 +191,7 @@ class StreamListItemTest {
 
         composeTestRule.setContent {
             RTSPViewerTheme {
-                StreamListItem(
+                StreamItem(
                     data = testItem,
                     preview = null,
                     onClick = mockOnClick

@@ -62,7 +62,7 @@ import com.mrkongtk.rtspviewer.ui.theme.RoundedCornerSize
  * @param onClick Lambda invoked when the user taps on the card.
  */
 @Composable
-fun StreamListItem(
+fun StreamItem(
     modifier: Modifier = Modifier,
     data: RTSPItem,
     preview: Bitmap?,
@@ -155,7 +155,7 @@ fun StreamListItem(
 }
 
 /**
- * Previews the [StreamListItem] in different configurations (Day/Night) and
+ * Previews the [StreamItem] in different configurations (Day/Night) and
  * with different data states (with/without images, with/without tags).
  */
 @Preview(
@@ -171,7 +171,7 @@ fun StreamListItem(
     uiMode = Configuration.UI_MODE_NIGHT_YES
 )
 @Composable
-private fun StreamListItemPreview() {
+private fun StreamItemPreview() {
     RTSPViewerTheme {
         Scaffold(
             modifier = Modifier
@@ -229,7 +229,7 @@ private fun StreamListItemPreview() {
             ) {
                 // fastForEach is a performance-optimized loop for Compose collections
                 mockItems.fastForEach { item ->
-                    StreamListItem(
+                    StreamItem(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = PaddingS),
