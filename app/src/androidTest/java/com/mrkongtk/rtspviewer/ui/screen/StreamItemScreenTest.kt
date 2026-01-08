@@ -1,7 +1,9 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertIsOff
@@ -42,13 +44,11 @@ class StreamItemScreenTest {
     )
 
     @Test
-    fun displaysCorrectMetadata_AndPlaceholder_InInspectionMode() {
-        setContentWithInspectionMode(sampleItem)
+    fun portraitMode_displaysCorrectMetadataAndPlayer() {
+        setContentWithInspectionMode(sampleItem, Configuration.ORIENTATION_PORTRAIT)
 
-        // 1. Verify Video Placeholder (Logic in VideoPlayerCompose for Inspection Mode)
-        composeTestRule.onNodeWithTag("EmptyVideo")
-            .assertIsDisplayed()
-            .assertTextEquals("Video Player Preview")
+        // 1. Verify Video Player for Portrait
+        composeTestRule.onNodeWithTag("VideoPlayer").assertIsDisplayed()
 
         // 2. Check Name Row
         composeTestRule.onNodeWithTag("Name")
@@ -62,19 +62,38 @@ class StreamItemScreenTest {
             .assertIsDisplayed()
             .assertTextEquals(expectedMaskedUri)
 
-        // 4. Check Tags (rendered via FlowRow with testTag("Tag $tag"))
+        // 4. Check Tags
         composeTestRule.onNodeWithTag("Tag Outdoor").assertIsDisplayed()
         composeTestRule.onNodeWithTag("Tag Security").assertIsDisplayed()
 
-        // 5. Check Force TCP Checkbox (state check)
+        // 5. Check Force TCP Checkbox state
         composeTestRule.onNodeWithTag("ForceTCP")
             .assertIsDisplayed()
             .assertIsOn()
+
+        // 6. Verify "More Options" FAB is visible in Portrait
+        composeTestRule.onNodeWithTag("MoreButton").assertIsDisplayed()
+    }
+
+    @Test
+    fun landscapeMode_displaysOnlyVideoPlayer() {
+        setContentWithInspectionMode(sampleItem, Configuration.ORIENTATION_LANDSCAPE)
+
+        // 1. Verify Landscape specific Video Player tag
+        composeTestRule.onNodeWithTag("VideoPlayerLandscape").assertIsDisplayed()
+
+        // 2. Verify Metadata is HIDDEN in Landscape according to UI logic
+        composeTestRule.onNodeWithTag("Name").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("Uri").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("ForceTCP").assertDoesNotExist()
+
+        // 3. Verify FAB is HIDDEN in Landscape
+        composeTestRule.onNodeWithTag("MoreButton").assertDoesNotExist()
     }
 
     @Test
     fun verifiesEditAction_TriggersCallback() {
-        setContentWithInspectionMode(sampleItem)
+        setContentWithInspectionMode(sampleItem, Configuration.ORIENTATION_PORTRAIT)
 
         // Open the "More Options" dropdown
         composeTestRule.onNodeWithTag("MoreButton").performClick()
@@ -90,7 +109,7 @@ class StreamItemScreenTest {
 
     @Test
     fun verifiesDeleteFlow_Confirm() {
-        setContentWithInspectionMode(sampleItem)
+        setContentWithInspectionMode(sampleItem, Configuration.ORIENTATION_PORTRAIT)
 
         // Open Menu -> Click Delete
         composeTestRule.onNodeWithTag("MoreButton").performClick()
@@ -109,7 +128,7 @@ class StreamItemScreenTest {
 
     @Test
     fun verifiesDeleteFlow_Cancel() {
-        setContentWithInspectionMode(sampleItem)
+        setContentWithInspectionMode(sampleItem, Configuration.ORIENTATION_PORTRAIT)
 
         // Open Menu -> Click Delete
         composeTestRule.onNodeWithTag("MoreButton").performClick()
@@ -126,20 +145,27 @@ class StreamItemScreenTest {
     @Test
     fun verifiesForceTcpOffState() {
         val tcpOffItem = sampleItem.copy(forceTcp = false)
-        setContentWithInspectionMode(tcpOffItem)
+        setContentWithInspectionMode(tcpOffItem, Configuration.ORIENTATION_PORTRAIT)
 
         composeTestRule.onNodeWithTag("ForceTCP")
             .assertIsOff()
     }
 
     /**
-     * Helper to inject LocalInspectionMode.
-     * This prevents the Hilt-based hiltViewModel() call inside VideoPlayerCompose
-     * from executing, which would fail in a functional UI test environment.
+     * Helper to inject LocalInspectionMode and simulate Orientation.
+     *
+     * @param orientation Use Configuration.ORIENTATION_PORTRAIT or ORIENTATION_LANDSCAPE
      */
-    private fun setContentWithInspectionMode(item: RTSPItem) {
+    private fun setContentWithInspectionMode(item: RTSPItem, orientation: Int) {
+        val config = Configuration().apply {
+            this.orientation = orientation
+        }
+
         composeTestRule.setContent {
-            CompositionLocalProvider(LocalInspectionMode provides true) {
+            CompositionLocalProvider(
+                LocalInspectionMode provides true,
+                LocalConfiguration provides config
+            ) {
                 StreamItemScreen(
                     item = item,
                     onEditItemSelected = onEditMock,
