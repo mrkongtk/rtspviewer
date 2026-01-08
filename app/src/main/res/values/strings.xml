@@ -2,6 +2,7 @@
     <string name="app_name">RTSP Viewer</string>
     <string name="back_button">Back</string>
     <string name="detail">Detail</string>
+    <string name="sort">Sort</string>
     <string name="delete">Delete</string>
     <string name="edit">Edit</string>
     <string name="confirm">Confirm</string>

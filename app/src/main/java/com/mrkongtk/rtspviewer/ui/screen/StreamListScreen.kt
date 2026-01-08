@@ -44,7 +44,7 @@ import androidx.core.graphics.createBitmap
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.DraggableLazyColumn
-import com.mrkongtk.rtspviewer.ui.compose.StreamItem
+import com.mrkongtk.rtspviewer.ui.compose.StreamListItem
 import com.mrkongtk.rtspviewer.ui.theme.ErrorColor
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.PaddingS
@@ -233,7 +233,7 @@ internal fun StreamItemList(
             }
         ) { itemModifier, item ->
             // Custom item renderer for individual RTSP streams
-            StreamItem(
+            StreamListItem(
                 data = item,
                 preview = previews[item.id],
                 modifier = itemModifier

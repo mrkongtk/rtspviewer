@@ -19,11 +19,8 @@ import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ElevatedCard
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -56,16 +53,18 @@ import com.mrkongtk.rtspviewer.ui.theme.RoundedCornerSize
  * the stream name, and any associated tags. It is designed to be used within a [LazyColumn]
  * or a standard [Column].
  *
- * @param modifier [Modifier] to be applied to the [ElevatedCard].
- * @param data The [RTSPItem] entity containing the stream metadata.
- * @param preview An optional [Bitmap] snapshot of the live stream. If null, the image area is omitted.
- * @param onClick Lambda invoked when the user taps on the card.
+ * @param modifier [Modifier] to be applied to the [ElevatedCard] container.
+ * @param data The [RTSPItem] entity containing the stream metadata (name, url, tags, etc.).
+ * @param preview An optional [Bitmap] snapshot of the live stream. If null, the preview area is hidden.
+ * @param icon A trailing composable (e.g., a Chevron or Edit button) to be placed at the end of the row.
+ * @param onClick Lambda invoked when the user taps anywhere on the card.
  */
 @Composable
 fun StreamItem(
     modifier: Modifier = Modifier,
     data: RTSPItem,
     preview: Bitmap?,
+    icon: @Composable () -> Unit,
     onClick: (RTSPItem) -> Unit,
 ) {
     ElevatedCard(
@@ -88,11 +87,13 @@ fun StreamItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             // --- Thumbnail Section ---
+            // We only show the Image and the following Spacer if a preview bitmap exists.
             preview?.let {
                 Image(
                     modifier = Modifier
                         .width(PreviewWidth)
-                        // Aspect ratio is calculated from the source bitmap to prevent stretching
+                        // Uses the bitmap's intrinsic dimensions to maintain aspect ratio
+                        // and prevent "squashing" or "stretching" regardless of camera resolution.
                         .aspectRatio(it.width.toFloat() / it.height.toFloat())
                         .clip(RoundedCornerShape(RoundedCornerSize)),
                     bitmap = it.asImageBitmap(),
@@ -104,19 +105,21 @@ fun StreamItem(
 
             // --- Content Section (Title & Tags) ---
             Column(
-                // .weight(1f) ensures this column expands to fill the space between
-                // the thumbnail and the chevron, and enables text wrapping if needed.
+                // .weight(1f) is critical: it tells this column to take up all remaining horizontal
+                // space between the thumbnail (start) and the icon (end).
+                // This ensures the trailing icon is pushed to the far right.
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(PaddingS)
             ) {
                 Text(
                     text = data.name,
                     style = MaterialTheme.typography.titleMedium,
-                    maxLines = 1 // Keeps the UI clean if the name is very long
+                    maxLines = 1 // Prevents UI breakage if the camera name is exceptionally long
                 )
 
                 if (data.tags.isNotEmpty()) {
-                    // FlowRow automatically wraps tags to the next line if they exceed width
+                    // FlowRow is used instead of a standard Row to allow tags to wrap
+                    // onto multiple lines if they don't fit the screen width.
                     FlowRow(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(
@@ -125,6 +128,8 @@ fun StreamItem(
                         ),
                         verticalArrangement = Arrangement.spacedBy(PaddingXs)
                     ) {
+                        // fastForEach (from androidx.compose.ui.util) is an optimized loop
+                        // for Lists that avoids iterator allocation, improving scroll performance.
                         data.tags.fastForEach { tag ->
                             Text(
                                 modifier = Modifier
@@ -133,7 +138,7 @@ fun StreamItem(
                                         shape = RoundedCornerShape(PaddingXs)
                                     )
                                     .padding(horizontal = PaddingS)
-                                    // testTag provides a hook for UI Automator/Compose tests
+                                    // testTag provides a specific handle for UI Automator or Compose tests
                                     .testTag("Tag $tag"),
                                 text = tag,
                                 style = MaterialTheme.typography.labelSmall,
@@ -145,18 +150,20 @@ fun StreamItem(
             }
 
             // --- Trailing Icon ---
-            Icon(
-                // AutoMirrored ensures the arrow points left in RTL languages
-                imageVector = Icons.AutoMirrored.Default.KeyboardArrowRight,
-                contentDescription = stringResource(R.string.detail),
-            )
+            // This container holds whatever action component (Chevron/Edit/Delete) is passed in.
+            icon()
         }
     }
 }
 
 /**
- * Previews the [StreamItem] in different configurations (Day/Night) and
- * with different data states (with/without images, with/without tags).
+ * Visual Preview for [StreamItem] within Android Studio.
+ *
+ * Tests multiple scenarios:
+ * 1. Default state (No image/tags)
+ * 2. Active state (With image)
+ * 3. Tagged state (Short list of tags)
+ * 4. Stress test (Many tags causing wrapping via FlowRow)
  */
 @Preview(
     name = "Day",
@@ -179,23 +186,23 @@ private fun StreamItemPreview() {
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) { innerPadding ->
 
-            // --- Mock Setup ---
-            // Create a dummy bitmap for the preview image
+            // --- Mock Data Generation ---
+
+            // Create a dummy bitmap (16:9) to simulate a camera snapshot
             val w = 1920
             val h = 1080
             val bmp = createBitmap(w, h).let {
                 val canvas = Canvas(it)
-                canvas.drawColor(ErrorColor.toArgb())
+                canvas.drawColor(ErrorColor.toArgb()) // Use a distinct color for visual confirmation
                 it
             }
 
-            // Generate clean mock tags using LoremIpsum
+            // Generate a list of random strings to simulate camera tags
             val lorem = (LoremIpsum(100).values.toList().firstOrNull() ?: "")
                 .replace("[.\n\r]".toRegex(), "")
                 .split(" ")
                 .mapNotNull { it.trim().ifEmpty { null } }
 
-            // Create a list of items covering various UI edge cases
             val mockItems = listOf(
                 RTSPItem(1, "Living Room Camera", "rtsp://192.168.1.10", emptyList(), 1),
                 RTSPItem(2, "Backyard Camera", "rtsp://192.168.1.11", emptyList(), 2),
@@ -210,12 +217,12 @@ private fun StreamItemPreview() {
                     4,
                     "Garage Camera",
                     "rtsp://192.168.1.11",
-                    lorem.slice(3..10), // Case: Many tags to test FlowRow
+                    lorem.slice(3..10), // Stress test for FlowRow wrapping
                     3
                 ),
             )
 
-            // Map item IDs to the dummy bitmap
+            // Map item IDs to the dummy bitmap for conditional rendering
             val mockPreviews = mapOf(
                 Pair(1L, bmp),
                 Pair(3L, bmp)
@@ -227,7 +234,6 @@ private fun StreamItemPreview() {
                     .padding(innerPadding)
                     .padding(PaddingS)
             ) {
-                // fastForEach is a performance-optimized loop for Compose collections
                 mockItems.fastForEach { item ->
                     StreamItem(
                         modifier = Modifier
@@ -235,6 +241,7 @@ private fun StreamItemPreview() {
                             .padding(vertical = PaddingS),
                         data = item,
                         preview = mockPreviews[item.id],
+                        icon = { /* Leave empty for preview or add a Chevron icon here */ },
                         onClick = {}
                     )
                 }
