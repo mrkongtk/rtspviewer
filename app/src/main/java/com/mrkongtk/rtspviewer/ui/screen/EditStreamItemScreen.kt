@@ -42,6 +42,7 @@ import androidx.core.net.toUri
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.RTSPTextField
+import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.PaddingS
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
@@ -144,17 +145,34 @@ private data class FieldsValue(
 }
 
 /**
- * A Composable screen for editing or adding an RTSP stream item.
+ * A unified input form for creating or modifying RTSP stream configurations.
  *
- * @param modifier Modifier to be applied to the layout.
- * @param item The [RTSPItem] to be edited. Pass a default object for creation mode.
- * @param onSave Callback triggered when the valid form is saved. Passes the updated [RTSPItem].
+ * This screen manages its own internal state using a local [FieldsValue] instance to track
+ * user input across name, URI, categorical tags, and transport protocol preferences.
+ * It acts as the shared UI for both "Add" and "Edit" flows.
+ *
+ * **Key Behaviors:**
+ * - **Validation:** Real-time checking of URI formats and name requirements. The "Save"
+ *   action is disabled until the form is valid.
+ * - **Sanitization:** Automatically parses comma-separated input into a list of tags
+ *   and masks sensitive credentials in the URI display logic (via [FieldsValue]).
+ * - **UX Optimizations:** Uses [LocalFocusManager] to transition between fields via
+ *   keyboard "Next" actions and provides a "Restore" button to reset the form to its
+ *   initial state.
+ * - **Responsiveness:** Wrapped in a [verticalScroll] to ensure usability in landscape
+ *   orientation or on smaller devices.
+ *
+ * @param modifier The modifier to be applied to the root scrollable container.
+ * @param item The source [RTSPItem] providing initial values. For new items, pass
+ *             an empty template (typically provided by [AddStreamItemScreen]).
+ * @param screenActions A delegate interface (typically implemented by the navigation
+ *                      layer) to handle persistence events, such as saving the item.
  */
 @Composable
 fun EditStreamItemScreen(
     modifier: Modifier = Modifier,
     item: RTSPItem,
-    onSave: (RTSPItem) -> Unit,
+    screenActions: EditStreamItemScreenActions,
 ) {
     // Focus manager used to handle keyboard actions (Next/Done)
     val focusManager = LocalFocusManager.current
@@ -284,7 +302,7 @@ fun EditStreamItemScreen(
             // Save Button: Persists data
             IconButton(
                 onClick = {
-                    onSave(fieldsValue.mergeTo(item))
+                    screenActions.onSaveItem(fieldsValue.mergeTo(item))
                 },
                 // Only enable if validation passes
                 enabled = fieldsValue.isValid,
@@ -336,11 +354,13 @@ private fun StreamItemScreenPreview() {
         ) { innerPadding ->
             // Render the screen with the mock data and apply the Scaffold's content padding.
             EditStreamItemScreen(
-                item = mockItem,
-                onSave = {},
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(innerPadding),
+                item = mockItem,
+                screenActions = object : EditStreamItemScreenActions {
+                    override fun onSaveItem(newItem: RTSPItem) {}
+                }
             )
         }
     }

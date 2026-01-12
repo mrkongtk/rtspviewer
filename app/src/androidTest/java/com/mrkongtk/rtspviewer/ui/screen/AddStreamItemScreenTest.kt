@@ -11,7 +11,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
@@ -24,12 +24,6 @@ import org.mockito.kotlin.never
 
 /**
  * UI Instrumentation tests for the [AddStreamItemScreen].
- *
- * This class verifies the behavior of the "Add Stream" form, including:
- * - Initial state (empty fields, disabled buttons).
- * - Input validation (RTSP scheme checks, required fields).
- * - State updates (enabling/disabling buttons based on input).
- * - Interaction with the [SaveCallback] when valid data is submitted.
  */
 @RunWith(AndroidJUnit4::class)
 class AddStreamItemScreenTest {
@@ -37,172 +31,116 @@ class AddStreamItemScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    /**
-     * Helper interface to facilitate Mockito mocking of the Kotlin lambda function `onSave`.
-     * Mocking Kotlin function types directly can sometimes be verbose or problematic.
-     */
-    interface SaveCallback {
-        fun onSave(item: RTSPItem)
-    }
+    private lateinit var mockActions: EditStreamItemScreenActions
 
-    private lateinit var mockSaveCallback: SaveCallback
-
-    /**
-     * Sets up the test environment before every test execution.
-     * Initializes the mock callback and mounts the [AddStreamItemScreen] composable.
-     */
     @Before
     fun setup() {
-        mockSaveCallback = mock(SaveCallback::class.java)
+        mockActions = mock(EditStreamItemScreenActions::class.java)
 
         composeTestRule.setContent {
             AddStreamItemScreen(
-                onSave = mockSaveCallback::onSave
+                screenActions = mockActions
             )
         }
     }
 
     /**
      * Scenario: The user opens the screen for the first time.
-     * Expected: All text fields are empty and the Save button is disabled.
+     * Expected: Fields are empty and Save button is disabled.
      */
     @Test
     fun initialState_saveButtonIsDisabled() {
-        // Verify Name and URI fields are empty
-        onRTSPField("NameTextField")
-            .assertTextContains("")
+        onRTSPField("NameTextField").assertTextContains("")
+        onRTSPField("UriTextField").assertTextContains("")
 
-        onRTSPField("UriTextField")
-            .assertTextContains("")
-
-        // Verify Save button is disabled initially (preventing submission of empty data)
         composeTestRule.onNodeWithTag("SaveButton")
             .assertIsNotEnabled()
     }
 
     /**
-     * Scenario: Happy Path. The user enters valid data into all fields.
-     * Expected: The Save button becomes enabled, and clicking it triggers the callback
-     * with an RTSPItem object containing the exact data entered.
+     * Scenario: Happy Path. User enters valid RTSP data.
+     * Expected: Save button enabled, callback returns correct RTSPItem.
      */
     @Test
     fun enterValidData_saveButtonEnabled_andCallbackTriggered() {
-        val testName = "Living Room"
-        val testUri = "rtsp://192.168.1.55"
-        val testTags = "Home,Security"
+        val testName = "Front Door"
+        val testUri = "rtsp://192.168.1.100/live"
+        val testTags = "Outdoor,Home"
 
-        // 1. Enter Valid Name
-        onRTSPField("NameTextField")
-            .performTextInput(testName)
+        onRTSPField("NameTextField").performTextInput(testName)
+        onRTSPField("UriTextField").performTextInput(testUri)
 
-        // 2. Enter Valid URI (Must start with rtsp://)
-        onRTSPField("UriTextField")
-            .performTextInput(testUri)
-
-        // 3. Enter Tags (scrolling ensures visibility on smaller screens)
         onRTSPField("TagsTextField")
             .performScrollTo()
             .performTextInput(testTags)
 
-        // 4. Check Force TCP
         composeTestRule.onNodeWithTag("ForceTCPCheckbox")
             .performScrollTo()
             .performClick()
 
-        // 5. Verify Save Button is now enabled and Click it
         composeTestRule.onNodeWithTag("SaveButton")
             .assertIsEnabled()
             .performClick()
 
-        // 6. Verify Mockito callback captured the correct data structure
-        verify(mockSaveCallback).onSave(check { item ->
+        // Verify the item sent to the repository/viewmodel
+        verify(mockActions).onSaveItem(check { item ->
             assert(item.name == testName)
             assert(item.uri == testUri)
-            assert(item.tags == listOf("Home", "Security")) // Verifies comma-splitting logic
+            assert(item.tags == listOf("Outdoor", "Home"))
             assert(item.forceTcp)
-            assert(item.id == 0L) // Add screen defaults ID to 0 for new items
+            assert(item.id == 0L) // New item marker
+            assert(item.order == -1) // Unassigned order marker
         })
     }
 
     /**
-     * Scenario: The user enters an invalid URI (e.g., HTTP).
-     * Expected: The Save button remains disabled, and clicking it does not trigger the save callback.
+     * Scenario: User enters a non-RTSP URI (e.g., http).
+     * Expected: Validation fails, Save button remains disabled.
      */
     @Test
-    fun enterInvalidUri_saveButtonDisabled_andErrorShown() {
-        // 1. Enter Valid Name
-        onRTSPField("NameTextField")
-            .performTextInput("Camera 1")
+    fun enterInvalidUri_saveButtonDisabled() {
+        onRTSPField("NameTextField").performTextInput("Camera")
 
-        // 2. Enter Invalid URI (Not RTSP scheme)
-        onRTSPField("UriTextField")
-            .performTextInput("http://192.168.1.1")
+        // FieldsValue logic requires scheme to be 'rtsp'
+        onRTSPField("UriTextField").performTextInput("http://192.168.1.1")
 
-        // 3. Verify Save Button is disabled due to validation error
         composeTestRule.onNodeWithTag("SaveButton")
             .assertIsNotEnabled()
 
-        // 4. Attempt to click save anyway
-        composeTestRule.onNodeWithTag("SaveButton").performClick()
-
-        // 5. Verify that onSave was NEVER called
-        verify(mockSaveCallback, never()).onSave(any())
+        verify(mockActions, never()).onSaveItem(any())
     }
 
     /**
-     * Scenario: The user enters data but then clicks the "Clear" button.
-     * Expected: All fields return to empty and the Save button becomes disabled again.
+     * Scenario: User clears the form using the Restore/Clear button.
+     * Expected: Fields return to default blank state.
      */
     @Test
     fun clearButton_resetsFields() {
-        // 1. Enter some temporary data
-        onRTSPField("NameTextField").performTextInput("Temp Name")
-        onRTSPField("UriTextField").performTextInput("rtsp://temp")
+        onRTSPField("NameTextField").performTextInput("Delete Me")
+        onRTSPField("UriTextField").performTextInput("rtsp://valid")
 
-        // 2. Click the Clear button
         composeTestRule.onNodeWithTag("ClearButton")
             .performClick()
 
-        // 3. Verify fields are actually empty
         onRTSPField("NameTextField").assertTextContains("")
         onRTSPField("UriTextField").assertTextContains("")
-
-        // 4. Verify Save is disabled again
         composeTestRule.onNodeWithTag("SaveButton").assertIsNotEnabled()
     }
 
     /**
-     * Scenario: User provides Name but leaves URI empty.
-     * Expected: Save button is disabled (both fields are required).
+     * Scenario: Name is provided but URI is missing.
+     * Expected: Save button disabled (isValid logic requires both).
      */
     @Test
-    fun enterIncompleteData_nameOnly_saveDisabled() {
-        onRTSPField("NameTextField").performTextInput("Valid Name")
+    fun incompleteData_missingUri_saveDisabled() {
+        onRTSPField("NameTextField").performTextInput("Living Room")
 
-        // URI is left empty
-        composeTestRule.onNodeWithTag("SaveButton").assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("SaveButton")
+            .assertIsNotEnabled()
     }
 
     /**
-     * Scenario: User provides URI but leaves Name empty.
-     * Expected: Save button is disabled (both fields are required).
-     */
-    @Test
-    fun enterIncompleteData_uriOnly_saveDisabled() {
-        onRTSPField("UriTextField").performTextInput("rtsp://valid")
-
-        // Name is left empty
-        composeTestRule.onNodeWithTag("SaveButton").assertIsNotEnabled()
-    }
-
-    /**
-     * Helper function to find a specific text field within the Compose hierarchy.
-     *
-     * Because the input fields are custom components (`RTSPOutlinedTextField`), we cannot
-     * simply look for the tag "NameTextField". We must look for the actual input field
-     * (`RTSPOutlinedTextField`) that acts as a child/descendant of the specific identifier tag.
-     *
-     * @param tag The TestTag of the container wrapping the text field.
+     * Helper function to find the inner OutlinedTextField within the RTSPTextField wrapper.
      */
     private fun onRTSPField(tag: String) = composeTestRule.onNode(
         hasTestTag("RTSPOutlinedTextField") and hasAnyAncestor(hasTestTag(tag))

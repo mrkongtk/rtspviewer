@@ -12,22 +12,33 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 
 /**
- * A Composable screen designed specifically for adding a new RTSP stream.
+ * A specialized entry-point screen for creating new RTSP stream configurations.
  *
- * This function acts as a wrapper around [EditStreamItemScreen]. It instantiates the
- * underlying edit form with a default, empty [RTSPItem] object (where `id = 0`),
- * allowing the user to input details from scratch.
+ * This Composable serves as a functional wrapper around [EditStreamItemScreen]. While it
+ * shares the same underlying form UI, it is distinct in its intent: providing a
+ * blank state for fresh data entry rather than modifying existing persistence.
+ *
+ * **Key Logic:**
+ * - **State Initialization:** It instantiates a "template" [RTSPItem] with default values.
+ * - **Room Integration:** By setting [RTSPItem.id] to `0`, it signals to the Room DAO
+ *   (via the Repository) that this is a new record. This ensures the database performs an
+ *   `INSERT` with an auto-generated primary key instead of an `UPDATE`.
+ * - **Unidirectional Data Flow:** User inputs are managed locally within the form,
+ *   and the final "Save" event is bubbled up through [screenActions].
  *
  * @param modifier The modifier to be applied to the layout container.
- * @param onSave Callback triggered when the valid form is saved. Passes the newly configured [RTSPItem].
+ * @param screenActions A collection of lambdas (defined in [EditStreamItemScreenActions])
+ * to handle persistence and navigation logic, keeping this UI component decoupled
+ * from business logic.
  */
 @Composable
 fun AddStreamItemScreen(
     modifier: Modifier = Modifier,
-    onSave: (RTSPItem) -> Unit,
+    screenActions: EditStreamItemScreenActions,
 ) {
     // Delegate the UI logic to EditStreamItemScreen.
     // We provide a default "blank" item here. The ID is set to 0 to indicate
@@ -39,14 +50,12 @@ fun AddStreamItemScreen(
             name = "",
             uri = "",
             tags = emptyList(),
-            order = -1,
+            order = -1, // Indicates it hasn't been assigned a specific position yet
             forceTcp = false
         ),
-        onSave = onSave
+        screenActions = screenActions,
     )
 }
-
-// --- Previews ---
 
 /**
  * Preview for the Add Stream screen.
@@ -81,10 +90,12 @@ private fun StreamItemScreenPreview() {
             // Render the screen with the mock data and apply the Scaffold's content padding
             // to prevent content from being drawn behind system bars.
             AddStreamItemScreen(
-                onSave = {}, // No-op for preview
                 modifier = Modifier
                     .fillMaxSize()
-                    .padding(innerPadding)
+                    .padding(innerPadding),
+                screenActions = object : EditStreamItemScreenActions {
+                    override fun onSaveItem(newItem: RTSPItem) {}
+                }
             )
         }
     }

@@ -8,6 +8,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItemOrderUpdate
+import kotlinx.coroutines.flow.Flow
 
 /**
  * Data Access Object (DAO) for managing the [RTSPItem] entity.
@@ -54,6 +55,9 @@ interface RTSPItemDao {
      */
     @Query("SELECT * FROM rtsp_item ORDER BY `order` ASC, `name` ASC LIMIT :limit OFFSET :offset")
     suspend fun getItems(offset: Long = 0, limit: Long = 10): List<RTSPItem>
+
+    @Query("SELECT * FROM rtsp_item ORDER BY `order` ASC")
+    fun getAllItemsFlow(): Flow<List<RTSPItem>> // Room handles the background thread
 
     /**
      * Updates an existing [RTSPItem] in the database.

@@ -45,6 +45,7 @@ import com.mrkongtk.rtspviewer.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.ui.theme.PreviewWidth
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.ui.theme.RoundedCornerSize
+import com.mrkongtk.rtspviewer.util.formatText
 
 /**
  * A UI component representing a single RTSP stream entry in a list.
@@ -97,8 +98,9 @@ fun StreamItem(
                         .aspectRatio(it.width.toFloat() / it.height.toFloat())
                         .clip(RoundedCornerShape(RoundedCornerSize)),
                     bitmap = it.asImageBitmap(),
-                    contentDescription = stringResource(R.string.rtsp_item_preview_description)
-                        .replace("%1", data.name)
+                    contentDescription = stringResource(
+                        R.string.rtsp_item_preview_description
+                    ).formatText(data.name)
                 )
                 Spacer(modifier = Modifier.width(PaddingM))
             }

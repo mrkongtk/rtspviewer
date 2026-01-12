@@ -6,6 +6,7 @@ import com.mrkongtk.rtspviewer.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItemOrderUpdate
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.update
@@ -13,30 +14,42 @@ import java.io.File
 import javax.inject.Inject
 
 /**
- * Implementation of [RTSPItemRepository] that coordinates data access.
+ * Concrete implementation of [RTSPItemRepository] that serves as the Single Source of Truth (SSOT)
+ * for all RTSP stream-related data.
  *
- * This repository acts as the Single Source of Truth (SSOT) for the application's RTSP stream
- * configurations. It synchronizes data between the Room database, the device's internal
- * cache for preview images, and the UI via reactive streams.
+ * This repository coordinates data flow between three distinct layers:
+ * 1. **Persistence Layer:** Manages [RTSPItem] metadata using the Room database.
+ * 2. **Filesystem Layer:** Resolves paths for stream preview snapshots stored in the app's internal cache.
+ * 3. **Memory Layer:** Maintains a reactive, in-memory cache of [Bitmap] previews to ensure
+ *    fluid UI performance and avoid redundant disk I/O.
  *
- * @property context Used to resolve internal file system paths for image caching.
- * @property db The primary persistence layer for stream metadata.
+ * **Key Responsibilities:**
+ * - **Data Synchronization:** Provides reactive [Flow] streams of database items and [StateFlow]
+ *   maps of cached previews for UI observation.
+ * - **Business Logic Enforcement:** Sanitizes stream tags (trimming, removing empty values,
+ *   and deduplication) before any insertion or update operation.
+ * - **Efficient Updates:** Utilizes lightweight projection models ([RTSPItemOrderUpdate])
+ *   during reordering operations to minimize database write overhead.
+ * - **Resource Management:** Actively manages native memory by explicitly calling [Bitmap.recycle]
+ *   when previews are replaced or cleared, preventing OutOfMemory (OOM) errors common in
+ *   image-heavy applications.
+ *
+ * @property context The application context, used specifically for accessing internal
+ * cache directories and file paths.
+ * @property db The [AppDatabase] instance providing access to the [RTSPItemDao] for
+ * persistent storage operations.
  */
 class RTSPItemRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val db: AppDatabase,
 ) : RTSPItemRepository {
 
-    /**
-     * Backing property for the list of RTSP items currently in memory.
-     */
-    private val _items = MutableStateFlow<List<RTSPItem>>(emptyList())
 
     /**
      * An observable stream of the RTSP item list.
      * UI components should observe this to remain in sync with the database state.
      */
-    override val items: StateFlow<List<RTSPItem>> = _items
+    override val items: Flow<List<RTSPItem>> = db.rtspItemDao().getAllItemsFlow()
 
     /**
      * Backing property for the in-memory bitmap cache to avoid redundant disk I/O.
@@ -48,18 +61,6 @@ class RTSPItemRepositoryImpl @Inject constructor(
      * Provides fast access to stream snapshots for the UI.
      */
     override val cachedPreviews: StateFlow<Map<Long, Bitmap>> = _cachedPreviews
-
-
-    /**
-     * Fetches the latest data from the local database and pushes it to the [items] flow.
-     * This triggers a UI refresh for all active collectors.
-     */
-    override suspend fun loadData() {
-        _items.update { _ ->
-            // Fetches all items; range 0 to Max effectively returns the entire sorted collection.
-            db.rtspItemDao().getItems(0, Long.MAX_VALUE)
-        }
-    }
 
     /**
      * Persists a new [RTSPItem].

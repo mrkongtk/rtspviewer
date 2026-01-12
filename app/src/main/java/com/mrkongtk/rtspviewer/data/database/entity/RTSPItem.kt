@@ -75,6 +75,32 @@ data class RTSPItem(
 }
 
 /**
+ * Masks RTSP credentials for UI security.
+ * If the URI contains a username and password (format: `rtsp://user:pass@ip...`),
+ * they are replaced with `***`.
+ *
+ * Regex Breakdown:
+ * 1. `(rtsp://)` - The protocol prefix.
+ * 2. `(.+)` - The username.
+ * 3. `(:)` - The separator between user/pass.
+ * 4. `(.+)` - The password.
+ * 5. `(@)` - The separator before the IP.
+ *
+ * @return Sanitized URI string or original if no match.
+ */
+val RTSPItem.hideCredentialUri: String
+    get() {
+        val regex = "(\\w+://)(.+)(:)(.+)(@)".toRegex()
+
+        return if (regex.containsMatchIn(uri)) {
+            // Replaces captures 2 (user) and 4 (pass) with asterisks while keeping separators
+            regex.replace(uri, "\$1***\$3***\$5")
+        } else {
+            uri
+        }
+    }
+
+/**
  * A data subset class used specifically for partial updates.
  *
  * This class allows the Room DAO to update only the sorting order of an item

@@ -15,14 +15,29 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * ViewModel responsible for managing the UI state of the main application screen.
+ * Central ViewModel responsible for orchestrating the main application logic and UI state.
  *
- * This class serves as the bridge between the UI layer and the data layer (Repositories).
- * It handles business logic such as fetching RTSP items, managing user selections,
- * persisting list reordering, and handling file I/O for stream preview snapshots.
+ * This class acts as the primary coordinator between the UI layer (Compose) and the data layer
+ * (Repositories). It implements the Unidirectional Data Flow (UDF) pattern by exposing a
+ * single [uiState] and processing user events to update the underlying data sources.
  *
- * @property rtspItemRepository The injected repository used to perform CRUD operations on RTSP stream data.
- * @property fileRepository The injected repository used for handling file system operations (e.g., saving/loading images).
+ * **Core Responsibilities:**
+ * - **State Synchronization:** Automatically reconciles the currently selected stream and active
+ *   filters (tags) whenever the underlying database changes. This ensures the UI doesn't
+ *   reference deleted items or invalid tags.
+ * - **Stream Management:** Provides an interface for CRUD operations (Create, Read, Update, Delete)
+ *   on [RTSPItem] entities by delegating to the [rtspItemRepository].
+ * - **Tag Logic:** Dynamically aggregates, filters, and sorts unique tags from all stored
+ *   streams to drive the horizontal filtering UI.
+ * - **Thumbnail & Cache Management:** Coordinates the loading of JPEG previews from the
+ *   filesystem into an in-memory bitmap cache for high-performance list rendering.
+ * - **User Interaction:** Handles complex UI events such as manual list reordering (Drag & Drop)
+ *   and persisting stream snapshots captured from the live player.
+ *
+ * @property rtspItemRepository The Single Source of Truth for stream metadata and
+ * in-memory preview caching.
+ * @property fileRepository The repository used for atomic filesystem operations, specifically
+ * for persisting and retrieving stream snapshots.
  */
 @HiltViewModel
 class AppViewModel @Inject constructor(
@@ -69,6 +84,13 @@ class AppViewModel @Inject constructor(
                         selectedTag = selectedTag,
                     )
                 }
+
+                itemList.forEach { rtspItem ->
+                    val file = rtspItemRepository.previewPathFor(rtspItem)
+                    fileRepository.readJPEG(file)?.let { bitmap ->
+                        rtspItemRepository.cachePreviewFor(rtspItem, bitmap)
+                    }
+                }
             }
         }
 
@@ -81,19 +103,6 @@ class AppViewModel @Inject constructor(
             }
         }
 
-        // Initial Data Loading: Triggers the DB fetch and populates the memory cache from disk.
-        viewModelScope.launch {
-            rtspItemRepository.loadData()
-
-            // Iterate through loaded items to hydrate the preview cache from the file system.
-            // This prevents UI lag by loading images into memory once on startup.
-            rtspItemRepository.items.value.forEach { rtspItem ->
-                val file = rtspItemRepository.previewPathFor(rtspItem)
-                fileRepository.readJPEG(file)?.let { bitmap ->
-                    rtspItemRepository.cachePreviewFor(rtspItem, bitmap)
-                }
-            }
-        }
     }
 
     /**
@@ -143,9 +152,7 @@ class AppViewModel @Inject constructor(
      */
     fun addItem(rtspItem: RTSPItem) {
         viewModelScope.launch {
-            if (rtspItemRepository.addItem(rtspItem) > 0) {
-                rtspItemRepository.loadData()
-            }
+            rtspItemRepository.addItem(rtspItem)
         }
     }
 
@@ -162,9 +169,7 @@ class AppViewModel @Inject constructor(
         if (items.isNotEmpty()) {
             viewModelScope.launch {
                 // Returns the number of rows updated; if > 0, refresh the data.
-                if (rtspItemRepository.reorderItems(items) > 0) {
-                    rtspItemRepository.loadData()
-                }
+                rtspItemRepository.reorderItems(items)
             }
         }
     }
@@ -179,9 +184,7 @@ class AppViewModel @Inject constructor(
      */
     fun editItem(rtspItem: RTSPItem) {
         viewModelScope.launch {
-            if (rtspItemRepository.updateItem(rtspItem) > 0) {
-                rtspItemRepository.loadData()
-            }
+            rtspItemRepository.updateItem(rtspItem)
         }
     }
 
@@ -195,9 +198,7 @@ class AppViewModel @Inject constructor(
      */
     fun deleteItem(rtspItem: RTSPItem) {
         viewModelScope.launch {
-            if (rtspItemRepository.deleteItem(rtspItem) > 0) {
-                rtspItemRepository.loadData()
-            }
+            rtspItemRepository.deleteItem(rtspItem)
         }
     }
 

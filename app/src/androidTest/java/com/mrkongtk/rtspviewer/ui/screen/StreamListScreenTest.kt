@@ -7,6 +7,7 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.ui.screen.action.StreamListScreenActions
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.mock
@@ -15,24 +16,16 @@ import org.mockito.kotlin.verify
 /**
  * UI Test Suite for [StreamListScreen].
  *
- * Updated to support tag filtering and the latest Composable signature.
+ * This test verifies the Unidirectional Data Flow (UDF) by ensuring UI interactions
+ * correctly trigger methods in the [StreamListScreenActions] interface.
  */
 class StreamListScreenTest {
 
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
-    /**
-     * Helper interface for Mockito verification.
-     */
-    interface ScreenActions {
-        fun onItemSelected(item: RTSPItem)
-        fun onAddItemSelected()
-        fun onItemsReordered(items: List<RTSPItem>)
-        fun onTagSelected(tag: String?)
-    }
-
-    private val actions: ScreenActions = mock()
+    // Mock the actions interface
+    private val actions: StreamListScreenActions = mock()
 
     // -------------------------------------------------------------------------
     // Sample Data
@@ -68,18 +61,15 @@ class StreamListScreenTest {
                 previews = emptyMap(),
                 tags = emptyList(),
                 selectedTag = null,
-                onItemSelected = actions::onItemSelected,
-                onAddItemSelected = actions::onAddItemSelected,
-                onItemsReordered = actions::onItemsReordered,
-                onTagSelected = actions::onTagSelected
+                screenActions = actions
             )
         }
 
-        // Verify empty state text
+        // Verify empty state text defined in the Composable
         composeTestRule.onNodeWithTag("StreamListScreenEmptyText")
             .assertIsDisplayed()
 
-        // Verify list container does not exist
+        // Verify list container does not exist when empty
         composeTestRule.onNodeWithTag("LazyColumn")
             .assertDoesNotExist()
     }
@@ -95,10 +85,7 @@ class StreamListScreenTest {
                 previews = emptyMap(),
                 tags = tags,
                 selectedTag = null,
-                onItemSelected = actions::onItemSelected,
-                onAddItemSelected = actions::onAddItemSelected,
-                onItemsReordered = actions::onItemsReordered,
-                onTagSelected = actions::onTagSelected
+                screenActions = actions
             )
         }
 
@@ -114,9 +101,10 @@ class StreamListScreenTest {
         composeTestRule.onNodeWithTag("LazyColumn")
             .assertIsDisplayed()
 
-        // Verify specific items
+        // Verify specific item is rendered
         composeTestRule.onNodeWithTag("StreamListItem: ${sampleItem1.id}")
             .assertIsDisplayed()
+
         composeTestRule.onNodeWithText(sampleItem1.name)
             .assertIsDisplayed()
     }
@@ -131,14 +119,12 @@ class StreamListScreenTest {
                 previews = emptyMap(),
                 tags = tags,
                 selectedTag = null,
-                onItemSelected = {},
-                onAddItemSelected = {},
-                onItemsReordered = {},
-                onTagSelected = actions::onTagSelected
+                screenActions = actions
             )
         }
 
-        // Click the specific tag (Note: The UI implementation uses "Tag $tag" as testTag)
+        // The UI prepends "All" to the tags list.
+        // We verify that clicking the "Outdoor" tag chip triggers the action.
         composeTestRule.onNodeWithTag("Tag Outdoor")
             .performClick()
 
@@ -153,10 +139,7 @@ class StreamListScreenTest {
                 previews = emptyMap(),
                 tags = emptyList(),
                 selectedTag = null,
-                onItemSelected = {},
-                onAddItemSelected = actions::onAddItemSelected,
-                onItemsReordered = {},
-                onTagSelected = {}
+                screenActions = actions
             )
         }
 
@@ -174,13 +157,11 @@ class StreamListScreenTest {
                 previews = emptyMap(),
                 tags = emptyList(),
                 selectedTag = null,
-                onItemSelected = actions::onItemSelected,
-                onAddItemSelected = {},
-                onItemsReordered = {},
-                onTagSelected = {}
+                screenActions = actions
             )
         }
 
+        // Click the specific item card
         composeTestRule.onNodeWithTag("StreamListItem: ${sampleItem1.id}")
             .performClick()
 
@@ -195,13 +176,11 @@ class StreamListScreenTest {
                 previews = emptyMap(),
                 tags = emptyList(),
                 selectedTag = null,
-                onItemSelected = {},
-                onAddItemSelected = {},
-                onItemsReordered = {},
-                onTagSelected = {}
+                screenActions = actions
             )
         }
 
+        // The FAB (Add Button) should be visible regardless of list content
         composeTestRule.onNodeWithTag("AddButton")
             .assertIsDisplayed()
     }

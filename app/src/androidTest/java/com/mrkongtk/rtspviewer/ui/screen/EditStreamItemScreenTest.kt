@@ -14,6 +14,7 @@ import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -23,30 +24,16 @@ import org.mockito.kotlin.verify
 
 /**
  * UI Test class for [EditStreamItemScreen].
- *
- * This class verifies the visual state, input validation, and user interactions
- * of the screen used to edit RTSP stream details.
- *
- * Key behaviors tested:
- * - Initial data population.
- * - Validation logic (enabling/disabling the Save button).
- * - "Clear/Reset" functionality.
- * - Interaction with the Save callback using Mockito.
  */
 @RunWith(AndroidJUnit4::class)
 class EditStreamItemScreenTest {
 
-    /**
-     * strict rule that grants control over the Compose content,
-     * allowing us to set content, find nodes, and perform actions.
-     */
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    // Mock the callback function passed to the composable to verify it is called correctly
-    private val onSaveMock: (RTSPItem) -> Unit = mock()
+    // Mock the interface instead of a raw lambda
+    private val actionsMock: EditStreamItemScreenActions = mock()
 
-    // A default RTSPItem object to be used as the initial state for tests
     private val testItem = RTSPItem(
         id = 1,
         name = "Test Camera",
@@ -56,183 +43,106 @@ class EditStreamItemScreenTest {
         forceTcp = false
     )
 
-    /**
-     * Verifies that when the screen opens, all fields (Text, Checkboxes)
-     * are populated with the data from the [testItem] object.
-     */
     @Test
     fun initialRendering_populatesFieldsCorrectly() {
-        // Arrange & Act: Render the screen
         composeTestRule.setContent {
             EditStreamItemScreen(
                 item = testItem,
-                onSave = onSaveMock
+                screenActions = actionsMock // Updated parameter name
             )
         }
 
-        // Assert: Check Text Fields
-        onRTSPField("NameTextField")
-            .assertTextContains("Test Camera")
+        onRTSPField("NameTextField").assertTextContains("Test Camera")
+        onRTSPField("UriTextField").assertTextContains("rtsp://192.168.1.1")
+        onRTSPField("TagsTextField").assertTextContains("Home,Security")
 
-        onRTSPField("UriTextField")
-            .assertTextContains("rtsp://192.168.1.1")
-
-        // The Tags field logic joins list items with commas
-        onRTSPField("TagsTextField")
-            .assertTextContains("Home,Security")
-
-        // Assert: Check Checkbox state
-        composeTestRule.onNodeWithTag("ForceTCPCheckbox")
-            .assertIsOff()
-
-        // Assert: Save button should be enabled initially (assuming valid initial data)
-        composeTestRule.onNodeWithTag("SaveButton")
-            .assertIsEnabled()
-
-        // Assert: Clear button is disabled because no modifications have been made yet
-        composeTestRule.onNodeWithTag("ClearButton")
-            .assertIsNotEnabled()
+        composeTestRule.onNodeWithTag("ForceTCPCheckbox").assertIsOff()
+        composeTestRule.onNodeWithTag("SaveButton").assertIsEnabled()
+        composeTestRule.onNodeWithTag("ClearButton").assertIsNotEnabled()
     }
 
-    /**
-     * Tests validation logic: The Save button should be disabled if the URI is invalid,
-     * and re-enabled once a valid RTSP URI is entered.
-     */
     @Test
     fun validation_invalidUri_showsErrorAndDisablesSave() {
         composeTestRule.setContent {
             EditStreamItemScreen(
-                item = testItem.copy(uri = ""), // Start with empty URI
-                onSave = onSaveMock
+                item = testItem.copy(uri = ""),
+                screenActions = actionsMock
             )
         }
 
-        // 1. Act: Enter an invalid URI (wrong scheme)
-        onRTSPField("UriTextField")
-            .performTextClearance()
+        // Enter invalid scheme
+        onRTSPField("UriTextField").performTextInput("http://google.com")
+        composeTestRule.onNodeWithTag("SaveButton").assertIsNotEnabled()
 
-        onRTSPField("UriTextField")
-            .performTextInput("http://google.com")
-
-        // 2. Assert: Save button is disabled due to validation error
-        composeTestRule.onNodeWithTag("SaveButton")
-            .assertIsNotEnabled()
-
-        // 3. Act: Enter a valid RTSP URI
-        onRTSPField("UriTextField")
-            .performTextClearance()
-
-        onRTSPField("UriTextField")
-            .performTextInput("rtsp://valid.address")
-
-        // 4. Assert: Save button is now enabled
-        composeTestRule.onNodeWithTag("SaveButton")
-            .assertIsEnabled()
+        // Correct to valid RTSP
+        onRTSPField("UriTextField").performTextClearance()
+        onRTSPField("UriTextField").performTextInput("rtsp://valid.address")
+        composeTestRule.onNodeWithTag("SaveButton").assertIsEnabled()
     }
 
-    /**
-     * Tests validation logic: The Name field is mandatory.
-     * Clearing it should disable the Save button.
-     */
     @Test
     fun validation_emptyName_disablesSave() {
         composeTestRule.setContent {
             EditStreamItemScreen(
                 item = testItem,
-                onSave = onSaveMock
+                screenActions = actionsMock
             )
         }
 
-        // Act: Clear the Name field
-        onRTSPField("NameTextField")
-            .performTextClearance()
-
-        // Assert: Save button becomes disabled
-        composeTestRule.onNodeWithTag("SaveButton")
-            .assertIsNotEnabled()
+        onRTSPField("NameTextField").performTextClearance()
+        composeTestRule.onNodeWithTag("SaveButton").assertIsNotEnabled()
     }
 
-    /**
-     * Simulates a full user workflow: modifying multiple fields and clicking Save.
-     * Uses [argumentCaptor] to ensure the callback receives the modified object, not the original.
-     */
     @Test
     fun interaction_modifyFieldsAndSave_invokesCallbackWithCorrectData() {
         composeTestRule.setContent {
             EditStreamItemScreen(
                 item = testItem,
-                onSave = onSaveMock
+                screenActions = actionsMock
             )
         }
 
-        // 1. Act: Modify Name
-        onRTSPField("NameTextField")
-            .performTextClearance()
-        onRTSPField("NameTextField")
-            .performTextInput("New Name")
+        // Modify Name
+        onRTSPField("NameTextField").performTextClearance()
+        onRTSPField("NameTextField").performTextInput("New Name")
 
-        // 2. Act: Toggle TCP Checkbox
-        composeTestRule.onNodeWithTag("ForceTCPCheckbox")
-            .performClick()
-            .assertIsOn() // Verify visual toggle state
+        // Toggle TCP
+        composeTestRule.onNodeWithTag("ForceTCPCheckbox").performClick().assertIsOn()
 
-        // 3. Act: Modify Tags
-        onRTSPField("TagsTextField")
-            .performTextClearance()
-        onRTSPField("TagsTextField")
-            .performTextInput("TagA,TagB")
+        // Modify Tags
+        onRTSPField("TagsTextField").performTextClearance()
+        onRTSPField("TagsTextField").performTextInput("TagA,TagB")
 
-        // 4. Act: Click Save
-        composeTestRule.onNodeWithTag("SaveButton")
-            .performClick()
+        // Click Save
+        composeTestRule.onNodeWithTag("SaveButton").performClick()
 
-        // 5. Assert: Capture the argument passed to onSave
+        // Verify interface method call
         val captor = argumentCaptor<RTSPItem>()
-        verify(onSaveMock).invoke(captor.capture())
+        verify(actionsMock).onSaveItem(captor.capture())
 
         val capturedItem = captor.firstValue
-
-        // Verify the captured item matches our inputs
         assert(capturedItem.name == "New Name")
         assert(capturedItem.forceTcp)
         assert(capturedItem.tags == listOf("TagA", "TagB"))
-        // Verify the ID was preserved
         assert(capturedItem.id == testItem.id)
     }
 
-    /**
-     * Tests the "Clear" / "Reset" button.
-     * It should only be enabled when changes exist, and clicking it
-     * should revert fields to their original values.
-     */
     @Test
     fun interaction_clearButton_resetsChanges() {
         composeTestRule.setContent {
             EditStreamItemScreen(
                 item = testItem,
-                onSave = onSaveMock
+                screenActions = actionsMock
             )
         }
 
-        // 1. Act: Make a change to enable the Clear button
-        onRTSPField("NameTextField")
-            .performTextInput(" - Modified")
+        onRTSPField("NameTextField").performTextInput(" - Modified")
+        composeTestRule.onNodeWithTag("ClearButton").assertIsEnabled()
 
-        // Assert: Clear button is now active
-        composeTestRule.onNodeWithTag("ClearButton")
-            .assertIsEnabled()
+        composeTestRule.onNodeWithTag("ClearButton").performClick()
 
-        // 2. Act: Click the Clear button
-        composeTestRule.onNodeWithTag("ClearButton")
-            .performClick()
-
-        // 3. Assert: Content is reverted to original value ("Test Camera")
-        onRTSPField("NameTextField")
-            .assertTextContains("Test Camera")
-
-        // Assert: Clear button is disabled again
-        composeTestRule.onNodeWithTag("ClearButton")
-            .assertIsNotEnabled()
+        onRTSPField("NameTextField").assertTextContains("Test Camera")
+        composeTestRule.onNodeWithTag("ClearButton").assertIsNotEnabled()
     }
 
     // --------------------------------------------------------------------------------
@@ -240,12 +150,11 @@ class EditStreamItemScreenTest {
     // --------------------------------------------------------------------------------
 
     /**
-     * Helper function to find the actual input field within your custom RTSP text field layout.
-     *
-     * It looks for a node with the specific test tag "RTSPOutlinedTextField" that also
-     * lives inside a parent/ancestor with the provided [tag].
-     *
-     * @param tag The unique testTag of the container (e.g., "NameTextField", "UriTextField")
+     * Helper to find the internal TextField node.
+     * Your production code:
+     * Column(modifier = modifier) { // "NameTextField" tag is here
+     *    OutlinedTextField(modifier = Modifier.testTag("RTSPOutlinedTextField")) // Actual input
+     * }
      */
     private fun onRTSPField(tag: String) = composeTestRule.onNode(
         hasTestTag("RTSPOutlinedTextField") and hasAnyAncestor(hasTestTag(tag))

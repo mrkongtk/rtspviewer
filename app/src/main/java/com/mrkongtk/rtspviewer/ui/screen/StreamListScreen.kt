@@ -45,6 +45,7 @@ import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.DraggableLazyColumn
 import com.mrkongtk.rtspviewer.ui.compose.StreamListItem
+import com.mrkongtk.rtspviewer.ui.screen.action.StreamListScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.ErrorColor
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.PaddingS
@@ -52,36 +53,36 @@ import com.mrkongtk.rtspviewer.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 
 /**
- * High-level screen for managing and viewing RTSP streams.
+ * The primary dashboard screen for managing and viewing the collection of RTSP streams.
  *
- * It manages three primary UI states:
- * 1. **Empty State:** Displays a placeholder when no streams are configured.
- * 2. **Populated State:** Displays a filterable tag row and a reorderable list of streams.
- * 3. **Action Layer:** Provides a Floating Action Button (FAB) for adding new streams.
+ * This Composable serves as the main entry point of the application, coordinating three
+ * distinct UI responsibilities:
  *
- * @param itemList The source list of [RTSPItem] entities from the database.
- * @param previews A mapping of item IDs to their latest [Bitmap] snapshots.
- * @param tags The unique list of tags available across all streams.
- * @param selectedTag The currently active filter tag (null if 'All' is selected).
- * @param onItemSelected Invoked when a user taps a specific stream card.
- * @param onAddItemSelected Invoked when the 'Add' FAB is clicked.
- * @param onItemsReordered Invoked after a drag-and-drop gesture; provides the full list
- *                         with updated [RTSPItem.order] values for persistence.
- * @param onTagSelected Invoked when a filter chip is tapped.
- * @param modifier Root modifier for the screen container.
+ * 1. **Empty State Management:** Displays a placeholder message when no streams are configured,
+ *    guiding the user to add their first camera.
+ * 2. **Content & Filtering:** Provides a [FlowRow]-based tag cloud for quick filtering and
+ *    renders the stream list. It automatically handles the "All" category logic.
+ * 3. **Interactive List:** Utilizes [DraggableLazyColumn] to allow users to manually reorder
+ *    streams via drag-and-drop.
+ *
+ * @param modifier The [Modifier] to be applied to the root container.
+ * @param itemList The source list of [RTSPItem] entities retrieved from the database.
+ * @param previews A thread-safe mapping of [RTSPItem.id] to [Bitmap] snapshots for thumbnail rendering.
+ * @param tags A list of unique strings representing all available categories across the stream set.
+ * @param selectedTag The currently active filter criteria. If `null`, the screen defaults to the "All" view.
+ * @param screenActions A [StreamListScreenActions] interface that captures user intents
+ * (selection, addition, reordering, and filtering) and bubbles them up to the business logic layer.
  */
 @Composable
 fun StreamListScreen(
+    modifier: Modifier = Modifier,
     itemList: List<RTSPItem>,
     previews: Map<Long, Bitmap>,
     tags: List<String>,
     selectedTag: String?,
-    onItemSelected: (RTSPItem) -> Unit,
-    onAddItemSelected: () -> Unit,
-    onItemsReordered: (List<RTSPItem>) -> Unit,
-    onTagSelected: (String?) -> Unit,
-    modifier: Modifier = Modifier,
+    screenActions: StreamListScreenActions,
 ) {
+
     if (itemList.isEmpty()) {
         // State 1: Empty - Inform the user there is nothing to show
         Column(
@@ -98,6 +99,7 @@ fun StreamListScreen(
                 )
             }
         }
+
     } else {
         // State 2: Content - Show tags and the list
         // Prepend the "All" category to the tag list for the UI filter row
@@ -115,13 +117,13 @@ fun StreamListScreen(
             onTagSelected = { index ->
                 // If index 0 is selected, it represents 'All' (null)
                 if (index == 0) {
-                    onTagSelected(null)
+                    screenActions.onTagSelected(null)
                 } else {
-                    onTagSelected(allTags.getOrNull(index))
+                    screenActions.onTagSelected(allTags.getOrNull(index))
                 }
             },
-            onItemsReordered = onItemsReordered,
-            onItemSelected = onItemSelected
+            onItemsReordered = { screenActions.onItemsReordered(it) },
+            onItemSelected = { screenActions.onItemSelected(it) },
         )
     }
 
@@ -137,7 +139,7 @@ fun StreamListScreen(
         ) {
             IconButton(
                 modifier = Modifier.testTag("AddButton"),
-                onClick = { onAddItemSelected() },
+                onClick = { screenActions.onAddItemSelected() },
                 colors = IconButtonDefaults.filledIconButtonColors()
             ) {
                 Icon(
@@ -281,10 +283,12 @@ private fun StreamListScreenPreview(@PreviewParameter(StreamListScreenPreviewPar
                 previews = mockPreviews,
                 tags = mockData.tags,
                 selectedTag = mockData.selectedTag,
-                onItemSelected = {},
-                onAddItemSelected = {},
-                onItemsReordered = {},
-                onTagSelected = {},
+                screenActions = object : StreamListScreenActions {
+                    override fun onItemSelected(item: RTSPItem) {}
+                    override fun onAddItemSelected() {}
+                    override fun onItemsReordered(orderedList: List<RTSPItem>) {}
+                    override fun onTagSelected(tag: String?) {}
+                },
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(innerPadding)

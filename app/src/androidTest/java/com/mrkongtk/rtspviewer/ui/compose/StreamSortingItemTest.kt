@@ -1,5 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.compose
 
+import android.graphics.Bitmap
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.SemanticsMatcher
@@ -9,11 +10,13 @@ import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.core.graphics.createBitmap
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.util.formatText
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,7 +30,7 @@ class StreamSortingItemTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
-    fun streamSortingItem_displaysNameAndSortIcon() {
+    fun streamSortingItem_displaysNameAndReorderIcon() {
         val mockItem = RTSPItem(
             id = 1,
             name = "Living Room Camera",
@@ -48,13 +51,36 @@ class StreamSortingItemTest {
         // Verify Name
         composeTestRule.onNodeWithText("Living Room Camera").assertIsDisplayed()
 
-        // Verify specific tags exist using the exact tag generated in StreamItem
+        // Verify specific tags exist using the testTag pattern from StreamItem
+        // useUnmergedTree is true because tags are nested deep within the Card/Row structure
         composeTestRule.onNodeWithTag("Tag Indoor", useUnmergedTree = true).assertIsDisplayed()
         composeTestRule.onNodeWithTag("Tag House", useUnmergedTree = true).assertIsDisplayed()
 
-        // Verify the drag handle icon via content description
-        val sortDescription = context.getString(R.string.sort)
-        composeTestRule.onNodeWithContentDescription(sortDescription).assertIsDisplayed()
+        // Verify the drag handle icon via content description (Matches Composable: R.string.reorder)
+        val reorderDescription = context.getString(R.string.reorder)
+        composeTestRule.onNodeWithContentDescription(reorderDescription).assertIsDisplayed()
+    }
+
+    @Test
+    fun streamSortingItem_withPreview_displaysThumbnail() {
+        val mockItem = RTSPItem(1, "Front Porch", "rtsp://...", emptyList(), 1)
+        val bitmap = createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+
+        // Construct the expected formatted content description used in StreamItem
+        val expectedDescription = context.getString(R.string.rtsp_item_preview_description)
+            .formatText(mockItem.name)
+
+        composeTestRule.setContent {
+            RTSPViewerTheme {
+                StreamSortingItem(
+                    data = mockItem,
+                    preview = bitmap
+                )
+            }
+        }
+
+        // Verify that the image exists and has the correct accessibility description
+        composeTestRule.onNodeWithContentDescription(expectedDescription).assertIsDisplayed()
     }
 
     @Test
@@ -79,14 +105,12 @@ class StreamSortingItemTest {
         // Verify name still exists
         composeTestRule.onNodeWithText("Garage").assertIsDisplayed()
 
-        // To verify NO tags are displayed without knowing the specific tag names,
-        // we use a custom matcher to find any node whose testTag starts with "Tag "
+        // Verify NO tags are displayed by checking the "Tag " prefix
         composeTestRule.onAllNodes(hasTestTagPrefix("Tag ")).assertCountEquals(0)
     }
 
     /**
-     * Helper Matcher: onNodeWithTag doesn't support partial matches.
-     * This matcher finds semantics nodes where the TestTag property starts with [prefix].
+     * Helper Matcher: Custom logic to handle partial TestTag matching.
      */
     private fun hasTestTagPrefix(prefix: String): SemanticsMatcher {
         return SemanticsMatcher("TestTag starts with '$prefix'") { node ->

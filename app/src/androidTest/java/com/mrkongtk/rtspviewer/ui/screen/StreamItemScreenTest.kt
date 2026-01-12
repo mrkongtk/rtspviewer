@@ -1,7 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
 import android.content.res.Configuration
-import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalInspectionMode
@@ -14,6 +13,8 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
+import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -27,91 +28,84 @@ class StreamItemScreenTest {
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    // Mock callbacks
-    private val onEditMock: () -> Unit = mock()
-    private val onDeleteMock: () -> Unit = mock()
-    private val onImageAvailableMock: (RTSPItem, Bitmap) -> Unit = mock()
+    // Mock the actions interface to verify interactions
+    private val screenActions: StreamItemScreenActions = mock()
 
-    // Sample Data matching the entity structure
+    // Sample data used for verification
     private val sampleItem = RTSPItem(
         id = 1L,
-        name = "Backyard Cam",
-        // URI with credentials to test the masking regex: (rtsp://)(.+)(:)(.+)(@)
-        uri = "rtsp://admin:12345@192.168.1.50:554/stream",
-        tags = listOf("Outdoor", "Security"),
+        name = "Front Door Cam",
+        // Credentials included to verify the 'hideCredentialUri' extension logic
+        uri = "rtsp://admin:password123@192.168.1.50:554/live",
+        tags = listOf("Outdoor", "Entry"),
         order = 0,
         forceTcp = true
     )
 
     @Test
-    fun portraitMode_displaysCorrectMetadataAndPlayer() {
-        setContentWithInspectionMode(sampleItem, Configuration.ORIENTATION_PORTRAIT)
+    fun portraitMode_displaysCorrectMetadataAndElements() {
+        setupContent(sampleItem, Configuration.ORIENTATION_PORTRAIT)
 
-        // 1. Verify Video Player for Portrait
+        // 1. Verify Video Player container is displayed
         composeTestRule.onNodeWithTag("VideoPlayer").assertIsDisplayed()
 
-        // 2. Check Name Row
+        // 2. Verify Name matches
         composeTestRule.onNodeWithTag("Name")
             .assertIsDisplayed()
-            .assertTextEquals("Backyard Cam")
+            .assertTextEquals("Front Door Cam")
 
-        // 3. Check URI Masking logic (hideUriCredential)
-        // Group 2 (admin) and Group 4 (12345) should be replaced by ***
-        val expectedMaskedUri = "rtsp://***:***@192.168.1.50:554/stream"
+        // 3. Verify Masked URI (logic: rtsp://***:***@...)
+        val expectedMaskedUri = "rtsp://***:***@192.168.1.50:554/live"
         composeTestRule.onNodeWithTag("Uri")
             .assertIsDisplayed()
             .assertTextEquals(expectedMaskedUri)
 
-        // 4. Check Tags
+        // 4. Verify Tags are rendered with correct tags
         composeTestRule.onNodeWithTag("Tag Outdoor").assertIsDisplayed()
-        composeTestRule.onNodeWithTag("Tag Security").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("Tag Entry").assertIsDisplayed()
 
-        // 5. Check Force TCP Checkbox state
+        // 5. Verify Checkbox state reflects 'forceTcp = true'
         composeTestRule.onNodeWithTag("ForceTCP")
             .assertIsDisplayed()
             .assertIsOn()
 
-        // 6. Verify "More Options" FAB is visible in Portrait
+        // 6. Verify Options button is present
         composeTestRule.onNodeWithTag("MoreButton").assertIsDisplayed()
     }
 
     @Test
-    fun landscapeMode_displaysOnlyVideoPlayer() {
-        setContentWithInspectionMode(sampleItem, Configuration.ORIENTATION_LANDSCAPE)
+    fun landscapeMode_showsImmersivePlayerOnly() {
+        setupContent(sampleItem, Configuration.ORIENTATION_LANDSCAPE)
 
-        // 1. Verify Landscape specific Video Player tag
+        // 1. Verify landscape-specific player tag
         composeTestRule.onNodeWithTag("VideoPlayerLandscape").assertIsDisplayed()
 
-        // 2. Verify Metadata is HIDDEN in Landscape according to UI logic
+        // 2. Ensure metadata rows are hidden to provide immersive view
         composeTestRule.onNodeWithTag("Name").assertDoesNotExist()
         composeTestRule.onNodeWithTag("Uri").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("ForceTCP").assertDoesNotExist()
-
-        // 3. Verify FAB is HIDDEN in Landscape
+        composeTestRule.onNodeWithTag("Tag Outdoor").assertDoesNotExist()
         composeTestRule.onNodeWithTag("MoreButton").assertDoesNotExist()
     }
 
     @Test
-    fun verifiesEditAction_TriggersCallback() {
-        setContentWithInspectionMode(sampleItem, Configuration.ORIENTATION_PORTRAIT)
+    fun editAction_triggersCallback() {
+        setupContent(sampleItem, Configuration.ORIENTATION_PORTRAIT)
 
-        // Open the "More Options" dropdown
+        // Open Dropdown -> Click Edit
         composeTestRule.onNodeWithTag("MoreButton").performClick()
-
-        // Click Edit
         composeTestRule.onNodeWithTag("EditButton")
             .assertIsDisplayed()
             .performClick()
 
-        // Verify ViewModel/Navigation callback
-        verify(onEditMock).invoke()
+        // Verify the action was bubbled up
+        verify(screenActions).onEditItemSelected()
     }
 
     @Test
-    fun verifiesDeleteFlow_Confirm() {
-        setContentWithInspectionMode(sampleItem, Configuration.ORIENTATION_PORTRAIT)
+    fun deleteFlow_confirmsDeletion() {
+        setupContent(sampleItem, Configuration.ORIENTATION_PORTRAIT)
 
-        // Open Menu -> Click Delete
+        // Open Dropdown -> Click Delete
         composeTestRule.onNodeWithTag("MoreButton").performClick()
         composeTestRule.onNodeWithTag("DeleteButton").performClick()
 
@@ -121,42 +115,43 @@ class StreamItemScreenTest {
         // Click Confirm
         composeTestRule.onNodeWithTag("DeleteConfirmButton").performClick()
 
-        // Verify callback was called and dialog is dismissed
-        verify(onDeleteMock).invoke()
+        // Verify callback triggered and dialog closed
+        verify(screenActions).onDeleteItemSelected()
         composeTestRule.onNodeWithTag("DeleteConfirmDialog").assertDoesNotExist()
     }
 
     @Test
-    fun verifiesDeleteFlow_Cancel() {
-        setContentWithInspectionMode(sampleItem, Configuration.ORIENTATION_PORTRAIT)
+    fun deleteFlow_cancelsDeletion() {
+        setupContent(sampleItem, Configuration.ORIENTATION_PORTRAIT)
 
-        // Open Menu -> Click Delete
+        // Trigger Dialog
         composeTestRule.onNodeWithTag("MoreButton").performClick()
         composeTestRule.onNodeWithTag("DeleteButton").performClick()
 
         // Click Cancel
         composeTestRule.onNodeWithTag("DeleteCancelButton").performClick()
 
-        // Verify callback was NOT called and dialog is dismissed
-        verify(onDeleteMock, never()).invoke()
+        // Verify no deletion occurred and dialog is gone
+        verify(screenActions, never()).onDeleteItemSelected()
         composeTestRule.onNodeWithTag("DeleteConfirmDialog").assertDoesNotExist()
     }
 
     @Test
-    fun verifiesForceTcpOffState() {
+    fun metadata_reflectsForceTcpOff() {
         val tcpOffItem = sampleItem.copy(forceTcp = false)
-        setContentWithInspectionMode(tcpOffItem, Configuration.ORIENTATION_PORTRAIT)
+        setupContent(tcpOffItem, Configuration.ORIENTATION_PORTRAIT)
 
-        composeTestRule.onNodeWithTag("ForceTCP")
-            .assertIsOff()
+        composeTestRule.onNodeWithTag("ForceTCP").assertIsOff()
     }
 
     /**
-     * Helper to inject LocalInspectionMode and simulate Orientation.
+     * Helper to configure the environment for the screen.
      *
-     * @param orientation Use Configuration.ORIENTATION_PORTRAIT or ORIENTATION_LANDSCAPE
+     * 1. Uses [LocalInspectionMode] to skip real ExoPlayer/Hilt initialization.
+     * 2. Uses [LocalConfiguration] to simulate Portrait/Landscape.
+     * 3. Wraps in [RTSPViewerTheme] to ensure semantic colors/styles are applied.
      */
-    private fun setContentWithInspectionMode(item: RTSPItem, orientation: Int) {
+    private fun setupContent(item: RTSPItem, orientation: Int) {
         val config = Configuration().apply {
             this.orientation = orientation
         }
@@ -166,12 +161,12 @@ class StreamItemScreenTest {
                 LocalInspectionMode provides true,
                 LocalConfiguration provides config
             ) {
-                StreamItemScreen(
-                    item = item,
-                    onEditItemSelected = onEditMock,
-                    onDeleteItemSelected = onDeleteMock,
-                    onImageAvailable = onImageAvailableMock
-                )
+                RTSPViewerTheme {
+                    StreamItemScreen(
+                        item = item,
+                        screenActions = screenActions
+                    )
+                }
             }
         }
     }

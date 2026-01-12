@@ -35,7 +35,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -54,65 +53,64 @@ import androidx.compose.ui.util.fastForEach
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.data.database.entity.hideCredentialUri
 import com.mrkongtk.rtspviewer.ui.compose.RTSPVideoPlayer
 import com.mrkongtk.rtspviewer.ui.screen.MoreOptionState.CLOSED
 import com.mrkongtk.rtspviewer.ui.screen.MoreOptionState.OPEN
+import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.PaddingS
 import com.mrkongtk.rtspviewer.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.util.formatText
 import com.mrkongtk.rtspviewer.viewmodel.RTSPVideoPlayerViewModel
 
 /**
- * Internal state management for the options dropdown menu.
- * Using an Enum instead of a raw Boolean improves readability and scalability.
+ * Encapsulates the visual state of the "More Options" menu.
+ * Using an Enum instead of a Boolean makes state transitions more explicit.
  */
 private enum class MoreOptionState(val value: Boolean) {
     OPEN(true),
     CLOSED(false);
 
     companion object {
-        /** Creates a state from a boolean value (useful for initial state from previews/testing). */
         fun fromValue(value: Boolean): MoreOptionState = if (value) OPEN else CLOSED
     }
 }
 
 /**
- * Toggles the [MoreOptionState] state using the logical 'not' operator.
+ * Extension operator to toggle the menu state using [!state] syntax.
  */
 private operator fun MoreOptionState.not(): MoreOptionState = if (this == OPEN) CLOSED else OPEN
 
 /**
- * Main Screen for displaying a specific RTSP stream.
+ * The main screen for viewing a specific RTSP stream and its metadata.
  *
- * Features:
- * - Adaptive Layout: Fullscreen video in landscape; Video + Metadata in portrait.
- * - Credential Masking: Sanitizes RTSP URIs for display.
- * - Contextual Actions: Edit and Delete options via a Floating Action Button (FAB) menu.
+ * Behavior:
+ * - **Landscape**: Fullscreen video player for an immersive experience.
+ * - **Portrait**: Split view with the video player on top and stream details below.
+ * - **Security**: Uses `hideCredentialUri` to ensure sensitive RTSP credentials aren't visible in plain text.
  *
- * @param modifier Applied to the root layout.
- * @param item The [RTSPItem] entity containing stream details.
- * @param moreOption Initial visibility of the dropdown menu (defaults to false).
- * @param onEditItemSelected Callback triggered when the 'Edit' action is selected.
- * @param onDeleteItemSelected Callback triggered after the user confirms deletion.
- * @param onImageAvailable Callback providing a frame [Bitmap] for thumbnail generation.
+ * @param item The data entity representing the stream configuration.
+ * @param moreOption Initial visibility state of the action menu (useful for deep-linking/testing).
+ * @param screenActions Interface to handle navigation or data logic (edit, delete, snapshot saving).
+ * @param playerViewModel Optional ViewModel instance, primarily used for Preview or manual injection.
  */
 @Composable
 fun StreamItemScreen(
     modifier: Modifier = Modifier,
     item: RTSPItem,
     moreOption: Boolean = false,
-    onEditItemSelected: () -> Unit,
-    onDeleteItemSelected: () -> Unit,
-    onImageAvailable: (RTSPItem, Bitmap) -> Unit,
+    screenActions: StreamItemScreenActions,
+    playerViewModel: RTSPVideoPlayerViewModel? = null,
 ) {
     val configuration = LocalConfiguration.current
-    var orientation by remember { mutableIntStateOf(configuration.orientation) }
+    var orientation by remember { mutableStateOf(configuration.orientation) }
 
-    // State for managing the "Are you sure?" delete dialog
+    // Logic for the deletion confirmation dialog
     var showDeleteConfirmationPrompt by remember { mutableStateOf(false) }
 
-    // Sync orientation state with configuration changes
+    // Reactively track orientation changes to update the UI layout dynamically
     LaunchedEffect(configuration) {
         snapshotFlow { configuration.orientation }
             .collect { orientation = it }
@@ -123,34 +121,39 @@ fun StreamItemScreen(
         contentAlignment = Alignment.Center
     ) {
         if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            // --- LANDSCAPE MODE: Immersive Video Player ---
-            VideoPlayerCompose(
-                Modifier
+            // --- LANDSCAPE UI: Focus purely on the video feed ---
+            VideoPlayer(
+                modifier = Modifier
                     .testTag("VideoPlayerLandscape")
                     .fillMaxSize(),
-                item,
-                onImageAvailable
-            )
+                item = item,
+                viewModel = playerViewModel,
+            ) { item, bitmap ->
+                screenActions.onImageAvailable(item, bitmap)
+            }
         } else {
-            // --- PORTRAIT MODE: Scrollable Content + Details ---
+            // --- PORTRAIT UI: Video + Info List ---
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Top,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                VideoPlayerCompose(
+                VideoPlayer(
                     Modifier
                         .testTag("VideoPlayer")
                         .fillMaxWidth(),
                     item,
-                    onImageAvailable
-                )
+                    viewModel = playerViewModel,
+                ) { item, bitmap ->
+                    screenActions.onImageAvailable(item, bitmap)
+                }
 
                 /*
-                 * UI Rows for Stream Metadata
-                 * Defined as lambdas to maintain consistency in styling across different data points.
+                 * Define row components for metadata.
+                 * Extracting these as lambdas keeps the layout code clean.
                  */
 
+                // 1. Name Display
                 val nameRow: @Composable (Modifier) -> Unit = { mod ->
                     Row(
                         mod,
@@ -170,6 +173,7 @@ fun StreamItemScreen(
                     }
                 }
 
+                // 2. Masked URI Display
                 val uriRow: @Composable (Modifier) -> Unit = { mod ->
                     Row(
                         mod,
@@ -181,7 +185,7 @@ fun StreamItemScreen(
                             color = MaterialTheme.colorScheme.onSecondary
                         )
                         Text(
-                            hideUriCredential(item.uri),
+                            item.hideCredentialUri,
                             color = MaterialTheme.colorScheme.onSecondary,
                             textAlign = TextAlign.End,
                             modifier = Modifier.testTag("Uri")
@@ -189,6 +193,7 @@ fun StreamItemScreen(
                     }
                 }
 
+                // 3. Tags (using FlowRow to handle wrapping)
                 val tagsRow: @Composable (Modifier) -> Unit = { mod ->
                     Row(
                         mod,
@@ -224,6 +229,7 @@ fun StreamItemScreen(
                     }
                 }
 
+                // 4. Transport Protocol Checkbox
                 val forceTcpRow: @Composable (Modifier) -> Unit = { mod ->
                     Row(
                         mod,
@@ -243,19 +249,18 @@ fun StreamItemScreen(
                     }
                 }
 
-                // Render all metadata rows with standard horizontal padding
+                // Iterate and render all rows with standard padding
+                // Note: fastForEach is used for performance optimization (avoids iterator allocation)
                 val rows = listOf(nameRow, uriRow, forceTcpRow, tagsRow)
                 rows.fastForEach { rowComposable ->
-                    rowComposable(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = PaddingM)
-                    )
+                    rowComposable(Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = PaddingM))
                 }
             }
         }
 
-        // --- OVERLAY: Action Menu (Visible only in Portrait) ---
+        // --- FLOATING ACTION MENU: Actions available in Portrait only ---
         if (orientation != Configuration.ORIENTATION_LANDSCAPE) {
             Box(
                 modifier = Modifier
@@ -275,7 +280,7 @@ fun StreamItemScreen(
                             leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                             onClick = {
                                 moreState = CLOSED
-                                onEditItemSelected()
+                                screenActions.onEditItemSelected()
                             },
                             modifier = Modifier.testTag("EditButton")
                         )
@@ -304,14 +309,14 @@ fun StreamItemScreen(
             }
         }
 
-        // --- DIALOGS ---
+        // --- MODALS ---
         if (showDeleteConfirmationPrompt) {
             DeleteConfirmDialogCompose(
                 rtspItem = item,
                 onDismissRequest = { showDeleteConfirmationPrompt = false },
                 onConfirmation = {
                     showDeleteConfirmationPrompt = false
-                    onDeleteItemSelected()
+                    screenActions.onDeleteItemSelected()
                 }
             )
         }
@@ -319,24 +324,31 @@ fun StreamItemScreen(
 }
 
 /**
- * Handles the logic for initializing the RTSP Video Player.
- * Uses Hilt Assisted Injection to bridge the gap between static DI and runtime stream parameters.
+ * A wrapper for [RTSPVideoPlayer] that handles Hilt ViewModel creation.
+ *
+ * Uses **Assisted Injection** via [RTSPVideoPlayerViewModel.Factory] to pass runtime
+ * stream parameters (URI, TCP preference) into the ViewModel.
  */
 @Composable
-private fun VideoPlayerCompose(
+private fun VideoPlayer(
     modifier: Modifier = Modifier,
     item: RTSPItem,
+    viewModel: RTSPVideoPlayerViewModel? = null,
     onImageAvailable: (RTSPItem, Bitmap) -> Unit,
 ) {
-    // Prevent ViewModel initialization during Android Studio Preview to avoid crashes
+    // Check if we are in Android Studio Preview mode to avoid Hilt/Native errors
     if (LocalInspectionMode.current) {
-        Box(modifier = modifier, contentAlignment = Alignment.Center) {
-            Text(modifier = Modifier.testTag("EmptyVideo"), text = "Video Player Preview")
+        viewModel?.let {
+            RTSPVideoPlayer(viewModel = it, modifier = modifier)
+        } ?: run {
+            Box(modifier = modifier, contentAlignment = Alignment.Center) {
+                Text(modifier = Modifier.testTag("EmptyVideo"), text = "Video Player Preview")
+            }
         }
     } else {
-        // Create ViewModel using Hilt Assisted Factory
+        // Resolve ViewModel: use the provided one or create a new one via Hilt factory
         val rtspViewModel: RTSPVideoPlayerViewModel =
-            hiltViewModel<RTSPVideoPlayerViewModel, RTSPVideoPlayerViewModel.Factory>(
+            viewModel ?: hiltViewModel<RTSPVideoPlayerViewModel, RTSPVideoPlayerViewModel.Factory>(
                 creationCallback = { factory ->
                     factory.create(item.uri, item.forceTcp, { onImageAvailable(item, it) })
                 }
@@ -350,7 +362,7 @@ private fun VideoPlayerCompose(
 }
 
 /**
- * Material 3 Confirmation Dialog for stream deletion.
+ * Standard Material 3 confirmation dialog for deleting an RTSP stream.
  */
 @Composable
 private fun DeleteConfirmDialogCompose(
@@ -361,8 +373,8 @@ private fun DeleteConfirmDialogCompose(
     AlertDialog(
         icon = { Icon(Icons.Default.Warning, contentDescription = null) },
         title = {
-            // Dynamic title replacing placeholder with item name
-            Text(text = stringResource(R.string.delete_dialog_title).replace("%1", rtspItem.name))
+            // Replaces placeholders in the string (e.g., "Delete %s?") with the item name
+            Text(text = stringResource(R.string.delete_dialog_title).formatText(rtspItem.name))
         },
         text = { Text(text = stringResource(R.string.delete_dialog_message)) },
         containerColor = MaterialTheme.colorScheme.background,
@@ -388,33 +400,8 @@ private fun DeleteConfirmDialogCompose(
 }
 
 /**
- * Masks RTSP credentials for UI security.
- * If the URI contains a username and password (format: `rtsp://user:pass@ip...`),
- * they are replaced with `***`.
- *
- * Regex Breakdown:
- * 1. `(rtsp://)` - The protocol prefix.
- * 2. `(.+)` - The username.
- * 3. `(:)` - The separator between user/pass.
- * 4. `(.+)` - The password.
- * 5. `(@)` - The separator before the IP.
- *
- * @return Sanitized URI string or original if no match.
- */
-private fun hideUriCredential(uri: String): String {
-    val regex = "(rtsp://)(.+)(:)(.+)(@)".toRegex()
-
-    return if (regex.containsMatchIn(uri)) {
-// Replaces captures 2 (user) and 4 (pass) with asterisks while keeping separators
-        regex.replace(uri, "\$1***\$3***\$5")
-    } else {
-        uri
-    }
-}
-
-/**
- * Provider for generating diverse UI states (Night/Day, Portrait/Landscape, Menu Open/Closed)
- * for the Compose Preview tool.
+ * Provides a set of dummy data to the Preview tool to visualize multiple states
+ * (different items, menu open vs. closed).
  */
 private class StreamItemScreenPreviewParameterProvider :
     PreviewParameterProvider<Pair<RTSPItem, MoreOptionState>> {
@@ -428,6 +415,8 @@ private class StreamItemScreenPreviewParameterProvider :
         MoreOptionState.entries.asSequence().map { state -> item to state }
     }
 }
+
+// --- PREVIEWS ---
 
 @Preview(
     name = "Day Portrait",
@@ -469,9 +458,11 @@ private fun StreamItemScreenPreview(
                     .padding(innerPadding),
                 item = params.first,
                 moreOption = params.second.value,
-                onEditItemSelected = {},
-                onDeleteItemSelected = {},
-                onImageAvailable = { _, _ -> },
+                screenActions = object : StreamItemScreenActions {
+                    override fun onEditItemSelected() {}
+                    override fun onDeleteItemSelected() {}
+                    override fun onImageAvailable(item: RTSPItem, bitmap: Bitmap) {}
+                },
             )
         }
     }

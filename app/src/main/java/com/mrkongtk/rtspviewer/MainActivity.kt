@@ -12,7 +12,7 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
-import com.mrkongtk.rtspviewer.ui.screen.NavigationScreen
+import com.mrkongtk.rtspviewer.ui.screen.AppInitialScreen
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.viewmodel.AppViewModel
 import dagger.hilt.android.AndroidEntryPoint
@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
                 // Render the root screen of the application.
                 // We apply windowInsetsPadding(WindowInsets.systemBars) here to ensure
                 // the root content respects the safe areas defined by the edge-to-edge configuration.
-                NavigationScreen(
+                AppInitialScreen(
                     navController = navController,
                     viewModel = viewModel,
                     modifier = Modifier

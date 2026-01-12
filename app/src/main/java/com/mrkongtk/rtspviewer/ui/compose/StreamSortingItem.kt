@@ -52,7 +52,7 @@ fun StreamSortingItem(
         icon = {
             Icon(
                 imageVector = Icons.Default.Dehaze,
-                contentDescription = stringResource(R.string.sort),
+                contentDescription = stringResource(R.string.reorder),
             )
         },
         // onClick is disabled here because interaction is usually handled by

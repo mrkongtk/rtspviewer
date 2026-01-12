@@ -1,217 +1,264 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
-import android.annotation.SuppressLint
 import android.content.res.Configuration
-import androidx.compose.foundation.background
+import android.graphics.Bitmap
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.CenterAlignedTopAppBar
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.layout.systemBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.tooling.preview.PreviewParameter
+import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.navigation.NavHostController
-import androidx.navigation.compose.currentBackStackEntryAsState
+import androidx.navigation.compose.NavHost
+import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rtspviewer.AppScreen
-import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.AppUiState
-import com.mrkongtk.rtspviewer.data.database.MockAppDatabase
-import com.mrkongtk.rtspviewer.data.repository.FileRepositoryImpl
-import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepositoryImpl
-import com.mrkongtk.rtspviewer.ui.compose.NavigationScreenContent
+import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
+import com.mrkongtk.rtspviewer.ui.screen.action.NavigationScreenActions
+import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
+import com.mrkongtk.rtspviewer.ui.screen.action.StreamListScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.viewmodel.AppViewModel
-import kotlinx.coroutines.flow.map
 
 /**
- * A custom Top App Bar component that dynamically updates its title based on the current screen.
+ * The central navigation graph and coordinator for the RTSP Viewer application.
  *
- * This component utilizes a "Template-Replacement" strategy for titles. If a screen title
- * contains placeholders (e.g., "Editing %1"), it fetches the active item name from the
- * [AppViewModel] and performs a string replacement.
+ * This Composable defines the app's routing structure using Jetpack Navigation. It acts as the
+ * "glue" between the global application state and the individual functional screens.
  *
- * @param currentScreen The enum representing the active screen destination.
- * @param canNavigateBack Whether to show the back arrow icon.
- * @param navigateUp Action to perform when the back arrow is clicked.
- * @param modifier Modifier for layout adjustments.
- * @param viewModel Injected ViewModel used to observe the name of the currently selected RTSP stream.
- */
-@Composable
-fun AppBar(
-    currentScreen: AppScreen,
-    canNavigateBack: Boolean,
-    navigateUp: () -> Unit,
-    modifier: Modifier = Modifier,
-    viewModel: AppViewModel = hiltViewModel()
-) {
-    // 1. Observe the selected item's name.
-    // We map the state to a List<String> to support multiple potential placeholders in the future.
-    val args: List<String> by viewModel.uiState.map { state ->
-        state.selectedItem?.name?.let { listOf(it) } ?: emptyList()
-    }.collectAsStateWithLifecycle(emptyList())
-
-    CenterAlignedTopAppBar(
-        title = {
-            val baseTitle = stringResource(currentScreen.title)
-
-            // 2. Perform dynamic string formatting.
-            // This takes the base string (e.g., "Stream: %1") and replaces "%1" with the first argument.
-            // reduceIndexed treats index 0 as the accumulator (the template).
-            val formattedTitle = (listOf(baseTitle) + args).reduceIndexed { index, acc, nextValue ->
-                acc.replace("%$index", nextValue)
-            }
-
-            Text(text = formattedTitle)
-        },
-        colors = TopAppBarDefaults.mediumTopAppBarColors(
-            containerColor = MaterialTheme.colorScheme.primaryContainer,
-            titleContentColor = MaterialTheme.colorScheme.onPrimaryContainer
-        ),
-        modifier = modifier,
-        navigationIcon = {
-            if (canNavigateBack) {
-                IconButton(onClick = navigateUp) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = stringResource(R.string.back_button)
-                    )
-                }
-            }
-        }
-    )
-}
-
-/**
- * The primary scaffold/root container for the application UI.
+ * **Key Responsibilities:**
+ * - **Routing:** Defines the mapping between [AppScreen] destinations and their Composable implementations.
+ * - **State Distribution:** Passes relevant slices of the [AppUiState] down to child screens.
+ * - **Action Delegation:** Consolidates UI events (clicks, saves, deletes) into the [NavigationScreenActions]
+ *   interface, facilitating a clean separation between UI navigation and business logic.
  *
- * This composable manages the relationship between the [NavHostController], the [AppViewModel],
- * and the [AppBar]. It listens to backstack changes to update the Top Bar's title and
- * navigation state automatically.
+ * **Main Destinations:**
+ * 1. [AppScreen.Start]: The entry point showing the filterable and reorderable list of streams.
+ * 2. [AppScreen.RTSPDisplay]: The dedicated playback screen for a selected RTSP stream.
+ * 3. [AppScreen.AddRTSPItem]: The form interface for adding new stream configurations.
+ * 4. [AppScreen.EditRTSPItem]: The form interface for updating existing stream metadata.
  *
- * @param modifier Modifier for the root layout.
- * @param navController The controller managing the app's navigation stack.
- * @param viewModel The Hilt-injected business logic coordinator.
+ * @param modifier The modifier to be applied to the [NavHost] container.
+ * @param navController The controller managing the app's navigation backstack.
+ * @param uiState The current snapshot of the application's data (streams, tags, previews, and selections).
+ * @param screenActions A consolidated interface providing handlers for high-level user actions that
+ *                      require interaction with the data layer or ViewModel.
  */
 @Composable
 fun NavigationScreen(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    viewModel: AppViewModel = hiltViewModel(),
+    uiState: AppUiState,
+    screenActions: NavigationScreenActions,
 ) {
-    // Observe the current navigation route to update UI components like the AppBar
-    val backStackEntry by navController.currentBackStackEntryAsState()
+    NavHost(
+        navController = navController,
+        startDestination = AppScreen.Start.name,
+        modifier = modifier.testTag("NavHost")
+    ) {
 
-    // Safely map the current route string back to our AppScreen enum.
-    // Falls back to AppScreen.Start if the route is null or unrecognized.
-    val currentScreen = backStackEntry?.destination?.route?.let { route ->
-        try {
-            AppScreen.valueOf(route)
-        } catch (_: IllegalArgumentException) {
-            AppScreen.Start
-        }
-    } ?: AppScreen.Start
+        // --- 1. Main List Screen ---
+        composable(route = AppScreen.Start.name) {
 
-    Scaffold(
-        modifier = modifier
-            .testTag("NavigationScreenRoot")
-            .background(MaterialTheme.colorScheme.background),
-        topBar = {
-            AppBar(
-                currentScreen = currentScreen,
-                // The back button is visible if there's a screen to return to
-                canNavigateBack = navController.previousBackStackEntry != null,
-                navigateUp = { navController.navigateUp() },
-                viewModel = viewModel
+            val actions = object : StreamListScreenActions {
+                override fun onItemSelected(item: RTSPItem) {
+                    screenActions.onListingItemSelected(item)
+                    navController.navigate(AppScreen.RTSPDisplay.name)
+                }
+
+                override fun onAddItemSelected() {
+                    navController.navigate(AppScreen.AddRTSPItem.name)
+                }
+
+                override fun onItemsReordered(orderedList: List<RTSPItem>) {
+                    screenActions.onItemsReordered(orderedList)
+                }
+
+                override fun onTagSelected(tag: String?) {
+                    screenActions.onTagSelected(tag)
+                }
+            }
+
+            StreamListScreen(
+                itemList = uiState.items,
+                previews = uiState.cachedPreviews,
+                tags = uiState.tags,
+                selectedTag = uiState.selectedTag,
+                screenActions = actions,
+                modifier = Modifier.fillMaxSize()
             )
         }
-    ) { innerPadding ->
-        // lifecycle-aware collection of the UI state flow
-        val uiState by viewModel.uiState.collectAsStateWithLifecycle(AppUiState())
 
-        // Pass event lambdas down to the Content layer.
-        // This follows the "UDF (Unidirectional Data Flow)" pattern where
-        // events flow up to the ViewModel and state flows down to the UI.
-        NavigationScreenContent(
-            navController = navController,
-            uiState = uiState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding), // Ensure content doesn't overlap the AppBar
-            onListingItemSelected = { item ->
-                viewModel.select(item)
-            },
-            onAddItemRequested = { item ->
-                viewModel.addItem(item)
-            },
-            onItemsReordered = { itemsOrdered ->
-                viewModel.reorderItems(itemsOrdered)
-            },
-            onEditItemRequested = { editedItem ->
-                viewModel.editItem(editedItem)
-            },
-            onDeleteItemRequested = { item ->
-                viewModel.deleteItem(item)
-            },
-            onImageAvailable = { item, bitmap ->
-                viewModel.savePreview(item, bitmap)
-            },
-            onTagSelected = { tag ->
-                viewModel.select(tag)
+        // --- 2. Full-Screen Player Screen ---
+        composable(route = AppScreen.RTSPDisplay.name) {
+
+            val actions = object : StreamItemScreenActions {
+                override fun onEditItemSelected() {
+                    navController.navigate(AppScreen.EditRTSPItem.name)
+                }
+
+                override fun onDeleteItemSelected() {
+                    uiState.selectedItem?.let { item ->
+                        screenActions.onDeleteItemRequested(item)
+                        // Pop back to list after deletion to avoid viewing a non-existent item.
+                        navController.popBackStack()
+                    }
+                }
+
+                override fun onImageAvailable(
+                    item: RTSPItem,
+                    bitmap: Bitmap
+                ) {
+                    screenActions.onImageAvailable(item, bitmap)
+                }
             }
-        )
+
+            // Guard clause: Only render if a selection exists in the state.
+            // This prevents crashes during rapid navigation or state resets.
+            uiState.selectedItem?.let { item ->
+                StreamItemScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    item = item,
+                    screenActions = actions,
+                )
+            }
+        }
+
+        // --- 3. Stream Creation Form ---
+        composable(route = AppScreen.AddRTSPItem.name) {
+            val action = object : EditStreamItemScreenActions {
+                override fun onSaveItem(newItem: RTSPItem) {
+                    screenActions.onAddItemRequested(newItem)
+                    navController.popBackStack()
+                }
+
+            }
+
+            AddStreamItemScreen(
+                modifier = Modifier.fillMaxSize(),
+                screenActions = action
+            )
+        }
+
+        // --- 4. Stream Modification Form ---
+        composable(route = AppScreen.EditRTSPItem.name) {
+            val action = object : EditStreamItemScreenActions {
+                override fun onSaveItem(newItem: RTSPItem) {
+                    screenActions.onEditItemRequested(newItem)
+                    navController.popBackStack()
+                }
+
+            }
+
+            // Uses the same selectedItem as the display screen.
+            uiState.selectedItem?.let { selectedItem ->
+                EditStreamItemScreen(
+                    modifier = Modifier.fillMaxSize(),
+                    item = selectedItem,
+                    screenActions = action,
+                )
+            }
+        }
     }
 }
 
 /**
- * Visual preview for Android Studio Layout Editor.
- *
- * We suppress ViewModelConstructorInComposable because we are manually creating
- * the ViewModel with Mock dependencies to avoid requiring a real Database context
- * during the preview rendering process.
+ * Provides mock data sets for Android Studio Previews.
  */
-@SuppressLint("ViewModelConstructorInComposable")
+private class NavigationScreenContentPreviewParameterProvider :
+    PreviewParameterProvider<AppUiState> {
+    override val values = sequenceOf(
+        // Empty State: Verifies UI when no streams are configured.
+        AppUiState(),
+
+        // Populated State: Verifies list rendering with data.
+        AppUiState(
+            items = listOf(
+                RTSPItem(
+                    id = 1,
+                    name = "Living Room Camera",
+                    uri = "rtsp://192.168.1.10",
+                    tags = emptyList(),
+                    order = 1
+                ),
+                RTSPItem(
+                    id = 2,
+                    name = "Backyard",
+                    uri = "rtsp://192.168.1.11",
+                    tags = emptyList(),
+                    order = 2
+                )
+            )
+        )
+    )
+}
+
+/**
+ * Preview function to visualize the navigation flow in the IDE.
+ *
+ * Includes both Light and Dark mode configurations.
+ */
 @Preview(
-    name = "Day Mode",
+    name = "Day",
     showSystemUi = true,
     uiMode = Configuration.UI_MODE_NIGHT_NO
 )
 @Preview(
-    name = "Night Mode",
+    name = "Night",
     showSystemUi = true,
     uiMode = Configuration.UI_MODE_NIGHT_YES
 )
 @Composable
-private fun NavigationScreenPreview() {
+private fun NavigationScreenPreview(
+    @PreviewParameter(NavigationScreenContentPreviewParameterProvider::class) state: AppUiState
+) {
     RTSPViewerTheme {
-        val navController = rememberNavController()
+        Scaffold(
+            modifier = Modifier
+                .fillMaxSize()
+                // windowInsetsPadding ensures the content doesn't overlap with status/navigation bars.
+                .windowInsetsPadding(WindowInsets.systemBars),
+        ) { innerPadding ->
+            NavigationScreen(
+                navController = rememberNavController(),
+                uiState = state,
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+                screenActions = object : NavigationScreenActions {
+                    override fun onListingItemSelected(item: RTSPItem) {
+                    }
 
-        // Manual Dependency Injection for Preview stability.
-        // This simulates the data layer without hitting the real Android SQLite system.
-        val mockViewModel = AppViewModel(
-            RTSPItemRepositoryImpl(
-                LocalContext.current,
-                MockAppDatabase()
-            ),
-            FileRepositoryImpl(LocalContext.current),
-        )
+                    override fun onAddItemRequested(newItem: RTSPItem) {
+                    }
 
-        NavigationScreen(
-            navController = navController,
-            viewModel = mockViewModel
-        )
+                    override fun onItemsReordered(newOrderedList: List<RTSPItem>) {
+                    }
+
+                    override fun onEditItemRequested(updatedItem: RTSPItem) {
+                    }
+
+                    override fun onDeleteItemRequested(deleteItem: RTSPItem) {
+                    }
+
+                    override fun onImageAvailable(
+                        item: RTSPItem,
+                        snapshot: Bitmap
+                    ) {
+                    }
+
+                    override fun onTagSelected(tag: String?) {
+                    }
+
+                },
+            )
+        }
     }
 }

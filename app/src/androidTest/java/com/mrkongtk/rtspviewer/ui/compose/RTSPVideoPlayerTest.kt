@@ -15,44 +15,49 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
+import androidx.media3.common.Player
 import androidx.media3.common.VideoSize
 import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
 import com.mrkongtk.rtspviewer.data.RTSPVideoPlayerPlaybackState
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.whenever
 
+/**
+ * UI Tests for the stateless [RTSPVideoPlayerContent] component.
+ *
+ * These tests verify that the UI correctly reacts to different playback states,
+ * error conditions, and layout constraints independently of the ViewModel logic.
+ */
 @OptIn(UnstableApi::class)
 class RTSPVideoPlayerTest {
 
     @get:Rule
     val composeTestRule = createComposeRule()
 
-    private val mockExoPlayer: ExoPlayer = mock()
+    // Mocking the Player interface to avoid heavy ExoPlayer initialization
+    private val mockPlayer: Player = mock()
 
     @Before
     fun setup() {
-        // Prevent NullPointerExceptions in PlayerView internals
-        whenever(mockExoPlayer.applicationLooper).thenReturn(Looper.getMainLooper())
-        whenever(mockExoPlayer.videoSize).thenReturn(VideoSize.UNKNOWN)
-        whenever(mockExoPlayer.currentPosition).thenReturn(0L)
-        whenever(mockExoPlayer.duration).thenReturn(0L)
-        whenever(mockExoPlayer.isPlaying).thenReturn(false)
+        // Stub basic Player methods to prevent PlayerView internal crashes
+        whenever(mockPlayer.applicationLooper).thenReturn(Looper.getMainLooper())
+        whenever(mockPlayer.videoSize).thenReturn(VideoSize.UNKNOWN)
+        whenever(mockPlayer.isPlaying).thenReturn(false)
     }
 
     // =========================================================================
-    // VISUAL STATE TESTS
+    // OVERLAY & STATE TESTS
     // =========================================================================
 
     @Test
-    fun testInitialization_whenPlayerIsNull_displaysInitializingText() {
-        // Scenario: ViewModel hasn't created the player yet
+    fun initialization_whenPlayerIsNull_displaysEmptyOverlay() {
         composeTestRule.setContent {
             RTSPVideoPlayerContent(
-                player = null, // Null player
+                player = null,
                 playbackState = RTSPVideoPlayerPlaybackState.Idle,
                 errorMessage = null,
                 onPlayClick = {},
@@ -64,15 +69,15 @@ class RTSPVideoPlayerTest {
         composeTestRule.onNodeWithTag("empty_player_overlay").assertIsDisplayed()
         composeTestRule.onNodeWithText("RTSP Video Player Initializing...").assertIsDisplayed()
 
-        // Ensure controls are not shown prematurely
+        // Ensure interactive overlays are hidden
         composeTestRule.onNodeWithTag("play_button_overlay").assertDoesNotExist()
     }
 
     @Test
-    fun testBufferingState_displaysLoadingOverlay() {
+    fun bufferingState_displaysLoadingOverlay() {
         composeTestRule.setContent {
             RTSPVideoPlayerContent(
-                player = mockExoPlayer,
+                player = mockPlayer,
                 playbackState = RTSPVideoPlayerPlaybackState.Buffering,
                 errorMessage = null,
                 onPlayClick = {},
@@ -82,67 +87,45 @@ class RTSPVideoPlayerTest {
         }
 
         composeTestRule.onNodeWithTag("loading_overlay").assertIsDisplayed()
+        // Ensure other overlays are not visible
         composeTestRule.onNodeWithTag("play_button_overlay").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("error_overlay").assertDoesNotExist()
     }
 
     @Test
-    fun testErrorState_displaysErrorOverlay_andHidesPlayer() {
-        val errorMsg = "Connection Refused"
+    fun errorState_displaysErrorOverlay_andOverridesPlaybackOverlays() {
+        val testError = "404 Not Found"
 
         composeTestRule.setContent {
             RTSPVideoPlayerContent(
-                player = mockExoPlayer,
-                playbackState = RTSPVideoPlayerPlaybackState.Playing, // Even if state says playing
-                errorMessage = errorMsg, // Error is present
+                player = mockPlayer,
+                playbackState = RTSPVideoPlayerPlaybackState.Buffering, // Should be ignored if error exists
+                errorMessage = testError,
                 onPlayClick = {},
                 onPauseClick = {},
                 onImageAvailable = {}
             )
         }
 
-        // 1. Error overlay must be visible
+        // Error message must take precedence
         composeTestRule.onNodeWithTag("error_overlay").assertIsDisplayed()
-        composeTestRule.onNodeWithText(errorMsg).assertIsDisplayed()
+        composeTestRule.onNodeWithText(testError).assertIsDisplayed()
 
-        // 2. Critical logic check:
-        // If an error exists, the player and its interaction overlays should not be rendered.
-        composeTestRule.onNodeWithTag("pause_button_overlay").assertDoesNotExist()
+        // Loading or Play buttons must not show during an error
         composeTestRule.onNodeWithTag("loading_overlay").assertDoesNotExist()
-    }
-
-    @Test
-    fun testEndedState_displaysNoOverlays() {
-        // According to the `when(playbackState)` block, `Ended` falls into `else -> {}`
-        composeTestRule.setContent {
-            RTSPVideoPlayerContent(
-                player = mockExoPlayer,
-                playbackState = RTSPVideoPlayerPlaybackState.Ended,
-                errorMessage = null,
-                onPlayClick = {},
-                onPauseClick = {},
-                onImageAvailable = {}
-            )
-        }
-
         composeTestRule.onNodeWithTag("play_button_overlay").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("pause_button_overlay").assertDoesNotExist()
-        composeTestRule.onNodeWithTag("loading_overlay").assertDoesNotExist()
     }
 
-    // =========================================================================
-    // INTERACTION TESTS
-    // =========================================================================
-
     @Test
-    fun testReadyState_displaysPlayButton_andClickTriggersCallback() {
-        var playClicked = false
+    fun readyState_displaysPlayButton() {
+        var playInvoked = false
 
         composeTestRule.setContent {
             RTSPVideoPlayerContent(
-                player = mockExoPlayer,
+                player = mockPlayer,
                 playbackState = RTSPVideoPlayerPlaybackState.Ready,
                 errorMessage = null,
-                onPlayClick = { playClicked = true },
+                onPlayClick = { playInvoked = true },
                 onPauseClick = {},
                 onImageAvailable = {}
             )
@@ -152,51 +135,48 @@ class RTSPVideoPlayerTest {
             .assertIsDisplayed()
             .performClick()
 
-        assert(playClicked) { "Expected onPlayClick to be invoked" }
+        assertTrue("Callback onPlayClick should be triggered", playInvoked)
     }
 
     @Test
-    fun testPlayingState_displaysPauseOverlay_andClickTriggersCallback() {
-        var pauseClicked = false
+    fun playingState_displaysPauseOverlay() {
+        var pauseInvoked = false
 
         composeTestRule.setContent {
             RTSPVideoPlayerContent(
-                player = mockExoPlayer,
+                player = mockPlayer,
                 playbackState = RTSPVideoPlayerPlaybackState.Playing,
                 errorMessage = null,
                 onPlayClick = {},
-                onPauseClick = { pauseClicked = true },
+                onPauseClick = { pauseInvoked = true },
                 onImageAvailable = {}
             )
         }
 
-        // Play button should be gone
-        composeTestRule.onNodeWithTag("play_button_overlay").assertDoesNotExist()
-
-        // Pause overlay (invisible click handler) should exist
+        // In 'Playing' state, we show a transparent click interceptor (PauseButtonOverlay)
         composeTestRule.onNodeWithTag("pause_button_overlay")
             .assertExists()
             .performClick()
 
-        assert(pauseClicked) { "Expected onPauseClick to be invoked" }
+        assertTrue("Callback onPauseClick should be triggered", pauseInvoked)
+        composeTestRule.onNodeWithTag("play_button_overlay").assertDoesNotExist()
     }
 
     // =========================================================================
-    // LAYOUT LOGIC TESTS
+    // LAYOUT & MODIFIER TESTS
     // =========================================================================
 
     @Test
-    fun testAspectRatio_calculatesHeightCorrectly() {
-        // In the updated code, the aspect ratio is applied via a modifier.
-        // We test that the content respects the aspectRatio modifier applied to it.
-
-        val testRatio = 2.0f // 2:1 ratio
+    fun aspectRatio_horizontalRatio_calculatesHeightCorrectly() {
+        val horizontalRatio = 2.0f // 2:1 (Width:Height)
+        val containerWidth = 200.dp
 
         composeTestRule.setContent {
-            Box(Modifier.size(width = 200.dp, height = 500.dp)) {
+            // Wrap in a Box to provide fixed width constraints
+            Box(Modifier.size(width = containerWidth, height = 1000.dp)) {
                 RTSPVideoPlayerContent(
-                    modifier = Modifier.aspectRatio(testRatio), // Mimics the RTSPVideoPlayer wrapper logic
-                    player = mockExoPlayer,
+                    modifier = Modifier.aspectRatio(horizontalRatio),
+                    player = mockPlayer,
                     playbackState = RTSPVideoPlayerPlaybackState.Idle,
                     errorMessage = null,
                     onPlayClick = {},
@@ -206,29 +186,24 @@ class RTSPVideoPlayerTest {
             }
         }
 
-        composeTestRule.waitForIdle()
-
-        // We use the play button overlay to measure dimensions as it fills the container.
+        // Measure the resulting bounds of the overlay which fills the player content
         val bounds = composeTestRule.onNodeWithTag("play_button_overlay").getUnclippedBoundsInRoot()
 
-        // Width is constrained to 200.dp by the parent
-        assert(bounds.width == 200.dp)
-
-        // Height should be Width / Ratio (200 / 2.0 = 100)
-        assert(bounds.height == 100.dp) {
-            "Expected height 100.dp for 2.0 aspect ratio, but got ${bounds.height}"
-        }
+        // Assert: Height = Width / Ratio => 200 / 2 = 100
+        assertTrue("Width should match container", bounds.width == containerWidth)
+        assertTrue("Height should be 100dp for 2.0 ratio", bounds.height == 100.dp)
     }
 
     @Test
-    fun testAspectRatio_verticalVideo() {
-        val testRatio = 0.5f // 1:2 ratio
+    fun aspectRatio_verticalRatio_calculatesHeightCorrectly() {
+        val verticalRatio = 0.5f // 1:2 (Width:Height)
+        val containerWidth = 100.dp
 
         composeTestRule.setContent {
-            Box(Modifier.size(width = 100.dp, height = 500.dp)) {
+            Box(Modifier.size(width = containerWidth, height = 1000.dp)) {
                 RTSPVideoPlayerContent(
-                    modifier = Modifier.aspectRatio(testRatio),
-                    player = mockExoPlayer,
+                    modifier = Modifier.aspectRatio(verticalRatio),
+                    player = mockPlayer,
                     playbackState = RTSPVideoPlayerPlaybackState.Idle,
                     errorMessage = null,
                     onPlayClick = {},
@@ -238,14 +213,29 @@ class RTSPVideoPlayerTest {
             }
         }
 
-        composeTestRule.waitForIdle()
-
         val bounds = composeTestRule.onNodeWithTag("play_button_overlay").getUnclippedBoundsInRoot()
 
-        assert(bounds.width == 100.dp)
-        // Height should be Width / Ratio (100 / 0.5 = 200)
-        assert(bounds.height == 200.dp) {
-            "Expected height 200.dp for 0.5 aspect ratio, but got ${bounds.height}"
+        // Assert: Height = Width / Ratio => 100 / 0.5 = 200
+        assertTrue("Width should match container", bounds.width == containerWidth)
+        assertTrue("Height should be 200dp for 0.5 ratio", bounds.height == 200.dp)
+    }
+
+    @Test
+    fun endedState_hidesAllOverlays() {
+        composeTestRule.setContent {
+            RTSPVideoPlayerContent(
+                player = mockPlayer,
+                playbackState = RTSPVideoPlayerPlaybackState.Ended,
+                errorMessage = null,
+                onPlayClick = {},
+                onPauseClick = {},
+                onImageAvailable = {}
+            )
         }
+
+        // Per the 'when' block in code, Ended state does not show Loading or Play buttons
+        composeTestRule.onNodeWithTag("loading_overlay").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("play_button_overlay").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("pause_button_overlay").assertDoesNotExist()
     }
 }
