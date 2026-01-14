@@ -67,25 +67,19 @@ import com.mrkongtk.rtspviewer.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 
 /**
- * The primary dashboard screen for managing and viewing the collection of RTSP streams.
+ * The main dashboard screen for viewing and managing RTSP streams.
  *
- * This Composable serves as the main entry point of the application, coordinating three
- * distinct UI responsibilities:
+ * This screen handles three primary UI states:
+ * 1. **Empty State:** Shows a placeholder when no streams exist.
+ * 2. **Viewing State:** Displays a filterable list of streams using a [LazyColumn].
+ * 3. **Reordering State:** A dedicated drag-and-drop mode for manual list sorting.
  *
- * 1. **Empty State Management:** Displays a placeholder message when no streams are configured,
- *    guiding the user to add their first camera.
- * 2. **Content & Filtering:** Provides a [FlowRow]-based tag cloud for quick filtering and
- *    renders the stream list. It automatically handles the "All" category logic.
- * 3. **Interactive List:** Utilizes [DraggableLazyColumn] to allow users to manually reorder
- *    streams via drag-and-drop.
- *
- * @param modifier The [Modifier] to be applied to the root container.
- * @param itemList The source list of [RTSPItem] entities retrieved from the database.
- * @param previews A thread-safe mapping of [RTSPItem.id] to [Bitmap] snapshots for thumbnail rendering.
- * @param tags A list of unique strings representing all available categories across the stream set.
- * @param selectedTag The currently active filter criteria. If `null`, the screen defaults to the "All" view.
- * @param screenActions A [StreamListScreenActions] interface that captures user intents
- * (selection, addition, reordering, and filtering) and bubbles them up to the business logic layer.
+ * @param modifier The [Modifier] for the root container.
+ * @param itemList The source list of [RTSPItem] entities from the database.
+ * @param previews A map of stream IDs to their latest [Bitmap] snapshots.
+ * @param tags Unique categories derived from the available streams.
+ * @param selectedTag The active filter; `null` represents the "All" view.
+ * @param screenActions Interface for handling user interactions like selection, addition, and sorting.
  */
 @Composable
 fun StreamListScreen(
@@ -100,7 +94,7 @@ fun StreamListScreen(
     var isOptionOpening by remember { mutableStateOf(MoreOptionState.CLOSED) }
 
     if (itemList.isEmpty()) {
-        // State 1: Empty - Inform the user there is nothing to show
+        // State 1: Empty - Guidance for new users
         Column(
             modifier = modifier,
             verticalArrangement = Arrangement.Center
@@ -116,6 +110,7 @@ fun StreamListScreen(
             }
         }
     } else if (isSorting) {
+        // State 2: Sorting Mode - Drag-and-drop reordering
         ReorderItemList(
             modifier = modifier,
             itemList = itemList,
@@ -123,11 +118,8 @@ fun StreamListScreen(
             onItemsReordered = { screenActions.onItemsReordered(it) },
         )
     } else {
-        // State 2: Content - Show tags and the list
-        // Prepend the "All" category to the tag list for the UI filter row
+        // State 3: Viewing Mode - Content list with category filtering
         val allTags = listOf(stringResource(R.string.tags_all)) + tags
-
-        // Determine the UI index based on the selectedTag string
         val selectedTagIndex = selectedTag?.let { allTags.indexOf(it) } ?: 0
 
         StreamItemList(
@@ -137,7 +129,7 @@ fun StreamListScreen(
             itemList = itemList,
             previews = previews,
             onTagSelected = { index ->
-                // If index 0 is selected, it represents 'All' (null)
+                // Map index 0 back to null (All) for the business logic
                 if (index == 0) {
                     screenActions.onTagSelected(null)
                 } else {
@@ -149,8 +141,7 @@ fun StreamListScreen(
         )
     }
 
-    // State 3: Overlay - Floating Add Button
-    // Wrapped in a Box to ensure it stays on top of the list content
+    // Floating Action Menu: Handles both "Add" and "Enter Sorting Mode"
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -164,12 +155,7 @@ fun StreamListScreen(
             ) {
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.add_rtsp_button)) },
-                    leadingIcon = {
-                        Icon(
-                            Icons.Default.Add,
-                            contentDescription = stringResource(R.string.add_rtsp_button)
-                        )
-                    },
+                    leadingIcon = { Icon(Icons.Default.Add, null) },
                     onClick = {
                         isOptionOpening = MoreOptionState.CLOSED
                         screenActions.onAddItemSelected()
@@ -178,12 +164,7 @@ fun StreamListScreen(
                 )
                 DropdownMenuItem(
                     text = { Text(stringResource(R.string.sort_rtsp_button)) },
-                    leadingIcon = {
-                        Icon(
-                            Icons.AutoMirrored.Filled.Sort,
-                            contentDescription = stringResource(R.string.sort_rtsp_button)
-                        )
-                    },
+                    leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) },
                     onClick = {
                         isOptionOpening = MoreOptionState.CLOSED
                         isSorting = true
@@ -195,51 +176,35 @@ fun StreamListScreen(
             IconButton(
                 onClick = {
                     if (isSorting) {
-                        isSorting = false
+                        isSorting = false // Exit sorting mode
                     } else {
-                        isOptionOpening = !isOptionOpening
+                        isOptionOpening = !isOptionOpening // Toggle more options
                     }
                 },
                 colors = IconButtonDefaults.filledIconButtonColors(),
                 modifier = Modifier.testTag(
-                    if (isSorting) {
-                        "EndSortingButton"
-                    } else if (isOptionOpening == MoreOptionState.OPEN) {
-                        "CloseMoreButton"
-                    } else {
-                        "MoreButton"
-                    }
+                    if (isSorting) "EndSortingButton"
+                    else if (isOptionOpening == MoreOptionState.OPEN) "CloseMoreButton"
+                    else "MoreButton"
                 )
             ) {
+                // Icon switches between 'Close' (in sorting/open menu) and 'More' (idle)
+                val isActive = isSorting || isOptionOpening == MoreOptionState.OPEN
                 Icon(
-                    imageVector = if (isSorting) {
-                        Icons.Default.Close
-                    } else if (isOptionOpening == MoreOptionState.OPEN) {
-                        Icons.Default.Close
-                    } else {
-                        Icons.Default.MoreVert
-                    },
+                    imageVector = if (isActive) Icons.Default.Close else Icons.Default.MoreVert,
                     contentDescription = stringResource(
-                        if (isSorting) {
-                            R.string.description_end_sorting_button
-                        } else if (isOptionOpening == MoreOptionState.OPEN) {
-                            R.string.description_close_button
-                        } else {
-                            R.string.description_more_button
-                        }
+                        if (isSorting) R.string.description_end_sorting_button
+                        else if (isOptionOpening == MoreOptionState.OPEN) R.string.description_close_button
+                        else R.string.description_more_button
                     )
                 )
             }
-
         }
     }
 }
 
 /**
- * Internal layout responsible for rendering the horizontal tag filter and the reorderable list.
- *
- * @param allTags Combined list of tags including the static "All" entry.
- * @param selectedTagIndex The integer index of the currently active filter.
+ * Displays the list of RTSP streams with a horizontal tag filter at the top.
  */
 @Composable
 internal fun StreamItemList(
@@ -256,23 +221,17 @@ internal fun StreamItemList(
         modifier = modifier.padding(vertical = PaddingM),
         verticalArrangement = Arrangement.spacedBy(PaddingM)
     ) {
-        // Filter Section: Displays tags in a multi-line flow if they exceed width
+        // Tag Cloud: Wraps to multiple lines if tags exceed screen width
         FlowRow(
             modifier = Modifier
                 .testTag("Tags")
                 .fillMaxWidth()
                 .padding(horizontal = PaddingM),
-            horizontalArrangement = Arrangement.spacedBy(
-                space = PaddingS,
-                alignment = Alignment.Start
-            ),
+            horizontalArrangement = Arrangement.spacedBy(PaddingS),
             verticalArrangement = Arrangement.spacedBy(PaddingXs),
         ) {
-            // Use fastForEachIndexed (Compose util) for lower overhead in the UI loop
             allTags.fastForEachIndexed { index, tag ->
                 val selected = index == selectedTagIndex
-
-                // Determine styling based on selection state
                 val backgroundColour =
                     if (selected) MaterialTheme.colorScheme.surface else MaterialTheme.colorScheme.secondary
                 val textColour =
@@ -294,24 +253,22 @@ internal fun StreamItemList(
             }
         }
 
-        // List Section: Draggable items using custom DraggableLazyColumn
         LazyColumn(
             modifier = Modifier
                 .testTag("LazyColumn")
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(PaddingM),
-            // Logic: Show all items if 'All' (index 0) is selected,
-            // otherwise perform a fast filter based on the tag string.
         ) {
-            items(
-                if (selectedTagIndex == 0) {
+            // Filter logic: Show all if 'All' is selected, otherwise filter by tag string
+            val filteredList = if (selectedTagIndex == 0) {
                 itemList
             } else {
-                allTags.getOrNull(selectedTagIndex)?.let { selectedTag ->
-                    itemList.fastFilter { it.tags.contains(selectedTag) }
+                allTags.getOrNull(selectedTagIndex)?.let { tag ->
+                    itemList.fastFilter { it.tags.contains(tag) }
                 } ?: itemList
-                }) { item ->
-                // Custom item renderer for individual RTSP streams
+            }
+
+            items(filteredList) { item ->
                 StreamListItem(
                     data = item,
                     preview = previews[item.id],
@@ -322,11 +279,14 @@ internal fun StreamItemList(
                     onClick = { data -> onItemSelected(data) }
                 )
             }
-
         }
     }
 }
 
+/**
+ * A dedicated view for manual stream reordering.
+ * Uses [DraggableLazyColumn] to allow users to change the sequence of items.
+ */
 @Composable
 internal fun ReorderItemList(
     modifier: Modifier,
@@ -338,25 +298,20 @@ internal fun ReorderItemList(
         modifier = modifier.padding(vertical = PaddingM),
         verticalArrangement = Arrangement.spacedBy(PaddingM)
     ) {
-        // List Section: Draggable items using custom DraggableLazyColumn
         DraggableLazyColumn(
             modifier = Modifier
                 .testTag("DraggableLazyColumn")
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(PaddingM),
-            // Logic: Show all items if 'All' (index 0) is selected,
-            // otherwise perform a fast filter based on the tag string.
             items = itemList,
             onReordered = { reorderedList ->
-                // Normalization: Map the new UI positions back to the 'order' property.
-                // This ensures that the DB reflects exactly what the user sees.
+                // Normalize the 'order' property based on new visual indices before saving to DB
                 val updatedOrderList = reorderedList.mapIndexed { index, item ->
                     item.copy(order = index)
                 }
                 onItemsReordered(updatedOrderList)
             }
         ) { itemModifier, item ->
-            // Custom item renderer for individual RTSP streams
             StreamSortingItem(
                 data = item,
                 preview = previews[item.id],
@@ -370,8 +325,7 @@ internal fun ReorderItemList(
 }
 
 /**
- * Preview definitions for IDE design-time support.
- * Covers both Light and Dark modes to ensure visibility of tags and text.
+ * Preview provider to test Empty, Populated, and Filtered states in the IDE.
  */
 @Preview(
     name = "Day",
