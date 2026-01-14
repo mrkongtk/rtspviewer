@@ -15,6 +15,7 @@
 
     <string name="no_streaming_items">No streaming items</string>
     <string name="add_rtsp_button">Add stream</string>
+    <string name="sort_rtsp_button">Reorder streams</string>
     <string name="field_name">Name(*):</string>
     <string name="field_placeholder_name">Name cannot be empty or space only. eg: Garden</string>
     <string name="field_name_error">Name cannot be empty or space only.</string>
@@ -35,4 +36,8 @@
     <string name="delete_dialog_message">Are you sure you want to delete this item? This action cannot be undone.</string>
     <string name="rtsp_item_preview_description">Preview for \"%1\"</string>
     <string name="tags_all">All</string>
+
+    <string name="description_more_button">More Button</string>
+    <string name="description_close_button">Close Button</string>
+    <string name="description_end_sorting_button">End Sorting Button</string>
 </resources>

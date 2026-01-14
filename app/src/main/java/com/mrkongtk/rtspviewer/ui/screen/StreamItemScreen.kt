@@ -35,6 +35,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -52,11 +53,11 @@ import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.util.fastForEach
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import com.mrkongtk.rtspviewer.R
+import com.mrkongtk.rtspviewer.data.MoreOptionState
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.database.entity.hideCredentialUri
+import com.mrkongtk.rtspviewer.data.not
 import com.mrkongtk.rtspviewer.ui.compose.RTSPVideoPlayer
-import com.mrkongtk.rtspviewer.ui.screen.MoreOptionState.CLOSED
-import com.mrkongtk.rtspviewer.ui.screen.MoreOptionState.OPEN
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.PaddingS
@@ -65,23 +66,6 @@ import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.util.formatText
 import com.mrkongtk.rtspviewer.viewmodel.RTSPVideoPlayerViewModel
 
-/**
- * Encapsulates the visual state of the "More Options" menu.
- * Using an Enum instead of a Boolean makes state transitions more explicit.
- */
-private enum class MoreOptionState(val value: Boolean) {
-    OPEN(true),
-    CLOSED(false);
-
-    companion object {
-        fun fromValue(value: Boolean): MoreOptionState = if (value) OPEN else CLOSED
-    }
-}
-
-/**
- * Extension operator to toggle the menu state using [!state] syntax.
- */
-private operator fun MoreOptionState.not(): MoreOptionState = if (this == OPEN) CLOSED else OPEN
 
 /**
  * The main screen for viewing a specific RTSP stream and its metadata.
@@ -105,7 +89,7 @@ fun StreamItemScreen(
     playerViewModel: RTSPVideoPlayerViewModel? = null,
 ) {
     val configuration = LocalConfiguration.current
-    var orientation by remember { mutableStateOf(configuration.orientation) }
+    var orientation by remember { mutableIntStateOf(configuration.orientation) }
 
     // Logic for the deletion confirmation dialog
     var showDeleteConfirmationPrompt by remember { mutableStateOf(false) }
@@ -273,13 +257,13 @@ fun StreamItemScreen(
                 Column {
                     DropdownMenu(
                         expanded = moreState.value,
-                        onDismissRequest = { moreState = CLOSED }
+                        onDismissRequest = { moreState = MoreOptionState.CLOSED }
                     ) {
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.edit)) },
                             leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                             onClick = {
-                                moreState = CLOSED
+                                moreState = MoreOptionState.CLOSED
                                 screenActions.onEditItemSelected()
                             },
                             modifier = Modifier.testTag("EditButton")
@@ -288,7 +272,7 @@ fun StreamItemScreen(
                             text = { Text(stringResource(R.string.delete)) },
                             leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
                             onClick = {
-                                moreState = CLOSED
+                                moreState = MoreOptionState.CLOSED
                                 showDeleteConfirmationPrompt = true
                             },
                             modifier = Modifier.testTag("DeleteButton")
@@ -301,7 +285,7 @@ fun StreamItemScreen(
                         modifier = Modifier.testTag("MoreButton")
                     ) {
                         Icon(
-                            imageVector = if (moreState == CLOSED) Icons.Default.MoreVert else Icons.Default.Close,
+                            imageVector = if (moreState == MoreOptionState.CLOSED) Icons.Default.MoreVert else Icons.Default.Close,
                             contentDescription = stringResource(R.string.add_rtsp_button)
                         )
                     }
@@ -350,7 +334,7 @@ private fun VideoPlayer(
         val rtspViewModel: RTSPVideoPlayerViewModel =
             viewModel ?: hiltViewModel<RTSPVideoPlayerViewModel, RTSPVideoPlayerViewModel.Factory>(
                 creationCallback = { factory ->
-                    factory.create(item.uri, item.forceTcp, { onImageAvailable(item, it) })
+                    factory.create(item.uri, item.forceTcp) { onImageAvailable(item, it) }
                 }
             )
 

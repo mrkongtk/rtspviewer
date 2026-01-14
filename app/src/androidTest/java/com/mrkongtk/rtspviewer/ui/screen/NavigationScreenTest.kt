@@ -34,12 +34,6 @@ import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.io.File
 
-/**
- * Instrumented UI Test for the Navigation Screen.
- *
- * This test verifies the integration between the Navigation, the ViewModels,
- * and the UI components using mocked repositories.
- */
 @RunWith(AndroidJUnit4::class)
 class NavigationScreenTest {
 
@@ -53,18 +47,15 @@ class NavigationScreenTest {
     private lateinit var appBarViewModel: AppBarViewModel
     private lateinit var navController: TestNavHostController
 
-    // State flows to simulate database/cache changes
     private val itemsFlow = MutableStateFlow<List<RTSPItem>>(emptyList())
     private val cachedPreviewsFlow = MutableStateFlow<Map<Long, Bitmap>>(emptyMap())
 
     @Before
     fun setup() {
-        // Setup repository mocks to return our local state flows
         whenever(repository.items).thenReturn(itemsFlow)
         whenever(repository.cachedPreviews).thenReturn(cachedPreviewsFlow)
 
         runBlocking {
-            // Note: repository.loadData() was removed as the VM now observes flows directly
             whenever(repository.addItem(any())).thenReturn(1L)
             whenever(repository.updateItem(any())).thenReturn(1)
             whenever(repository.previewPathFor(any())).thenReturn(File("mock_path"))
@@ -73,7 +64,6 @@ class NavigationScreenTest {
 
         whenever(repository.removeCachedPreviews()).thenAnswer { }
 
-        // Initialize ViewModels with mocked dependencies
         viewModel = AppViewModel(repository, fileRepository)
         appBarViewModel = AppBarViewModel()
     }
@@ -83,7 +73,6 @@ class NavigationScreenTest {
             navController = TestNavHostController(LocalContext.current)
             navController.navigatorProvider.addNavigator(ComposeNavigator())
 
-            // We pass the ViewModels explicitly to bypass Hilt injection in tests
             AppInitialScreen(
                 navController = navController,
                 viewModel = viewModel,
@@ -109,7 +98,7 @@ class NavigationScreenTest {
 
         launchScreen()
 
-        // Verify the stream name is displayed
+        // Verify the stream name is displayed within the list item
         composeTestRule.onNodeWithText("Cam One").assertIsDisplayed()
 
         // Verify the tag chip is displayed
@@ -127,14 +116,14 @@ class NavigationScreenTest {
 
         launchScreen()
 
-        // Initially both are visible in the LazyColumn
+        // Initially both are visible
         composeTestRule.onNodeWithText("Kitchen").assertIsDisplayed()
         composeTestRule.onNodeWithText("Gate").assertIsDisplayed()
 
         // Click the "Outdoor" tag chip
         composeTestRule.onNodeWithTag("Tag Outdoor").performClick()
 
-        // Kitchen should disappear (filtered out), Gate remains
+        // Kitchen should disappear, Gate remains
         composeTestRule.onNodeWithText("Gate").assertIsDisplayed()
         composeTestRule.onNodeWithText("Kitchen").assertDoesNotExist()
 
@@ -150,6 +139,11 @@ class NavigationScreenTest {
         itemsFlow.value = emptyList()
         launchScreen()
 
+        // In your StreamListScreen, AddButton is inside a DropdownMenu
+        // First, click the More button to show the menu
+        composeTestRule.onNodeWithTag("MoreButton").performClick()
+
+        // Now the AddButton should be visible
         composeTestRule.onNodeWithTag("AddButton").performClick()
 
         composeTestRule.waitForIdle()
@@ -165,10 +159,11 @@ class NavigationScreenTest {
         itemsFlow.value = emptyList()
         launchScreen()
 
-        // Navigate to the form
+        // Open Menu and Navigate to Add Screen
+        composeTestRule.onNodeWithTag("MoreButton").performClick()
         composeTestRule.onNodeWithTag("AddButton").performClick()
 
-        // Interact with custom RTSPTextFields using the parent helper
+        // Fill out the form
         onRTSPField("NameTextField").performTextInput("Front Door")
         onRTSPField("UriTextField").performTextInput("rtsp://admin:admin@192.168.1.50")
         onRTSPField("TagsTextField").performTextInput("Home,Security")
@@ -179,27 +174,24 @@ class NavigationScreenTest {
         // Click Save
         composeTestRule.onNodeWithTag("SaveButton").performClick()
 
-        // Verify the repository received the correctly mapped data
+        // Verify the repository call
         runBlocking {
             verify(repository).addItem(org.mockito.kotlin.check { item ->
                 assertEquals("Front Door", item.name)
                 assertEquals("rtsp://admin:admin@192.168.1.50", item.uri)
-                // FieldsValue parses "Home,Security" into a list
+                // Note: repository sanitizes tags, but we check what was sent from the VM
                 assertEquals(listOf("Home", "Security"), item.tags)
                 assertEquals(true, item.forceTcp)
             })
         }
 
-        // Verify we popped back to the start screen
+        // Verify navigation back to Start
         composeTestRule.waitForIdle()
         assertEquals(AppScreen.Start.name, navController.currentBackStackEntry?.destination?.route)
     }
 
     /**
      * Helper to find the actual input field inside the custom RTSPTextField component.
-     *
-     * Because RTSPTextField wraps the OutlinedTextField in a Column, we look for
-     * the tag "RTSPOutlinedTextField" that is a descendant of the specific field's row tag.
      */
     private fun onRTSPField(parentTag: String) = composeTestRule.onNode(
         hasTestTag("RTSPOutlinedTextField") and hasAnyAncestor(hasTestTag(parentTag))

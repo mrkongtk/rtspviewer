@@ -4,8 +4,8 @@ import androidx.activity.ComponentActivity
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import androidx.compose.ui.test.onNodeWithTag
-import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamListScreenActions
 import org.junit.Rule
@@ -16,22 +16,17 @@ import org.mockito.kotlin.verify
 /**
  * UI Test Suite for [StreamListScreen].
  *
- * This test verifies the Unidirectional Data Flow (UDF) by ensuring UI interactions
- * correctly trigger methods in the [StreamListScreenActions] interface.
+ * Verifies empty states, content rendering, tag filtering, and
+ * the transition between navigation mode and sorting mode.
  */
 class StreamListScreenTest {
 
     @get:Rule
     val composeTestRule = createAndroidComposeRule<ComponentActivity>()
 
-    // Mock the actions interface
     private val actions: StreamListScreenActions = mock()
 
-    // -------------------------------------------------------------------------
-    // Sample Data
-    // -------------------------------------------------------------------------
-
-    private val sampleItem1 = RTSPItem(
+    private val sampleItem = RTSPItem(
         id = 1L,
         name = "Front Door",
         uri = "rtsp://192.168.1.50",
@@ -40,21 +35,8 @@ class StreamListScreenTest {
         forceTcp = false
     )
 
-    private val sampleItem2 = RTSPItem(
-        id = 2L,
-        name = "Kitchen",
-        uri = "rtsp://192.168.1.51",
-        tags = listOf("Indoor"),
-        order = 1,
-        forceTcp = true
-    )
-
-    // -------------------------------------------------------------------------
-    // Tests
-    // -------------------------------------------------------------------------
-
     @Test
-    fun streamListScreen_whenListIsEmpty_showsEmptyStateMessage() {
+    fun emptyState_isDisplayed_whenListIsEmpty() {
         composeTestRule.setContent {
             StreamListScreen(
                 itemList = emptyList(),
@@ -65,77 +47,58 @@ class StreamListScreenTest {
             )
         }
 
-        // Verify empty state text defined in the Composable
-        composeTestRule.onNodeWithTag("StreamListScreenEmptyText")
-            .assertIsDisplayed()
-
-        // Verify list container does not exist when empty
-        composeTestRule.onNodeWithTag("LazyColumn")
-            .assertDoesNotExist()
+        // Verify the placeholder text is visible and the list is not
+        composeTestRule.onNodeWithTag("StreamListScreenEmptyText").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("LazyColumn").assertDoesNotExist()
     }
 
     @Test
-    fun streamListScreen_whenListHasItems_showsListAndTags() {
-        val items = listOf(sampleItem1, sampleItem2)
-        val tags = listOf("Outdoor", "Indoor")
-
+    fun content_isDisplayed_whenListHasItems() {
         composeTestRule.setContent {
             StreamListScreen(
-                itemList = items,
+                itemList = listOf(sampleItem),
                 previews = emptyMap(),
-                tags = tags,
+                tags = listOf("Outdoor"),
                 selectedTag = null,
                 screenActions = actions
             )
         }
 
-        // Empty text should be gone
-        composeTestRule.onNodeWithTag("StreamListScreenEmptyText")
-            .assertDoesNotExist()
-
-        // Tag row should be visible
-        composeTestRule.onNodeWithTag("Tags")
-            .assertIsDisplayed()
-
-        // List should be visible
-        composeTestRule.onNodeWithTag("LazyColumn")
-            .assertIsDisplayed()
-
-        // Verify specific item is rendered
-        composeTestRule.onNodeWithTag("StreamListItem: ${sampleItem1.id}")
-            .assertIsDisplayed()
-
-        composeTestRule.onNodeWithText(sampleItem1.name)
-            .assertIsDisplayed()
+        // Verify basic list infrastructure and the item itself
+        composeTestRule.onNodeWithTag("LazyColumn").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("StreamListItem: 1").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("MoreButton").assertIsDisplayed()
     }
 
     @Test
-    fun streamListScreen_whenTagIsClicked_triggersCallback() {
-        val tags = listOf("Outdoor")
+    fun tagSelection_triggersCallback_includingAllTag() {
+        val allLabel = composeTestRule.activity.getString(R.string.tags_all)
 
         composeTestRule.setContent {
             StreamListScreen(
-                itemList = listOf(sampleItem1),
+                itemList = listOf(sampleItem),
                 previews = emptyMap(),
-                tags = tags,
+                tags = listOf("Outdoor"),
                 selectedTag = null,
                 screenActions = actions
             )
         }
 
-        // The UI prepends "All" to the tags list.
-        // We verify that clicking the "Outdoor" tag chip triggers the action.
-        composeTestRule.onNodeWithTag("Tag Outdoor")
-            .performClick()
-
+        // 1. Test clicking a specific custom tag
+        composeTestRule.onNodeWithTag("Tag Outdoor").performClick()
         verify(actions).onTagSelected("Outdoor")
+
+        // 2. Test clicking the "All" tag (index 0)
+        // Note: The implementation uses "Tag $tag", so we match that pattern
+        composeTestRule.onNodeWithTag("Tag $allLabel").performClick()
+        verify(actions).onTagSelected(null)
     }
 
     @Test
-    fun streamListScreen_whenAddButtonIsClicked_triggersCallback() {
+    fun addButton_isAccessible_viaMoreMenu() {
         composeTestRule.setContent {
             StreamListScreen(
-                itemList = emptyList(),
+                itemList = listOf(sampleItem),
                 previews = emptyMap(),
                 tags = emptyList(),
                 selectedTag = null,
@@ -143,17 +106,20 @@ class StreamListScreenTest {
             )
         }
 
-        composeTestRule.onNodeWithTag("AddButton")
-            .performClick()
+        // Open the dropdown menu
+        composeTestRule.onNodeWithTag("MoreButton").performClick()
+
+        // Click Add in the menu
+        composeTestRule.onNodeWithTag("AddButton").assertIsDisplayed().performClick()
 
         verify(actions).onAddItemSelected()
     }
 
     @Test
-    fun streamListScreen_whenItemIsClicked_triggersItemSelectedCallback() {
+    fun sortingMode_toggleLogic() {
         composeTestRule.setContent {
             StreamListScreen(
-                itemList = listOf(sampleItem1),
+                itemList = listOf(sampleItem),
                 previews = emptyMap(),
                 tags = emptyList(),
                 selectedTag = null,
@@ -161,18 +127,31 @@ class StreamListScreenTest {
             )
         }
 
-        // Click the specific item card
-        composeTestRule.onNodeWithTag("StreamListItem: ${sampleItem1.id}")
-            .performClick()
+        // 1. Enter Sorting Mode via Menu
+        composeTestRule.onNodeWithTag("MoreButton").performClick()
+        composeTestRule.onNodeWithTag("SortButton").performClick()
 
-        verify(actions).onItemSelected(sampleItem1)
+        // 2. Verify UI state change: Draggable list replaces standard list
+        composeTestRule.onNodeWithTag("DraggableLazyColumn").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("LazyColumn").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("StreamSortingItem: 1").assertIsDisplayed()
+
+        // 3. Verify the FAB changed its identity to "EndSortingButton"
+        composeTestRule.onNodeWithTag("EndSortingButton").assertIsDisplayed()
+
+        // 4. Exit Sorting Mode
+        composeTestRule.onNodeWithTag("EndSortingButton").performClick()
+
+        // 5. Verify UI reverted to normal listing
+        composeTestRule.onNodeWithTag("LazyColumn").assertIsDisplayed()
+        composeTestRule.onNodeWithTag("DraggableLazyColumn").assertDoesNotExist()
     }
 
     @Test
-    fun streamListScreen_alwaysShowsAddButton() {
+    fun itemClick_triggersNavigation() {
         composeTestRule.setContent {
             StreamListScreen(
-                itemList = listOf(sampleItem1),
+                itemList = listOf(sampleItem),
                 previews = emptyMap(),
                 tags = emptyList(),
                 selectedTag = null,
@@ -180,8 +159,8 @@ class StreamListScreenTest {
             )
         }
 
-        // The FAB (Add Button) should be visible regardless of list content
-        composeTestRule.onNodeWithTag("AddButton")
-            .assertIsDisplayed()
+        // Click the card and verify the action is called
+        composeTestRule.onNodeWithTag("StreamListItem: 1").performClick()
+        verify(actions).onItemSelected(sampleItem)
     }
 }

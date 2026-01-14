@@ -16,10 +16,17 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -27,6 +34,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -42,9 +53,12 @@ import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastForEachIndexed
 import androidx.core.graphics.createBitmap
 import com.mrkongtk.rtspviewer.R
+import com.mrkongtk.rtspviewer.data.MoreOptionState
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.data.not
 import com.mrkongtk.rtspviewer.ui.compose.DraggableLazyColumn
 import com.mrkongtk.rtspviewer.ui.compose.StreamListItem
+import com.mrkongtk.rtspviewer.ui.compose.StreamSortingItem
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamListScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.ErrorColor
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
@@ -82,6 +96,8 @@ fun StreamListScreen(
     selectedTag: String?,
     screenActions: StreamListScreenActions,
 ) {
+    var isSorting by remember { mutableStateOf(false) }
+    var isOptionOpening by remember { mutableStateOf(MoreOptionState.CLOSED) }
 
     if (itemList.isEmpty()) {
         // State 1: Empty - Inform the user there is nothing to show
@@ -99,7 +115,13 @@ fun StreamListScreen(
                 )
             }
         }
-
+    } else if (isSorting) {
+        ReorderItemList(
+            modifier = modifier,
+            itemList = itemList,
+            previews = previews,
+            onItemsReordered = { screenActions.onItemsReordered(it) },
+        )
     } else {
         // State 2: Content - Show tags and the list
         // Prepend the "All" category to the tag list for the UI filter row
@@ -129,24 +151,86 @@ fun StreamListScreen(
 
     // State 3: Overlay - Floating Add Button
     // Wrapped in a Box to ensure it stays on top of the list content
-    Box(modifier = modifier) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(PaddingM),
-            verticalArrangement = Arrangement.Bottom,
-            horizontalAlignment = Alignment.End
-        ) {
-            IconButton(
-                modifier = Modifier.testTag("AddButton"),
-                onClick = { screenActions.onAddItemSelected() },
-                colors = IconButtonDefaults.filledIconButtonColors()
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .padding(PaddingM),
+        contentAlignment = Alignment.BottomEnd
+    ) {
+        Column {
+            DropdownMenu(
+                expanded = isOptionOpening.value,
+                onDismissRequest = { isOptionOpening = MoreOptionState.CLOSED }
             ) {
-                Icon(
-                    imageVector = Icons.Default.Add,
-                    contentDescription = stringResource(R.string.add_rtsp_button)
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.add_rtsp_button)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.Default.Add,
+                            contentDescription = stringResource(R.string.add_rtsp_button)
+                        )
+                    },
+                    onClick = {
+                        isOptionOpening = MoreOptionState.CLOSED
+                        screenActions.onAddItemSelected()
+                    },
+                    modifier = Modifier.testTag("AddButton")
+                )
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.sort_rtsp_button)) },
+                    leadingIcon = {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = stringResource(R.string.sort_rtsp_button)
+                        )
+                    },
+                    onClick = {
+                        isOptionOpening = MoreOptionState.CLOSED
+                        isSorting = true
+                    },
+                    modifier = Modifier.testTag("SortButton")
                 )
             }
+
+            IconButton(
+                onClick = {
+                    if (isSorting) {
+                        isSorting = false
+                    } else {
+                        isOptionOpening = !isOptionOpening
+                    }
+                },
+                colors = IconButtonDefaults.filledIconButtonColors(),
+                modifier = Modifier.testTag(
+                    if (isSorting) {
+                        "EndSortingButton"
+                    } else if (isOptionOpening == MoreOptionState.OPEN) {
+                        "CloseMoreButton"
+                    } else {
+                        "MoreButton"
+                    }
+                )
+            ) {
+                Icon(
+                    imageVector = if (isSorting) {
+                        Icons.Default.Close
+                    } else if (isOptionOpening == MoreOptionState.OPEN) {
+                        Icons.Default.Close
+                    } else {
+                        Icons.Default.MoreVert
+                    },
+                    contentDescription = stringResource(
+                        if (isSorting) {
+                            R.string.description_end_sorting_button
+                        } else if (isOptionOpening == MoreOptionState.OPEN) {
+                            R.string.description_close_button
+                        } else {
+                            R.string.description_more_button
+                        }
+                    )
+                )
+            }
+
         }
     }
 }
@@ -211,20 +295,58 @@ internal fun StreamItemList(
         }
 
         // List Section: Draggable items using custom DraggableLazyColumn
-        DraggableLazyColumn(
+        LazyColumn(
             modifier = Modifier
                 .testTag("LazyColumn")
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(PaddingM),
             // Logic: Show all items if 'All' (index 0) is selected,
             // otherwise perform a fast filter based on the tag string.
-            items = if (selectedTagIndex == 0) {
+        ) {
+            items(
+                if (selectedTagIndex == 0) {
                 itemList
             } else {
                 allTags.getOrNull(selectedTagIndex)?.let { selectedTag ->
                     itemList.fastFilter { it.tags.contains(selectedTag) }
                 } ?: itemList
-            },
+                }) { item ->
+                // Custom item renderer for individual RTSP streams
+                StreamListItem(
+                    data = item,
+                    preview = previews[item.id],
+                    modifier = Modifier
+                        .testTag("StreamListItem: ${item.id}")
+                        .fillMaxWidth()
+                        .padding(horizontal = PaddingM),
+                    onClick = { data -> onItemSelected(data) }
+                )
+            }
+
+        }
+    }
+}
+
+@Composable
+internal fun ReorderItemList(
+    modifier: Modifier,
+    itemList: List<RTSPItem>,
+    previews: Map<Long, Bitmap>,
+    onItemsReordered: (List<RTSPItem>) -> Unit,
+) {
+    Column(
+        modifier = modifier.padding(vertical = PaddingM),
+        verticalArrangement = Arrangement.spacedBy(PaddingM)
+    ) {
+        // List Section: Draggable items using custom DraggableLazyColumn
+        DraggableLazyColumn(
+            modifier = Modifier
+                .testTag("DraggableLazyColumn")
+                .fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(PaddingM),
+            // Logic: Show all items if 'All' (index 0) is selected,
+            // otherwise perform a fast filter based on the tag string.
+            items = itemList,
             onReordered = { reorderedList ->
                 // Normalization: Map the new UI positions back to the 'order' property.
                 // This ensures that the DB reflects exactly what the user sees.
@@ -235,14 +357,13 @@ internal fun StreamItemList(
             }
         ) { itemModifier, item ->
             // Custom item renderer for individual RTSP streams
-            StreamListItem(
+            StreamSortingItem(
                 data = item,
                 preview = previews[item.id],
                 modifier = itemModifier
-                    .testTag("StreamListItem: ${item.id}")
+                    .testTag("StreamSortingItem: ${item.id}")
                     .fillMaxWidth()
                     .padding(horizontal = PaddingM),
-                onClick = { data -> onItemSelected(data) }
             )
         }
     }
