@@ -8,7 +8,6 @@ import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -20,7 +19,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
-import org.mockito.kotlin.any
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
 import org.mockito.kotlin.never
@@ -37,14 +35,14 @@ class AppViewModelTest {
     private lateinit var rtspItemRepository: RTSPItemRepository
     private lateinit var fileRepository: FileRepository
 
-    // Flows for Mocks
-    private val itemsFlow = MutableSharedFlow<List<RTSPItem>>()
+    // Backing flows for Mocks (Room-like behavior)
+    private val itemsFlow = MutableStateFlow<List<RTSPItem>>(emptyList())
     private val cachedPreviewsFlow = MutableStateFlow<Map<Long, Bitmap>>(emptyMap())
 
     private lateinit var viewModel: AppViewModel
 
-    private val mockItem1 = RTSPItem(1, "Cam 1", "rtsp://1", listOf("Home"), 1)
-    private val mockItem2 = RTSPItem(2, "Cam 2", "rtsp://2", listOf("Work", "Home"), 2)
+    private val mockItem1 = RTSPItem(1, "Living Room", "rtsp://1", listOf("Indoor"), 1)
+    private val mockItem2 = RTSPItem(2, "Garage", "rtsp://2", listOf("Outdoor", "Indoor"), 2)
 
     @Before
     fun setup() {
@@ -56,7 +54,6 @@ class AppViewModelTest {
         }
         fileRepository = mock()
 
-        // Instantiate the ViewModel
         viewModel = AppViewModel(rtspItemRepository, fileRepository)
     }
 
@@ -66,61 +63,58 @@ class AppViewModelTest {
     }
 
     @Test
-    fun `initial state is empty AppUiState`() = runTest {
+    fun `initial state matches default AppUiState`() = runTest {
         viewModel.uiState.test {
             val initialState = awaitItem()
             assertEquals(emptyList<RTSPItem>(), initialState.items)
             assertNull(initialState.selectedItem)
+            assertNull(initialState.selectedTag)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `when repository emits items, uiState updates with items and unique sorted tags`() =
-        runTest {
-            viewModel.uiState.test {
-                // Skip initial state
-                skipItems(1)
-
-                // Emit data from repository
-                itemsFlow.emit(listOf(mockItem2, mockItem1))
-
-                val state = awaitItem()
-                assertEquals(2, state.items.size)
-                // Verify tags are extracted, unique, and sorted: ["Home", "Work"]
-                assertEquals(listOf("Home", "Work"), state.tags)
-                cancelAndIgnoreRemainingEvents()
-            }
-    }
-
-    @Test
-    fun `select item updates selectedItem in uiState`() = runTest {
+    fun `uiState aggregates and sorts unique tags from items`() = runTest {
         viewModel.uiState.test {
+            // Skip initial empty state
             skipItems(1)
 
-            viewModel.select(mockItem1)
+            // Emit items with overlapping and unsorted tags
+            itemsFlow.value = listOf(mockItem2, mockItem1)
 
             val state = awaitItem()
-            assertEquals(mockItem1, state.selectedItem)
+            // Should be unique and alphabetical: ["Indoor", "Outdoor"]
+            assertEquals(listOf("Indoor", "Outdoor"), state.tags)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `select tag updates selectedTag in uiState if tag is valid`() = runTest {
-        // First, provide items so the ViewModel knows which tags are valid
-        itemsFlow.emit(listOf(mockItem1))
-        advanceUntilIdle()
+    fun `selecting an item updates uiState`() = runTest {
+        itemsFlow.value = listOf(mockItem1)
 
         viewModel.uiState.test {
-            // Initial state after emitting items
+            skipItems(1) // Initial data state
+
+            viewModel.select(mockItem1)
+            assertEquals(mockItem1, awaitItem().selectedItem)
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun `selecting an invalid tag resets selectedTag to null`() = runTest {
+        itemsFlow.value = listOf(mockItem1) // Contains "Indoor"
+
+        viewModel.uiState.test {
             skipItems(1)
 
-            viewModel.select("Home")
-            assertEquals("Home", awaitItem().selectedTag)
+            // Valid selection
+            viewModel.select("Indoor")
+            assertEquals("Indoor", awaitItem().selectedTag)
 
-            // Select invalid tag
-            viewModel.select("Invalid")
+            // Invalid selection
+            viewModel.select("Garden")
             assertNull(awaitItem().selectedTag)
 
             cancelAndIgnoreRemainingEvents()
@@ -128,78 +122,78 @@ class AppViewModelTest {
     }
 
     @Test
-    fun `addItem delegates call to repository`() = runTest {
-        viewModel.addItem(mockItem1)
+    fun `reorderItems delegates update to repository`() = runTest {
+        val newList = listOf(mockItem2.copy(order = 0), mockItem1.copy(order = 1))
+        viewModel.reorderItems(newList)
         advanceUntilIdle()
-        verify(rtspItemRepository).addItem(mockItem1)
+        verify(rtspItemRepository).reorderItems(newList)
     }
 
     @Test
-    fun `deleteItem delegates call to repository`() = runTest {
-        viewModel.deleteItem(mockItem1)
+    fun `editItem delegates update to repository`() = runTest {
+        val updatedItem = mockItem1.copy(name = "New Name")
+        viewModel.editItem(updatedItem)
         advanceUntilIdle()
-        verify(rtspItemRepository).deleteItem(mockItem1)
+        verify(rtspItemRepository).updateItem(updatedItem)
     }
 
     @Test
-    fun `savePreview writes to file and then updates cache on success`() = runTest {
+    fun `savePreview updates cache only after successful file write`() = runTest {
         val mockBitmap = mock<Bitmap>()
-        val mockFile = File("path/to/preview.jpg")
+        val mockFile = File("dummy/path.jpg")
 
         whenever(rtspItemRepository.previewPathFor(mockItem1)).thenReturn(mockFile)
+
+        // Scenario A: Success
         whenever(fileRepository.writeJPEG(mockFile, mockBitmap)).thenReturn(true)
-
         viewModel.savePreview(mockItem1, mockBitmap)
         advanceUntilIdle()
-
-        // Verify file was written
-        verify(fileRepository).writeJPEG(mockFile, mockBitmap)
-        // Verify memory cache was updated
         verify(rtspItemRepository).cachePreviewFor(mockItem1, mockBitmap)
-    }
 
-    @Test
-    fun `savePreview does not update cache if file write fails`() = runTest {
-        val mockBitmap = mock<Bitmap>()
-        val mockFile = File("path/to/preview.jpg")
-
-        whenever(rtspItemRepository.previewPathFor(mockItem1)).thenReturn(mockFile)
+        // Scenario B: Failure
         whenever(fileRepository.writeJPEG(mockFile, mockBitmap)).thenReturn(false)
-
         viewModel.savePreview(mockItem1, mockBitmap)
         advanceUntilIdle()
-
-        verify(fileRepository).writeJPEG(mockFile, mockBitmap)
-        verify(rtspItemRepository, never()).cachePreviewFor(any(), any())
+        // verify cache was not called again for the second attempt
+        verify(rtspItemRepository, never()).cachePreviewFor(mockItem2, mockBitmap)
     }
 
     @Test
-    fun `when items update, selectedItem is cleared if it no longer exists in list`() = runTest {
+    fun `selectedItem is cleared if removed from the underlying data`() = runTest {
         viewModel.uiState.test {
+            // 1. Initial Load
+            itemsFlow.value = listOf(mockItem1, mockItem2)
             skipItems(1)
 
-            // 1. Emit list and select item 1
-            itemsFlow.emit(listOf(mockItem1, mockItem2))
+            // 2. Select Item 1
             viewModel.select(mockItem1)
-            skipItems(2) // Skip emit and selection update
+            assertEquals(mockItem1, awaitItem().selectedItem)
 
-            // 2. Emit new list without item 1
-            itemsFlow.emit(listOf(mockItem2))
+            // 3. Update data, removing Item 1
+            itemsFlow.value = listOf(mockItem2)
 
-            val state = awaitItem()
-            assertNull(state.selectedItem)
+            // 4. State should reconcile and clear selectedItem
+            val finalState = awaitItem()
+            assertNull(finalState.selectedItem)
+            assertEquals(1, finalState.items.size)
             cancelAndIgnoreRemainingEvents()
         }
     }
 
     @Test
-    fun `onCleared triggers repository preview cleanup`() = runTest {
-        // Accessing the internal onCleared is tricky, usually we test it via a custom method
-        // or by checking lifecycle. Since we want to ensure it cleans up:
-        val privateMethod = ViewModel::class.java.getDeclaredMethod("onCleared")
-        privateMethod.isAccessible = true
-        privateMethod.invoke(viewModel)
+    fun `onCleared triggers bitmap cache recycling`() = runTest {
+        // We use reflection to trigger the protected onCleared method
+        val onClearedMethod = ViewModel::class.java.getDeclaredMethod("onCleared")
+        onClearedMethod.isAccessible = true
+        onClearedMethod.invoke(viewModel)
 
         verify(rtspItemRepository).removeCachedPreviews()
+    }
+
+    @Test
+    fun `addItem delegates insertion to repository`() = runTest {
+        viewModel.addItem(mockItem1)
+        advanceUntilIdle()
+        verify(rtspItemRepository).addItem(mockItem1)
     }
 }

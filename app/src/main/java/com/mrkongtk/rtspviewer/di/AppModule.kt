@@ -30,16 +30,19 @@ object AppModule {
      * This method satisfies dependencies for the repository interface by returning
      * the concrete [RTSPItemRepositoryImpl] implementation.
      *
-     * @param db The [AppDatabase] instance required to access the DAO.
+     * @param context The application context.
+     * @param db The Room database instance.
+     * @param fileRepository The repository used for file operations.
      * @return The concrete implementation of the repository.
      */
     @Provides
     @Singleton
     fun provideRTSPItemRepository(
         @ApplicationContext context: Context,
-        db: AppDatabase
+        db: AppDatabase,
+        fileRepository: FileRepository,
     ): RTSPItemRepository {
-        return RTSPItemRepositoryImpl(context, db)
+        return RTSPItemRepositoryImpl(context, db, fileRepository)
     }
 
     /**

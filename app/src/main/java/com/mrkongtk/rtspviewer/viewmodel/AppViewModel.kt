@@ -9,35 +9,29 @@ import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 /**
- * Central ViewModel responsible for orchestrating the main application logic and UI state.
+ * The primary [ViewModel] for the application, acting as the state holder and coordinator
+ * between the UI and data layers.
  *
- * This class acts as the primary coordinator between the UI layer (Compose) and the data layer
- * (Repositories). It implements the Unidirectional Data Flow (UDF) pattern by exposing a
- * single [uiState] and processing user events to update the underlying data sources.
+ * It follows the Unidirectional Data Flow (UDF) pattern, exposing a single [uiState]
+ * and handling events to modify data via repositories.
  *
- * **Core Responsibilities:**
- * - **State Synchronization:** Automatically reconciles the currently selected stream and active
- *   filters (tags) whenever the underlying database changes. This ensures the UI doesn't
- *   reference deleted items or invalid tags.
- * - **Stream Management:** Provides an interface for CRUD operations (Create, Read, Update, Delete)
- *   on [RTSPItem] entities by delegating to the [rtspItemRepository].
- * - **Tag Logic:** Dynamically aggregates, filters, and sorts unique tags from all stored
- *   streams to drive the horizontal filtering UI.
- * - **Thumbnail & Cache Management:** Coordinates the loading of JPEG previews from the
- *   filesystem into an in-memory bitmap cache for high-performance list rendering.
- * - **User Interaction:** Handles complex UI events such as manual list reordering (Drag & Drop)
- *   and persisting stream snapshots captured from the live player.
+ * **Key Responsibilities:**
+ * - **Reactive State Management:** Combines database items, tags, and selection states into a single UI state.
+ * - **Stream CRUD Operations:** Manages the lifecycle of [RTSPItem] entities.
+ * - **Tag Management:** Aggregates and filters unique tags for the UI.
+ * - **Media Persistence:** Handles saving and caching RTSP stream snapshots (thumbnails).
  *
- * @property rtspItemRepository The Single Source of Truth for stream metadata and
- * in-memory preview caching.
- * @property fileRepository The repository used for atomic filesystem operations, specifically
- * for persisting and retrieving stream snapshots.
+ * @property rtspItemRepository Source of truth for RTSP metadata and in-memory preview caching.
+ * @property fileRepository Handles filesystem I/O for persisting preview images.
  */
 @HiltViewModel
 class AppViewModel @Inject constructor(
@@ -45,69 +39,54 @@ class AppViewModel @Inject constructor(
     private val fileRepository: FileRepository,
 ) : ViewModel() {
 
-    /**
-     * Internal mutable state flow used to track transient UI state.
-     */
-    private val _uiState = MutableStateFlow(AppUiState())
+    private val _selectedTag = MutableStateFlow<String?>(null)
+    private val _selectedItem = MutableStateFlow<RTSPItem?>(null)
 
     /**
-     * Public read-only StateFlow exposed to the UI (Compose/Views).
-     * Any change in the underlying data or selection will trigger a UI recomposition.
+     * The unified UI state for the application.
+     *
+     * Automatically reacts to changes in:
+     * 1. The database [itemList].
+     * 2. The in-memory bitmap cache [cachedPreviews].
+     * 3. User selections ([_selectedItem], [_selectedTag]).
+     *
+     * Includes logic to validate that selections remain valid when the underlying data changes.
      */
-    val uiState: StateFlow<AppUiState> = _uiState
+    val uiState: StateFlow<AppUiState> = combine(
+        rtspItemRepository.items,
+        rtspItemRepository.cachedPreviews,
+        _selectedItem,
+        _selectedTag
+    ) { itemList, cachedPreviews, selectedItem, selectedTag ->
 
-    init {
-        // Observe the list of RTSP items from the repository
-        viewModelScope.launch {
-            rtspItemRepository.items.collect { itemList ->
-                _uiState.update { currentState ->
-                    // 1. Validate currently selected item:
-                    // If the list changed, ensure the selected item still exists in the DB.
-                    val selectedItem = currentState.selectedItem?.let { item ->
-                        itemList.firstOrNull { it.id == item.id }
-                    }
-
-                    // 2. Extract and Sort Tags:
-                    // Collect all unique tags from all items, sort them alphabetically.
-                    val tags = itemList.flatMap { it.tags }.toSortedSet().toList()
-
-                    // 3. Validate selected tag:
-                    // If the current filter tag no longer exists in the new list, reset to null.
-                    val selectedTag = currentState.selectedTag?.let {
-                        if (tags.contains(it)) it else null
-                    }
-
-                    currentState.copy(
-                        items = itemList,
-                        selectedItem = selectedItem,
-                        tags = tags,
-                        selectedTag = selectedTag,
-                    )
-                }
-
-                itemList.forEach { rtspItem ->
-                    val file = rtspItemRepository.previewPathFor(rtspItem)
-                    fileRepository.readJPEG(file)?.let { bitmap ->
-                        rtspItemRepository.cachePreviewFor(rtspItem, bitmap)
-                    }
-                }
-            }
+        // Ensure the selected item still exists in the list (handle deletions)
+        val validItem = selectedItem?.let { item ->
+            itemList.firstOrNull { it.id == item.id }
         }
 
-        // Observe changes to the preview cache (bitmaps)
-        viewModelScope.launch {
-            rtspItemRepository.cachedPreviews.collect { cachedPreviews ->
-                _uiState.update { currentState ->
-                    currentState.copy(cachedPreviews = cachedPreviews)
-                }
-            }
+        // Extract and sort unique tags from all items for the filter UI
+        val tags = itemList.flatMap { it.tags }.toSortedSet().toList()
+
+        // Reset the tag filter if the selected tag no longer exists
+        val validTag = selectedTag?.let {
+            if (tags.contains(it)) it else null
         }
 
-    }
+        AppUiState(
+            items = itemList,
+            selectedItem = validItem,
+            tags = tags,
+            selectedTag = validTag,
+            cachedPreviews = cachedPreviews
+        )
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = AppUiState()
+    )
 
     /**
-     * Cleanup method called when the ViewModel is destroyed.
-     * Clears the in-memory bitmap cache to prevent memory leaks and free up resources.
+     * Clears in-memory preview bitmaps when the ViewModel is destroyed to prevent memory leaks.
      */
     override fun onCleared() {
         super.onCleared()
@@ -115,40 +94,25 @@ class AppViewModel @Inject constructor(
     }
 
     /**
-     * Updates the UI state to reflect the specific RTSP item selected by the user.
-     *
-     * @param rtspItem The [RTSPItem] clicked or selected by the user.
+     * Updates the currently selected RTSP stream.
      */
     fun select(rtspItem: RTSPItem) {
         viewModelScope.launch {
-            _uiState.update { currentState ->
-                currentState.copy(selectedItem = rtspItem)
-            }
+            _selectedItem.update { rtspItem }
         }
     }
 
     /**
-     * Updates the UI state to filter the list by a specific tag.
-     *
-     * @param selectedTag The tag string to filter by. Passing `null` clears the filter.
+     * Updates the active tag filter. Use `null` to clear the filter.
      */
     fun select(selectedTag: String?) {
         viewModelScope.launch {
-            _uiState.update { currentState ->
-                // Only update if the tag actually exists in the current list or if we are clearing it
-                val validTag = selectedTag?.takeIf { currentState.tags.contains(it) }
-                currentState.copy(selectedTag = validTag)
-            }
+            _selectedTag.update { selectedTag }
         }
     }
 
     /**
-     * Asynchronously adds a new RTSP item to the database.
-     *
-     * If the insertion is successful (returns a row ID > 0), it triggers a reload
-     * of the repository data to refresh the UI list.
-     *
-     * @param rtspItem The new [RTSPItem] to be persisted.
+     * Persists a new RTSP item to the database.
      */
     fun addItem(rtspItem: RTSPItem) {
         viewModelScope.launch {
@@ -157,30 +121,19 @@ class AppViewModel @Inject constructor(
     }
 
     /**
-     * Updates the custom sort order of the RTSP items in the database.
-     *
-     * This is typically called when a user drags and drops items in the UI list.
-     * If the update is successful, the data is reloaded to ensure the UI reflects
-     * the persisted order.
-     *
-     * @param items The list of [RTSPItem]s in their new desired order.
+     * Updates the sort order of items in the database.
+     * Usually triggered by a drag-and-drop interaction in the UI.
      */
     fun reorderItems(items: List<RTSPItem>) {
         if (items.isNotEmpty()) {
             viewModelScope.launch {
-                // Returns the number of rows updated; if > 0, refresh the data.
                 rtspItemRepository.reorderItems(items)
             }
         }
     }
 
     /**
-     * Asynchronously updates the details of an existing RTSP item in the database.
-     *
-     * This method is used when users edit properties like the name or URL.
-     * If the update affects the database (result > 0), the repository data is reloaded.
-     *
-     * @param rtspItem The [RTSPItem] containing the updated values.
+     * Updates an existing RTSP item's metadata (e.g., name, URL, or tags).
      */
     fun editItem(rtspItem: RTSPItem) {
         viewModelScope.launch {
@@ -189,12 +142,7 @@ class AppViewModel @Inject constructor(
     }
 
     /**
-     * Asynchronously deletes a specific RTSP item from the database.
-     *
-     * Upon successful deletion, the repository data is reloaded to ensure
-     * the item is removed from the UI list.
-     *
-     * @param rtspItem The [RTSPItem] to be deleted.
+     * Deletes an RTSP item from the database.
      */
     fun deleteItem(rtspItem: RTSPItem) {
         viewModelScope.launch {
@@ -203,21 +151,16 @@ class AppViewModel @Inject constructor(
     }
 
     /**
-     * Persists a snapshot (preview) of an RTSP stream to the file system and updates the cache.
+     * Saves a snapshot of an RTSP stream to disk and updates the in-memory cache.
      *
-     * This method:
-     * 1. Determines the correct file path for the item.
-     * 2. Writes the bitmap to disk via the [FileRepository].
-     * 3. If successful, updates the in-memory cache in [RTSPItemRepository] so the UI updates immediately.
-     *
-     * @param rtspItem The [RTSPItem] associated with the preview.
-     * @param bitmap The image data to save.
+     * @param rtspItem The item the preview belongs to.
+     * @param bitmap The image data to persist.
      */
     fun savePreview(rtspItem: RTSPItem, bitmap: Bitmap) {
         viewModelScope.launch {
             val file = rtspItemRepository.previewPathFor(rtspItem)
             if (fileRepository.writeJPEG(file, bitmap)) {
-                // Update memory cache only after successful file write
+                // Update memory cache only after a successful disk write
                 rtspItemRepository.cachePreviewFor(rtspItem, bitmap)
             }
         }

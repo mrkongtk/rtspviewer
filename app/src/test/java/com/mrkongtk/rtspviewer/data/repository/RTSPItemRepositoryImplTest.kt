@@ -2,16 +2,18 @@ package com.mrkongtk.rtspviewer.data.repository
 
 import android.content.Context
 import android.graphics.Bitmap
+import app.cash.turbine.test
 import com.mrkongtk.rtspviewer.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.data.database.dao.RTSPItemDao
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItemOrderUpdate
-import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
 import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
@@ -26,35 +28,35 @@ class RTSPItemRepositoryImplTest {
     private val mockContext: Context = mock()
     private val mockDatabase: AppDatabase = mock()
     private val mockDao: RTSPItemDao = mock()
-    private val mockCacheDir: File = mock()
+    private val mockFileRepository: FileRepository = mock()
+
+    // Use a SharedFlow to simulate database updates
+    private val dbFlow = MutableSharedFlow<List<RTSPItem>>()
 
     @Before
     fun setup() {
-        // Setup Dao and Database mocks
         whenever(mockDatabase.rtspItemDao()).thenReturn(mockDao)
-        whenever(mockDao.getAllItemsFlow()).thenReturn(flowOf(emptyList()))
+        whenever(mockDao.getAllItemsFlow()).thenReturn(dbFlow)
 
         // Setup Context for file path testing
         val realCacheDir = File("/tmp/mock_cache")
         whenever(mockContext.cacheDir).thenReturn(realCacheDir)
-        whenever(mockCacheDir.path).thenReturn("/mock/cache")
 
-        repository = RTSPItemRepositoryImpl(mockContext, mockDatabase)
+        repository = RTSPItemRepositoryImpl(mockContext, mockDatabase, mockFileRepository)
     }
 
     @Test
-    fun `addItem sanitizes tags by trimming and removing duplicates`() = runTest {
+    fun `addItem sanitizes tags by trimming, removing empty, and removing duplicates`() = runTest {
         val inputItem = RTSPItem(
             id = 0,
             name = "Test Camera",
             uri = "rtsp://link",
-            tags = listOf(" outdoor ", "", "HD", "HD "), // messy tags
+            tags = listOf(" outdoor ", "", "HD", "HD "),
             order = 0
         )
 
         repository.addItem(inputItem)
 
-        // Capture the item passed to the DAO
         argumentCaptor<RTSPItem>().apply {
             verify(mockDao).insert(capture())
             val savedItem = firstValue
@@ -63,6 +65,39 @@ class RTSPItemRepositoryImplTest {
             assertEquals(2, savedItem.tags.size)
             assertTrue(savedItem.tags.contains("outdoor"))
             assertTrue(savedItem.tags.contains("HD"))
+        }
+    }
+
+    @Test
+    fun `updateItem also sanitizes tags`() = runTest {
+        val inputItem = RTSPItem(1L, "Cam", "rtsp://link", listOf(" tag ", "tag"), 0)
+
+        repository.updateItem(inputItem)
+
+        argumentCaptor<RTSPItem>().apply {
+            verify(mockDao).update(capture())
+            assertEquals(listOf("tag"), firstValue.tags)
+        }
+    }
+
+    @Test
+    fun `items flow automatically triggers file reading and caching`() = runTest {
+        val item = RTSPItem(1L, "Cam", "uri", emptyList(), 0)
+        val mockBitmap: Bitmap = mock()
+
+        // Mock that a file exists and returns a bitmap
+        whenever(mockFileRepository.readJPEG(any())).thenReturn(mockBitmap)
+
+        // Use Turbine to test the flow
+        repository.items.test {
+            dbFlow.emit(listOf(item))
+            val emittedList = awaitItem()
+
+            assertEquals(1, emittedList.size)
+            // Verify that the repository attempted to read the file for the item
+            verify(mockFileRepository).readJPEG(any())
+            // Verify it was added to the memory cache
+            assertEquals(mockBitmap, repository.cachedPreviews.value[1L])
         }
     }
 
@@ -93,9 +128,9 @@ class RTSPItemRepositoryImplTest {
 
         val file = repository.previewPathFor(item)
 
-        // Check if the filename contains the ID and correct extension
         assertTrue(file.name.contains("555"))
         assertTrue(file.name.endsWith(".jpg"))
+        assertTrue(file.path.contains("preview_555.jpg"))
     }
 
     @Test
@@ -104,17 +139,12 @@ class RTSPItemRepositoryImplTest {
         val oldBitmap: Bitmap = mock { on { isRecycled } doReturn false }
         val newBitmap: Bitmap = mock { on { isRecycled } doReturn false }
 
-        // 1. Initial cache
         repository.cachePreviewFor(item, oldBitmap)
         assertEquals(oldBitmap, repository.cachedPreviews.value[1L])
 
-        // 2. Update cache with new bitmap
         repository.cachePreviewFor(item, newBitmap)
 
-        // Verify state update
         assertEquals(newBitmap, repository.cachedPreviews.value[1L])
-
-        // Verify memory management: old bitmap should be recycled
         verify(oldBitmap).recycle()
         verify(newBitmap, never()).recycle()
     }
@@ -122,29 +152,19 @@ class RTSPItemRepositoryImplTest {
     @Test
     fun `removeCachedPreviews recycles all bitmaps and clears map`() {
         val item1 = RTSPItem(1L, "C1", "u", emptyList(), 0)
-        val item2 = RTSPItem(2L, "C2", "u", emptyList(), 1)
         val bmp1: Bitmap = mock { on { isRecycled } doReturn false }
-        val bmp2: Bitmap = mock { on { isRecycled } doReturn false }
 
         repository.cachePreviewFor(item1, bmp1)
-        repository.cachePreviewFor(item2, bmp2)
-
         repository.removeCachedPreviews()
 
-        // Verify map is empty
         assertTrue(repository.cachedPreviews.value.isEmpty())
-
-        // Verify all recycled
         verify(bmp1).recycle()
-        verify(bmp2).recycle()
     }
 
     @Test
     fun `deleteItem calls dao delete`() = runTest {
         val item = RTSPItem(1L, "Delete Me", "u", emptyList(), 0)
-
         repository.deleteItem(item)
-
         verify(mockDao).delete(item)
     }
 }

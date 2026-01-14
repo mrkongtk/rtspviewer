@@ -180,14 +180,16 @@ private fun AppInitialScreenPreview() {
         val navController = rememberNavController()
         val context = LocalContext.current
 
+        val fileRepository = FileRepositoryImpl(context)
         // Manual Dependency Injection for Preview stability.
         // This simulates the data layer without hitting the real Android SQLite system.
         val mockViewModel = AppViewModel(
             RTSPItemRepositoryImpl(
                 context,
-                MockAppDatabase()
+                MockAppDatabase(),
+                fileRepository,
             ),
-            FileRepositoryImpl(context),
+            fileRepository,
         )
 
         val mockAppBarViewModel = AppBarViewModel()
