@@ -1,8 +1,10 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
@@ -150,7 +152,7 @@ class AppInitialScreenTest {
     }
 
     @Test
-    fun appInitialScreen_landscape_showsOnlyVideoPlayer() {
+    fun appInitialScreen_portrait_showsOnlyVideoPlayer() {
         // This test simulates the landscape logic in StreamItemScreen
         val itemsFlow = MutableStateFlow(listOf(testItem))
         whenever(mockRepo.items) doReturn itemsFlow
@@ -166,5 +168,44 @@ class AppInitialScreenTest {
         // is visible, and the tag for landscape would be verified in a separate
         // @Config(qualifiers = "land") test if using Robolectric.
         composeTestRule.onNodeWithTag("MoreButton").assertIsDisplayed()
+    }
+
+    @Test
+    fun streamItemScreen_landscape_showsFullscreenVideoAndHidesDetails() {
+        // 1. Prepare data
+        val itemsFlow = MutableStateFlow(listOf(testItem))
+        whenever(mockRepo.items) doReturn itemsFlow
+        appViewModel = AppViewModel(mockRepo, mockFileRepo)
+
+        // 2. Set content with a Mocked Landscape Configuration
+        composeTestRule.setContent {
+            val landscapeConfig = Configuration(LocalConfiguration.current).apply {
+                orientation = Configuration.ORIENTATION_LANDSCAPE
+            }
+
+            CompositionLocalProvider(
+                LocalInspectionMode provides true,
+                LocalConfiguration provides landscapeConfig // This is the key
+            ) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 3. Navigate to the detail screen
+        composeTestRule.onNodeWithTag("StreamListItem: 1").performClick()
+
+        // 4. Assertions for Landscape
+        // Verify landscape-specific video player is shown
+        composeTestRule.onNodeWithTag("VideoPlayerLandscape").assertIsDisplayed()
+
+        // Verify portrait-only elements are NOT displayed
+        composeTestRule.onNodeWithTag("MoreButton").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("Name").assertDoesNotExist()
+        composeTestRule.onNodeWithTag("Uri").assertDoesNotExist()
     }
 }
