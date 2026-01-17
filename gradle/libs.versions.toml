@@ -1,9 +1,9 @@
 [versions]
-agp = "8.13.2"
+agp = "9.0.0"
 googleDaggerHilt = "2.56.2"
 kotlin = "2.2.21"
 kotlinxCoroutinesTest = "1.10.2"
-ksp = "2.2.21-2.0.4" # must match with the kotlin version
+ksp = "2.3.2" # must match with the kotlin version
 coreKtx = "1.17.0"
 junit = "4.13.2"
 junitVersion = "1.3.0"
