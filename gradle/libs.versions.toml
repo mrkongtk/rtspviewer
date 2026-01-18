@@ -20,6 +20,10 @@ media3 = "1.9.0"
 room = "2.8.4"
 turbine = "1.2.1"
 navigationTesting = "2.9.6"
+kotlinStdlib = "2.3.0"
+kotlinTest = "2.3.0"
+runner = "1.7.0"
+core = "1.7.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -53,6 +57,10 @@ androidx-room-room-runtime = { group = "androidx.room", name = "room-runtime", v
 androidx-room-room-compiler = { group = "androidx.room", name = "room-compiler", version.ref ="room" }
 turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
 androidx-navigation-testing = { group = "androidx.navigation", name = "navigation-testing", version.ref = "navigationTesting" }
+kotlin-stdlib = { group = "org.jetbrains.kotlin", name = "kotlin-stdlib", version.ref = "kotlinStdlib" }
+kotlin-test = { group = "org.jetbrains.kotlin", name = "kotlin-test", version.ref = "kotlinTest" }
+androidx-runner = { group = "androidx.test", name = "runner", version.ref = "runner" }
+androidx-core = { group = "androidx.test", name = "core", version.ref = "core" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
@@ -61,4 +69,7 @@ kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "ko
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 google-devtools-ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
 google-dagger-hilt-android = { id = "com.google.dagger.hilt.android", version.ref = "googleDaggerHilt" }
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
+android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "agp" }
+android-lint = { id = "com.android.lint", version.ref = "agp" }
 

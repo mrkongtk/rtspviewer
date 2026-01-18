@@ -21,3 +21,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "RTSPViewer"
 include(":app")
+include(":shared")
