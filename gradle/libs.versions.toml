@@ -1,6 +1,6 @@
 [versions]
 agp = "9.0.0"
-googleDaggerHilt = "2.57.2"
+googleDaggerHilt = "2.58"
 kotlin = "2.3.0"
 kotlinxCoroutinesTest = "1.10.2"
 ksp = "2.3.2" # must match with the kotlin version
