@@ -3,7 +3,6 @@ package com.mrkongtk.rtspviewer
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.systemBars
@@ -30,11 +29,6 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Enables edge-to-edge display, allowing the app to draw behind the system bars
-        // (status bar and navigation bar). Note: We must manually handle insets in the
-        // UI to prevent content from overlapping these bars.
-        enableEdgeToEdge()
-
         setContent {
             // Apply the application's design system/theme to the widget tree
             RTSPViewerTheme {
@@ -54,7 +48,6 @@ class MainActivity : ComponentActivity() {
                     viewModel = viewModel,
                     modifier = Modifier
                         .fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.systemBars)
                 )
             }
         }
