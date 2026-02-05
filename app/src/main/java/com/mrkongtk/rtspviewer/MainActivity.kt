@@ -48,7 +48,6 @@ class MainActivity : ComponentActivity() {
                     viewModel = viewModel,
                     modifier = Modifier
                         .fillMaxSize()
-                        .windowInsetsPadding(WindowInsets.systemBars)
                 )
             }
         }
