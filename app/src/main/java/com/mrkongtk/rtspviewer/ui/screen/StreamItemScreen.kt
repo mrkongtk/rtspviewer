@@ -52,11 +52,14 @@ import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.util.fastForEach
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.MoreOptionState
+import com.mrkongtk.rtspviewer.data.RTSPVideoPlayerPlaybackState
 import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.database.entity.hideCredentialUri
 import com.mrkongtk.rtspviewer.data.not
+import com.mrkongtk.rtspviewer.ui.compose.KeepScreenOn
 import com.mrkongtk.rtspviewer.ui.compose.RTSPVideoPlayer
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
@@ -323,6 +326,10 @@ private fun VideoPlayer(
     // Check if we are in Android Studio Preview mode to avoid Hilt/Native errors
     if (LocalInspectionMode.current) {
         viewModel?.let {
+
+            val state by it.state.collectAsStateWithLifecycle()
+            KeepScreenOn(state.playback == RTSPVideoPlayerPlaybackState.Playing)
+
             RTSPVideoPlayer(viewModel = it, modifier = modifier)
         } ?: run {
             Box(modifier = modifier, contentAlignment = Alignment.Center) {
@@ -337,6 +344,9 @@ private fun VideoPlayer(
                     factory.create(item.uri, item.forceTcp) { onImageAvailable(item, it) }
                 }
             )
+
+        val state by rtspViewModel.state.collectAsStateWithLifecycle()
+        KeepScreenOn(state.playback == RTSPVideoPlayerPlaybackState.Playing)
 
         RTSPVideoPlayer(
             viewModel = rtspViewModel,
