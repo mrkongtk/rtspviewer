@@ -2,7 +2,10 @@ package com.mrkongtk.rtspviewer.ui.theme
 
 import android.content.res.Configuration
 import android.os.Build
+import androidx.activity.ComponentActivity
+import androidx.activity.SystemBarStyle
 import androidx.activity.compose.LocalActivity
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.WindowInsets
@@ -28,29 +31,24 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.core.view.WindowCompat
 
 /**
- * Material Design 3 Dark Color Scheme.
- *
- * This configuration maps the project's specific dark mode color definitions
- * (e.g., [DarkPrimary], [DarkSurface]) to the standard Material 3 semantic slots.
+ * Custom Dark Color Scheme mapping local color tokens to Material 3 semantic slots.
  */
 private val DarkColorScheme = darkColorScheme(
     primary = DarkPrimary,
     onPrimary = DarkOnPrimary,
     primaryContainer = DarkSurface,
     onPrimaryContainer = DarkTextPrimary,
-
     background = DarkBackground,
     onBackground = DarkTextPrimary,
-
     surface = DarkSurface,
     onSurface = DarkTextPrimary,
-
     secondary = DarkSecondary,
     onSecondary = DarkTextSecondary,
-
     error = ErrorColor,
     onError = OnErrorColor,
 )
@@ -81,17 +79,16 @@ private val LightColorScheme = lightColorScheme(
 )
 
 /**
- * The main Theme Composable for the RTSPViewer application.
+ * The application's primary Theme wrapper.
  *
- * This wrapper performs the following responsibilities:
- * 1. **Color Resolution:** Selects between Dynamic (Material You), Dark, or Light schemes.
- * 2. **System UI:** Updates the Status Bar and Navigation Bar colors to match the theme background.
- * 3. **Provider:** Applies the calculated [colorScheme] and [Typography] to the content hierarchy.
+ * It manages:
+ * 1. Dynamic color support (Android 12+).
+ * 2. System UI styling (Status and Navigation bars).
+ * 3. Edge-to-edge display configuration.
  *
- * @param darkTheme Whether to apply the dark color palette. Defaults to the system's global setting.
- * @param dynamicColor Whether to use Material You dynamic colors (derived from wallpaper).
- *                     Only available on Android 12+ (API 31+). Defaults to `false`.
- * @param content The Composable content to render within this theme.
+ * @param darkTheme Forces dark or light mode. Defaults to system preference.
+ * @param dynamicColor Enables Material You wallpaper-based colors (API 31+).
+ * @param content The UI hierarchy to be themed.
  */
 @Composable
 fun RTSPViewerTheme(
@@ -99,27 +96,53 @@ fun RTSPViewerTheme(
     dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
-    // 1. Determine the appropriate ColorScheme based on arguments and OS capabilities
+    // Determine the color palette (Dynamic vs Static)
     val colorScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
-
         darkTheme -> DarkColorScheme
         else -> LightColorScheme
     }
 
-    // 2. Side Effect: Update System Bars (Status/Nav) to match the theme background
-    LocalActivity.current?.window?.let { window ->
-        SideEffect {
-            // Use the background color of the scheme for system bars to ensure seamless UI
-            window.statusBarColor = colorScheme.background.toArgb()
-            window.navigationBarColor = colorScheme.background.toArgb()
+    // Configure System UI and Edge-to-Edge
+    LocalActivity.current?.let { activity ->
+        (activity as? ComponentActivity)?.let { componentActivity ->
+            SideEffect {
+                // Apply edge-to-edge styling with background-aware system bar colors
+                componentActivity.enableEdgeToEdge(
+                    statusBarStyle = if (!darkTheme) {
+                        SystemBarStyle.light(
+                            LightColorScheme.background.toArgb(),
+                            LightColorScheme.background.toArgb()
+                        )
+                    } else {
+                        SystemBarStyle.dark(DarkColorScheme.background.toArgb())
+                    },
+                    navigationBarStyle = if (!darkTheme) {
+                        SystemBarStyle.light(
+                            LightColorScheme.background.toArgb(),
+                            LightColorScheme.background.toArgb()
+                        )
+                    } else {
+                        SystemBarStyle.dark(DarkColorScheme.background.toArgb())
+                    }
+                )
+            }
+        }
+
+        // Adjust system icon contrast (dark icons for light theme, vice-versa)
+        val view = LocalView.current
+        activity.window?.let { window ->
+            SideEffect {
+                val controller = WindowCompat.getInsetsController(window, view)
+                controller.isAppearanceLightStatusBars = !darkTheme
+                controller.isAppearanceLightNavigationBars = !darkTheme
+            }
         }
     }
 
-    // 3. Provide the MaterialTheme to the subtree
     MaterialTheme(
         colorScheme = colorScheme,
         typography = Typography,
