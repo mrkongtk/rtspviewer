@@ -1,7 +1,11 @@
+
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.android.lint)
+
+    alias(libs.plugins.composeMultiplatform)
+    alias(libs.plugins.kotlin.compose)
 }
 
 kotlin {
@@ -60,7 +64,17 @@ kotlin {
         commonMain {
             dependencies {
                 implementation(libs.kotlin.stdlib)
+                implementation(libs.compose.components.resources)
+
                 // Add KMP dependencies here
+                implementation(libs.compose.runtime)
+                implementation(libs.compose.foundation)
+                implementation(libs.compose.material3)
+                implementation(libs.compose.ui)
+                implementation(libs.compose.components.resources)
+                implementation(libs.compose.uiToolingPreview)
+                implementation(libs.androidx.lifecycle.viewmodelCompose)
+                implementation(libs.androidx.lifecycle.runtimeCompose)
             }
         }
 
