@@ -3,9 +3,9 @@ package com.mrkongtk.rtspviewer.viewmodel
 import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import app.cash.turbine.test
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow

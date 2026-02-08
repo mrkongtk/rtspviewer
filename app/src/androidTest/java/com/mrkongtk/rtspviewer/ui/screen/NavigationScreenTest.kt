@@ -16,9 +16,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mrkongtk.rtspviewer.AppScreen
 import com.mrkongtk.rtspviewer.R
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.viewmodel.AppViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

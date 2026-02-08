@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.data.database.entity
+package com.mrkongtk.rtspviewer.shared.data.database.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity

@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.data.database.entity
+package com.mrkongtk.rtspviewer.shared.data.database.entity
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals

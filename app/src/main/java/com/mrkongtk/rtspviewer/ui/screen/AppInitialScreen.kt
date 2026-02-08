@@ -23,9 +23,9 @@ import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rtspviewer.AppScreen
 import com.mrkongtk.rtspviewer.data.AppUiState
 import com.mrkongtk.rtspviewer.data.database.MockAppDatabase
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.repository.FileRepositoryImpl
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepositoryImpl
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.AppBar
 import com.mrkongtk.rtspviewer.ui.screen.action.NavigationScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme

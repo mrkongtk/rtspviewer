@@ -5,7 +5,7 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import com.mrkongtk.rtspviewer.data.database.dao.RTSPItemDao
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import java.net.URLDecoder
 import java.net.URLEncoder
 

@@ -74,6 +74,8 @@ dependencies {
     implementation(libs.androidx.room.room.runtime)
     ksp(libs.androidx.room.room.compiler)
 
+    implementation(project(":shared"))
+
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
 

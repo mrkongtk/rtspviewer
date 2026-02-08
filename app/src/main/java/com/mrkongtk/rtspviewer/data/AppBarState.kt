@@ -2,7 +2,7 @@ package com.mrkongtk.rtspviewer.data
 
 import androidx.annotation.StringRes
 import com.mrkongtk.rtspviewer.AppScreen
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 
 /**
  * Represents the configuration state of the Top App Bar across the application.

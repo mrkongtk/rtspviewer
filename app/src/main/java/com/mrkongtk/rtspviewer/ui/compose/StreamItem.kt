@@ -37,7 +37,7 @@ import androidx.compose.ui.tooling.preview.datasource.LoremIpsum
 import androidx.compose.ui.util.fastForEach
 import androidx.core.graphics.createBitmap
 import com.mrkongtk.rtspviewer.R
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.theme.ErrorColor
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.ui.theme.PaddingS

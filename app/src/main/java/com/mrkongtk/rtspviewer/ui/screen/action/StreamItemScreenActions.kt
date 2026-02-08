@@ -1,7 +1,7 @@
 package com.mrkongtk.rtspviewer.ui.screen.action
 
 import android.graphics.Bitmap
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 
 /**
  * Defines the set of actions available when viewing the details or playback of a specific stream.

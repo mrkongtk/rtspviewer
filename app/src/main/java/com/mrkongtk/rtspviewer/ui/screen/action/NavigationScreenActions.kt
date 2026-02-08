@@ -1,7 +1,7 @@
 package com.mrkongtk.rtspviewer.ui.screen.action
 
 import android.graphics.Bitmap
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 
 /**
  * A top-level delegate that aggregates all possible screen actions within the application.

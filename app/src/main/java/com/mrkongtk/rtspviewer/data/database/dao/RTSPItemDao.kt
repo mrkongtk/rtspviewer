@@ -6,8 +6,8 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItemOrderUpdate
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItemOrderUpdate
 import kotlinx.coroutines.flow.Flow
 
 /**

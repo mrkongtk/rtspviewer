@@ -14,9 +14,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mrkongtk.rtspviewer.R
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.util.formatText
 import com.mrkongtk.rtspviewer.viewmodel.AppBarViewModel

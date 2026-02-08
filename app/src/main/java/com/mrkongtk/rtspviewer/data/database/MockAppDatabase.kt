@@ -2,8 +2,8 @@ package com.mrkongtk.rtspviewer.data.database
 
 import androidx.room.InvalidationTracker
 import com.mrkongtk.rtspviewer.data.database.dao.RTSPItemDao
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItemOrderUpdate
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItemOrderUpdate
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asFlow
 

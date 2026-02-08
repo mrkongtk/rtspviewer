@@ -1,6 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.screen.action
 
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 
 /**
  * Defines the completion actions for the stream configuration form.

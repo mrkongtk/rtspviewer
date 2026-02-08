@@ -4,9 +4,9 @@ import android.graphics.Bitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mrkongtk.rtspviewer.data.AppUiState
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted

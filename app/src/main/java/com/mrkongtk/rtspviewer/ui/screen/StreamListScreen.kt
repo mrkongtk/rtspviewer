@@ -54,8 +54,8 @@ import androidx.compose.ui.util.fastForEachIndexed
 import androidx.core.graphics.createBitmap
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.MoreOptionState
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.data.not
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.DraggableLazyColumn
 import com.mrkongtk.rtspviewer.ui.compose.StreamListItem
 import com.mrkongtk.rtspviewer.ui.compose.StreamSortingItem

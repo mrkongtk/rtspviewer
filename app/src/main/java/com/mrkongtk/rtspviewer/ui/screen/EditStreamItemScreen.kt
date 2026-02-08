@@ -40,7 +40,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.net.toUri
 import com.mrkongtk.rtspviewer.R
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.RTSPTextField
 import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.PaddingM

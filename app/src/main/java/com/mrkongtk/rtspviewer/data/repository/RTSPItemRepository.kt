@@ -1,7 +1,7 @@
 package com.mrkongtk.rtspviewer.data.repository
 
 import android.graphics.Bitmap
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import java.io.File

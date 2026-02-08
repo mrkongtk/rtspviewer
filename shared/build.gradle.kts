@@ -4,8 +4,16 @@ plugins {
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.android.lint)
 
+    alias(libs.plugins.google.devtools.ksp)
+
     alias(libs.plugins.composeMultiplatform)
     alias(libs.plugins.kotlin.compose)
+
+    alias(libs.plugins.androidx.room)
+}
+
+room {
+    schemaDirectory("$projectDir/schemas")
 }
 
 kotlin {
@@ -75,6 +83,8 @@ kotlin {
                 implementation(libs.compose.uiToolingPreview)
                 implementation(libs.androidx.lifecycle.viewmodelCompose)
                 implementation(libs.androidx.lifecycle.runtimeCompose)
+
+                implementation(libs.androidx.room.room.runtime)
             }
         }
 

@@ -2,7 +2,7 @@ package com.mrkongtk.rtspviewer.viewmodel
 
 import app.cash.turbine.test
 import com.mrkongtk.rtspviewer.AppScreen
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.UnconfinedTestDispatcher

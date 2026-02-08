@@ -56,9 +56,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.MoreOptionState
 import com.mrkongtk.rtspviewer.data.RTSPVideoPlayerPlaybackState
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
-import com.mrkongtk.rtspviewer.data.database.entity.hideCredentialUri
 import com.mrkongtk.rtspviewer.data.not
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.hideCredentialUri
 import com.mrkongtk.rtspviewer.ui.compose.KeepScreenOn
 import com.mrkongtk.rtspviewer.ui.compose.RTSPVideoPlayer
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions

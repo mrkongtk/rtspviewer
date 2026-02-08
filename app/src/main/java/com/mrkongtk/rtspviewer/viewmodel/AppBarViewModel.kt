@@ -5,7 +5,7 @@ import androidx.lifecycle.viewModelScope
 import com.mrkongtk.rtspviewer.AppScreen
 import com.mrkongtk.rtspviewer.data.AppBarState
 import com.mrkongtk.rtspviewer.data.AppBarTitle
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map

@@ -1,7 +1,7 @@
 package com.mrkongtk.rtspviewer.data
 
 import android.graphics.Bitmap
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 
 /**
  * Represents the current state of the Application UI.

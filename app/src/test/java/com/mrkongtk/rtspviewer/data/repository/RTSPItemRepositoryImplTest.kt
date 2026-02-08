@@ -5,8 +5,8 @@ import android.graphics.Bitmap
 import app.cash.turbine.test
 import com.mrkongtk.rtspviewer.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.data.database.dao.RTSPItemDao
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItem
-import com.mrkongtk.rtspviewer.data.database.entity.RTSPItemOrderUpdate
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItemOrderUpdate
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
