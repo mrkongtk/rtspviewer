@@ -4,7 +4,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import app.cash.turbine.test
 import com.mrkongtk.rtspviewer.data.database.AppDatabase
-import com.mrkongtk.rtspviewer.data.database.dao.RTSPItemDao
+import com.mrkongtk.rtspviewer.shared.data.database.dao.RTSPItemDao
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItemOrderUpdate
 import kotlinx.coroutines.flow.MutableSharedFlow

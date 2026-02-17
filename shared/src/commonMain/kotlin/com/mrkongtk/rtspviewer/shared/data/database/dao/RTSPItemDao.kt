@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.data.database.dao
+package com.mrkongtk.rtspviewer.shared.data.database.dao
 
 import androidx.room.Dao
 import androidx.room.Delete

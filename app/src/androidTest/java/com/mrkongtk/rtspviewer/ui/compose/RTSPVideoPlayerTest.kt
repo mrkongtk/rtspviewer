@@ -191,7 +191,7 @@ class RTSPVideoPlayerTest {
 
         // Assert: Height = Width / Ratio => 200 / 2 = 100
         assertTrue("Width should match container", bounds.width == containerWidth)
-        assertTrue("Height should be 100dp for 2.0 ratio", bounds.height == 100.dp)
+        assertTrue("Height should be 100dp for 2.0 ratio, but ${bounds.height}", bounds.height == 100.dp)
     }
 
     @Test
