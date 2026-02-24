@@ -2,7 +2,7 @@ package com.mrkongtk.rtspviewer.data.repository
 
 import android.content.Context
 import android.graphics.Bitmap
-import com.mrkongtk.rtspviewer.data.database.AppDatabase
+import com.mrkongtk.rtspviewer.shared.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItemOrderUpdate
 import dagger.hilt.android.qualifiers.ApplicationContext

@@ -84,6 +84,9 @@ kotlin {
                 implementation(libs.androidx.lifecycle.viewmodelCompose)
                 implementation(libs.androidx.lifecycle.runtimeCompose)
 
+                implementation(libs.org.jetbrains.kotlinx.kotlinx.serialization.json)
+
+                // database
                 implementation(libs.androidx.room.room.runtime)
             }
         }
@@ -91,6 +94,8 @@ kotlin {
         commonTest {
             dependencies {
                 implementation(libs.kotlin.test)
+                implementation(libs.kotlinx.coroutines.test)
+                implementation(libs.turbine)
             }
         }
 
@@ -107,6 +112,7 @@ kotlin {
                 implementation(libs.androidx.runner)
                 implementation(libs.androidx.core)
                 implementation(libs.androidx.junit)
+                implementation(libs.androidx.room.testing)
             }
         }
 
@@ -121,4 +127,8 @@ kotlin {
         }
     }
 
+}
+
+dependencies {
+    ksp(libs.androidx.room.room.compiler)
 }

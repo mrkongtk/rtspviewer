@@ -2,7 +2,7 @@ package com.mrkongtk.rtspviewer.di
 
 import android.content.Context
 import androidx.room.Room
-import com.mrkongtk.rtspviewer.data.database.AppDatabase
+import com.mrkongtk.rtspviewer.shared.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.FileRepositoryImpl
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
