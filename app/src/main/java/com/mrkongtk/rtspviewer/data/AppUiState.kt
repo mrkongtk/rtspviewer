@@ -1,6 +1,7 @@
 package com.mrkongtk.rtspviewer.data
 
 import android.graphics.Bitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 
 /**
@@ -17,7 +18,7 @@ import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 data class AppUiState(
     val items: List<RTSPItem> = emptyList(),
     val selectedItem: RTSPItem? = null,
-    val cachedPreviews: Map<Long, Bitmap> = emptyMap(),
+    val cachedPreviews: Map<Long, ImageBitmap> = emptyMap(),
     val tags: List<String> = emptyList(),
     val selectedTag: String? = null,
 )

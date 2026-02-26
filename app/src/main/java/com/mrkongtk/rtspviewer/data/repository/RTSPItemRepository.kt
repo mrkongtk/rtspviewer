@@ -1,6 +1,7 @@
 package com.mrkongtk.rtspviewer.data.repository
 
 import android.graphics.Bitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
@@ -33,7 +34,7 @@ interface RTSPItemRepository {
      * This allows the UI to render thumbnails instantly during list scrolling
      * without triggering expensive disk I/O.
      */
-    val cachedPreviews: StateFlow<Map<Long, Bitmap>>
+    val cachedPreviews: StateFlow<Map<Long, ImageBitmap>>
 
     /**
      * Persists a new RTSP stream configuration.
@@ -93,7 +94,7 @@ interface RTSPItemRepository {
      * @param item The stream associated with the snapshot.
      * @param bitmap The new image data to cache.
      */
-    fun cachePreviewFor(item: RTSPItem, bitmap: Bitmap)
+    fun cachePreviewFor(item: RTSPItem, bitmap: ImageBitmap)
 
     /**
      * Invalidates the memory cache and releases all held [Bitmap] resources.

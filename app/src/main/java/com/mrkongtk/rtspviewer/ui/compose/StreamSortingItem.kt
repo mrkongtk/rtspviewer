@@ -16,6 +16,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,7 +44,7 @@ import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 fun StreamSortingItem(
     modifier: Modifier = Modifier,
     data: RTSPItem,
-    preview: Bitmap?,
+    preview: ImageBitmap?,
 ) {
     StreamItem(
         modifier = modifier,
@@ -99,7 +101,7 @@ private fun StreamSortingItemPreview() {
                 val canvas = Canvas(it)
                 canvas.drawColor(ErrorColor.toArgb()) // Using ErrorColor as a placeholder fill
                 it
-            }
+            }.asImageBitmap()
 
             // 2. Generate a list of clean strings from LoremIpsum to simulate stream tags
             val lorem = (LoremIpsum(100).values.toList().firstOrNull() ?: "")

@@ -2,7 +2,6 @@ package com.mrkongtk.rtspviewer.ui.screen
 
 import android.annotation.SuppressLint
 import android.content.res.Configuration
-import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -12,6 +11,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
@@ -23,7 +23,6 @@ import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rtspviewer.AppScreen
 import com.mrkongtk.rtspviewer.data.AppUiState
 import com.mrkongtk.rtspviewer.data.database.MockAppDatabase
-import com.mrkongtk.rtspviewer.data.repository.FileRepositoryImpl
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepositoryImpl
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.AppBar
@@ -131,7 +130,7 @@ fun AppInitialScreen(
 
             override fun onImageAvailable(
                 item: RTSPItem,
-                snapshot: Bitmap
+                snapshot: ImageBitmap
             ) {
                 viewModel.savePreview(item, snapshot)
             }
@@ -179,17 +178,14 @@ private fun AppInitialScreenPreview() {
     RTSPViewerTheme {
         val navController = rememberNavController()
         val context = LocalContext.current
-
-        val fileRepository = FileRepositoryImpl(context)
+        
         // Manual Dependency Injection for Preview stability.
         // This simulates the data layer without hitting the real Android SQLite system.
         val mockViewModel = AppViewModel(
             RTSPItemRepositoryImpl(
                 context,
                 MockAppDatabase(),
-                fileRepository,
-            ),
-            fileRepository,
+            )
         )
 
         val mockAppBarViewModel = AppBarViewModel()

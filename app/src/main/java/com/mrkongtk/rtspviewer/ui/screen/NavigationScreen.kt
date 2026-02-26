@@ -1,7 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
 import android.content.res.Configuration
-import android.graphics.Bitmap
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -10,6 +9,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
@@ -114,7 +114,7 @@ fun NavigationScreen(
 
                 override fun onImageAvailable(
                     item: RTSPItem,
-                    bitmap: Bitmap
+                    bitmap: ImageBitmap
                 ) {
                     screenActions.onImageAvailable(item, bitmap)
                 }
@@ -250,7 +250,7 @@ private fun NavigationScreenPreview(
 
                     override fun onImageAvailable(
                         item: RTSPItem,
-                        snapshot: Bitmap
+                        snapshot: ImageBitmap
                     ) {
                     }
 

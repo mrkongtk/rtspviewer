@@ -1,11 +1,11 @@
 package com.mrkongtk.rtspviewer.viewmodel
 
-import android.graphics.Bitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import app.cash.turbine.test
-import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,6 +14,7 @@ import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import okio.Path.Companion.toOkioPath
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -37,7 +38,7 @@ class AppViewModelTest {
 
     // Backing flows for Mocks (Room-like behavior)
     private val itemsFlow = MutableStateFlow<List<RTSPItem>>(emptyList())
-    private val cachedPreviewsFlow = MutableStateFlow<Map<Long, Bitmap>>(emptyMap())
+    private val cachedPreviewsFlow = MutableStateFlow<Map<Long, ImageBitmap>>(emptyMap())
 
     private lateinit var viewModel: AppViewModel
 
@@ -54,7 +55,7 @@ class AppViewModelTest {
         }
         fileRepository = mock()
 
-        viewModel = AppViewModel(rtspItemRepository, fileRepository)
+        viewModel = AppViewModel(rtspItemRepository)
     }
 
     @After
@@ -139,19 +140,19 @@ class AppViewModelTest {
 
     @Test
     fun `savePreview updates cache only after successful file write`() = runTest {
-        val mockBitmap = mock<Bitmap>()
+        val mockBitmap = mock<ImageBitmap>()
         val mockFile = File("dummy/path.jpg")
 
         whenever(rtspItemRepository.previewPathFor(mockItem1)).thenReturn(mockFile)
 
         // Scenario A: Success
-        whenever(fileRepository.writeJPEG(mockFile, mockBitmap)).thenReturn(true)
+        whenever(fileRepository.writeJPEG(mockFile.toOkioPath(), mockBitmap)).thenReturn(true)
         viewModel.savePreview(mockItem1, mockBitmap)
         advanceUntilIdle()
         verify(rtspItemRepository).cachePreviewFor(mockItem1, mockBitmap)
 
         // Scenario B: Failure
-        whenever(fileRepository.writeJPEG(mockFile, mockBitmap)).thenReturn(false)
+        whenever(fileRepository.writeJPEG(mockFile.toOkioPath(), mockBitmap)).thenReturn(false)
         viewModel.savePreview(mockItem1, mockBitmap)
         advanceUntilIdle()
         // verify cache was not called again for the second attempt

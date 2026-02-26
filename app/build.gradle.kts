@@ -75,6 +75,9 @@ dependencies {
     ksp(libs.androidx.room.room.compiler)
 
     implementation(project(":shared"))
+    implementation(libs.koin.android)
+    // path
+    implementation(libs.okio)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
@@ -83,6 +86,7 @@ dependencies {
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(libs.androidx.compose.ui.graphics)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -92,5 +96,6 @@ dependencies {
     androidTestImplementation(libs.mockito.core)
     androidTestImplementation(libs.mockito.kotlin)
     androidTestImplementation(libs.mockito.android)
+    testImplementation(libs.androidx.compose.ui.graphics)
 
 }

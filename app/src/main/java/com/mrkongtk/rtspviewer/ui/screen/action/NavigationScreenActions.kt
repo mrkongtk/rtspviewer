@@ -1,6 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.screen.action
 
-import android.graphics.Bitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 
 /**
@@ -27,7 +27,7 @@ interface NavigationScreenActions {
     fun onDeleteItemRequested(deleteItem: RTSPItem)
 
     /** Maps to the file-system persistence of a captured stream thumbnail. */
-    fun onImageAvailable(item: RTSPItem, snapshot: Bitmap)
+    fun onImageAvailable(item: RTSPItem, snapshot: ImageBitmap)
 
     /** Maps to updating the global UI filter state. */
     fun onTagSelected(tag: String?)

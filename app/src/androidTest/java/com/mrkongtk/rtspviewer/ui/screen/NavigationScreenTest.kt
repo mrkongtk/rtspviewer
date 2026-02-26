@@ -1,6 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
-import android.graphics.Bitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.hasAnyAncestor
@@ -16,9 +16,9 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mrkongtk.rtspviewer.AppScreen
 import com.mrkongtk.rtspviewer.R
-import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.viewmodel.AppViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,7 +48,7 @@ class NavigationScreenTest {
     private lateinit var navController: TestNavHostController
 
     private val itemsFlow = MutableStateFlow<List<RTSPItem>>(emptyList())
-    private val cachedPreviewsFlow = MutableStateFlow<Map<Long, Bitmap>>(emptyMap())
+    private val cachedPreviewsFlow = MutableStateFlow<Map<Long, ImageBitmap>>(emptyMap())
 
     @Before
     fun setup() {
@@ -64,7 +64,7 @@ class NavigationScreenTest {
 
         whenever(repository.removeCachedPreviews()).thenAnswer { }
 
-        viewModel = AppViewModel(repository, fileRepository)
+        viewModel = AppViewModel(repository)
         appBarViewModel = AppBarViewModel()
     }
 

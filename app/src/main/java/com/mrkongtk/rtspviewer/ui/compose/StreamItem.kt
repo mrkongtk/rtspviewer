@@ -28,6 +28,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
@@ -64,7 +65,7 @@ import com.mrkongtk.rtspviewer.util.formatText
 fun StreamItem(
     modifier: Modifier = Modifier,
     data: RTSPItem,
-    preview: Bitmap?,
+    preview: ImageBitmap?,
     icon: @Composable () -> Unit,
     onClick: (RTSPItem) -> Unit,
 ) {
@@ -97,7 +98,7 @@ fun StreamItem(
                         // and prevent "squashing" or "stretching" regardless of camera resolution.
                         .aspectRatio(it.width.toFloat() / it.height.toFloat())
                         .clip(RoundedCornerShape(RoundedCornerSize)),
-                    bitmap = it.asImageBitmap(),
+                    bitmap = it,
                     contentDescription = stringResource(
                         R.string.rtsp_item_preview_description
                     ).formatText(data.name)
@@ -197,7 +198,7 @@ private fun StreamItemPreview() {
                 val canvas = Canvas(it)
                 canvas.drawColor(ErrorColor.toArgb()) // Use a distinct color for visual confirmation
                 it
-            }
+            }.asImageBitmap()
 
             // Generate a list of random strings to simulate camera tags
             val lorem = (LoremIpsum(100).values.toList().firstOrNull() ?: "")

@@ -1,6 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.screen.action
 
-import android.graphics.Bitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 
 /**
@@ -25,5 +25,5 @@ interface StreamItemScreenActions {
      * @param item The [RTSPItem] associated with the snapshot.
      * @param bitmap The captured video frame to be used for thumbnails or previews.
      */
-    fun onImageAvailable(item: RTSPItem, bitmap: Bitmap)
+    fun onImageAvailable(item: RTSPItem, bitmap: ImageBitmap)
 }

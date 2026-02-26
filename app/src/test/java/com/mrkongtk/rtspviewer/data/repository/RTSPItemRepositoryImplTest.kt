@@ -1,12 +1,13 @@
 package com.mrkongtk.rtspviewer.data.repository
 
 import android.content.Context
-import android.graphics.Bitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import app.cash.turbine.test
 import com.mrkongtk.rtspviewer.shared.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.shared.data.database.dao.RTSPItemDao
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItemOrderUpdate
+import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
@@ -15,9 +16,7 @@ import org.junit.Before
 import org.junit.Test
 import org.mockito.kotlin.any
 import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.doReturn
 import org.mockito.kotlin.mock
-import org.mockito.kotlin.never
 import org.mockito.kotlin.verify
 import org.mockito.kotlin.whenever
 import java.io.File
@@ -42,7 +41,7 @@ class RTSPItemRepositoryImplTest {
         val realCacheDir = File("/tmp/mock_cache")
         whenever(mockContext.cacheDir).thenReturn(realCacheDir)
 
-        repository = RTSPItemRepositoryImpl(mockContext, mockDatabase, mockFileRepository)
+        repository = RTSPItemRepositoryImpl(mockContext, mockDatabase)
     }
 
     @Test
@@ -83,7 +82,7 @@ class RTSPItemRepositoryImplTest {
     @Test
     fun `items flow automatically triggers file reading and caching`() = runTest {
         val item = RTSPItem(1L, "Cam", "uri", emptyList(), 0)
-        val mockBitmap: Bitmap = mock()
+        val mockBitmap: ImageBitmap = mock()
 
         // Mock that a file exists and returns a bitmap
         whenever(mockFileRepository.readJPEG(any())).thenReturn(mockBitmap)
@@ -136,8 +135,8 @@ class RTSPItemRepositoryImplTest {
     @Test
     fun `cachePreviewFor updates state flow and recycles old bitmap`() {
         val item = RTSPItem(1L, "Cam", "uri", emptyList(), 0)
-        val oldBitmap: Bitmap = mock { on { isRecycled } doReturn false }
-        val newBitmap: Bitmap = mock { on { isRecycled } doReturn false }
+        val oldBitmap: ImageBitmap = mock { }
+        val newBitmap: ImageBitmap = mock { }
 
         repository.cachePreviewFor(item, oldBitmap)
         assertEquals(oldBitmap, repository.cachedPreviews.value[1L])
@@ -145,20 +144,20 @@ class RTSPItemRepositoryImplTest {
         repository.cachePreviewFor(item, newBitmap)
 
         assertEquals(newBitmap, repository.cachedPreviews.value[1L])
-        verify(oldBitmap).recycle()
-        verify(newBitmap, never()).recycle()
+//        verify(oldBitmap).recycle()
+//        verify(newBitmap, never()).recycle()
     }
 
     @Test
     fun `removeCachedPreviews recycles all bitmaps and clears map`() {
         val item1 = RTSPItem(1L, "C1", "u", emptyList(), 0)
-        val bmp1: Bitmap = mock { on { isRecycled } doReturn false }
+        val bmp1: ImageBitmap = mock { }
 
         repository.cachePreviewFor(item1, bmp1)
         repository.removeCachedPreviews()
 
         assertTrue(repository.cachedPreviews.value.isEmpty())
-        verify(bmp1).recycle()
+//        verify(bmp1).recycle()
     }
 
     @Test

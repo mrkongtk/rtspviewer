@@ -2,8 +2,8 @@ package com.mrkongtk.rtspviewer.ui.screen
 
 import android.content.Context
 import android.content.res.Configuration
-import android.graphics.Bitmap
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.assertIsDisplayed
@@ -14,9 +14,9 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.test.platform.app.InstrumentationRegistry
 import com.mrkongtk.rtspviewer.R
-import com.mrkongtk.rtspviewer.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.util.formatText
 import com.mrkongtk.rtspviewer.viewmodel.AppBarViewModel
@@ -54,9 +54,9 @@ class AppInitialScreenTest {
     fun setup() {
         // Initialize with empty states to prevent null pointer exceptions in ViewModels
         whenever(mockRepo.items) doReturn MutableStateFlow(emptyList())
-        whenever(mockRepo.cachedPreviews) doReturn MutableStateFlow(emptyMap<Long, Bitmap>())
+        whenever(mockRepo.cachedPreviews) doReturn MutableStateFlow(emptyMap<Long, ImageBitmap>())
 
-        appViewModel = AppViewModel(mockRepo, mockFileRepo)
+        appViewModel = AppViewModel(mockRepo)
         appBarViewModel = AppBarViewModel()
     }
 
@@ -115,7 +115,7 @@ class AppInitialScreenTest {
         whenever(mockRepo.items) doReturn itemsFlow
 
         // Re-initialize ViewModel to pick up the new flow
-        appViewModel = AppViewModel(mockRepo, mockFileRepo)
+        appViewModel = AppViewModel(mockRepo)
 
         setTestContent()
 
@@ -156,7 +156,7 @@ class AppInitialScreenTest {
         // This test simulates the landscape logic in StreamItemScreen
         val itemsFlow = MutableStateFlow(listOf(testItem))
         whenever(mockRepo.items) doReturn itemsFlow
-        appViewModel = AppViewModel(mockRepo, mockFileRepo)
+        appViewModel = AppViewModel(mockRepo)
 
         setTestContent()
 
@@ -175,7 +175,7 @@ class AppInitialScreenTest {
         // 1. Prepare data
         val itemsFlow = MutableStateFlow(listOf(testItem))
         whenever(mockRepo.items) doReturn itemsFlow
-        appViewModel = AppViewModel(mockRepo, mockFileRepo)
+        appViewModel = AppViewModel(mockRepo)
 
         // 2. Set content with a Mocked Landscape Configuration
         composeTestRule.setContent {

@@ -2,15 +2,20 @@ package com.mrkongtk.rtspviewer.data.repository
 
 import android.content.Context
 import android.graphics.Bitmap
+import androidx.compose.ui.graphics.ImageBitmap
 import com.mrkongtk.rtspviewer.shared.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItemOrderUpdate
+import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
+import okio.Path.Companion.toOkioPath
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.inject
 import java.io.File
 import javax.inject.Inject
 
@@ -29,8 +34,9 @@ import javax.inject.Inject
 class RTSPItemRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
     private val db: AppDatabase,
-    private val fileRepository: FileRepository,
-) : RTSPItemRepository {
+) : RTSPItemRepository, KoinComponent {
+
+    private val fileRepository: FileRepository by inject()
 
     /**
      * A stream of all RTSP items.
@@ -41,7 +47,7 @@ class RTSPItemRepositoryImpl @Inject constructor(
     override val items: Flow<List<RTSPItem>> = db.rtspItemDao().getAllItemsFlow()
         .onEach { itemList ->
             itemList.forEach { rtspItem ->
-                val file = previewPathFor(rtspItem)
+                val file = previewPathFor(rtspItem).toOkioPath()
                 fileRepository.readJPEG(file)?.let { bitmap ->
                     cachePreviewFor(rtspItem, bitmap)
                 }
@@ -51,13 +57,13 @@ class RTSPItemRepositoryImpl @Inject constructor(
     /**
      * Internal state for the bitmap cache to prevent repeated disk reads.
      */
-    private val _cachedPreviews = MutableStateFlow<Map<Long, Bitmap>>(emptyMap())
+    private val _cachedPreviews = MutableStateFlow<Map<Long, ImageBitmap>>(emptyMap())
 
     /**
      * Reactive map of cached bitmaps keyed by [RTSPItem.id].
      * Observe this to display stream thumbnails without blocking the UI thread.
      */
-    override val cachedPreviews: StateFlow<Map<Long, Bitmap>> = _cachedPreviews
+    override val cachedPreviews: StateFlow<Map<Long, ImageBitmap>> = _cachedPreviews
 
     /**
      * Persists a new [RTSPItem] after sanitizing tags.
@@ -124,15 +130,11 @@ class RTSPItemRepositoryImpl @Inject constructor(
      * If an old bitmap is replaced, it is explicitly [Bitmap.recycle]'d
      * to prevent native memory leaks.
      */
-    override fun cachePreviewFor(item: RTSPItem, bitmap: Bitmap) {
+    override fun cachePreviewFor(item: RTSPItem, bitmap: ImageBitmap) {
         _cachedPreviews.update { currentMap ->
             val newMap = currentMap.toMutableMap()
             // Explicitly recycle the old bitmap if it's no longer used
-            newMap.put(item.id, bitmap)?.let { oldBitmap ->
-                if (oldBitmap != bitmap && !oldBitmap.isRecycled) {
-                    oldBitmap.recycle()
-                }
-            }
+            newMap[item.id] = bitmap
             newMap.toMap()
         }
     }
@@ -142,12 +144,7 @@ class RTSPItemRepositoryImpl @Inject constructor(
      * Should be called during high-memory pressure or when the UI is backgrounded.
      */
     override fun removeCachedPreviews() {
-        _cachedPreviews.update { currentMap ->
-            currentMap.values.forEach { bitmap ->
-                if (!bitmap.isRecycled) {
-                    bitmap.recycle()
-                }
-            }
+        _cachedPreviews.update { _ ->
             emptyMap()
         }
     }

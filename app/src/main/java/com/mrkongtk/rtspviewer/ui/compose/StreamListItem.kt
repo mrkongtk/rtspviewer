@@ -16,6 +16,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
@@ -42,7 +44,7 @@ import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 fun StreamListItem(
     modifier: Modifier = Modifier,
     data: RTSPItem,
-    preview: Bitmap?,
+    preview: ImageBitmap?,
     onClick: (RTSPItem) -> Unit,
 ) {
     StreamItem(
@@ -97,7 +99,7 @@ private fun StreamListItemPreview() {
                 val canvas = Canvas(it)
                 canvas.drawColor(ErrorColor.toArgb())
                 it
-            }
+            }.asImageBitmap()
 
             // --- Mock Setup: Tags ---
             // Generate a list of clean strings from LoremIpsum for tag testing

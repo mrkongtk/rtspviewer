@@ -41,6 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
@@ -85,7 +87,7 @@ import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 fun StreamListScreen(
     modifier: Modifier = Modifier,
     itemList: List<RTSPItem>,
-    previews: Map<Long, Bitmap>,
+    previews: Map<Long, ImageBitmap>,
     tags: List<String>,
     selectedTag: String?,
     screenActions: StreamListScreenActions,
@@ -212,7 +214,7 @@ internal fun StreamItemList(
     allTags: List<String>,
     selectedTagIndex: Int,
     itemList: List<RTSPItem>,
-    previews: Map<Long, Bitmap>,
+    previews: Map<Long, ImageBitmap>,
     onTagSelected: (Int) -> Unit,
     onItemsReordered: (List<RTSPItem>) -> Unit,
     onItemSelected: (RTSPItem) -> Unit
@@ -291,7 +293,7 @@ internal fun StreamItemList(
 internal fun ReorderItemList(
     modifier: Modifier,
     itemList: List<RTSPItem>,
-    previews: Map<Long, Bitmap>,
+    previews: Map<Long, ImageBitmap>,
     onItemsReordered: (List<RTSPItem>) -> Unit,
 ) {
     Column(
@@ -350,7 +352,7 @@ private fun StreamListScreenPreview(@PreviewParameter(StreamListScreenPreviewPar
             // Generate a dummy bitmap placeholder for preview purposes
             val bmp = createBitmap(1920, 1080).apply {
                 Canvas(this).drawColor(ErrorColor.toArgb())
-            }
+            }.asImageBitmap()
             val mockPreviews = mapOf(1L to bmp, 4L to bmp)
 
             StreamListScreen(

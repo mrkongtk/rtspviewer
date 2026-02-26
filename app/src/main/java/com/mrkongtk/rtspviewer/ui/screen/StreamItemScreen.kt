@@ -1,7 +1,6 @@
 package com.mrkongtk.rtspviewer.ui.screen
 
 import android.content.res.Configuration
-import android.graphics.Bitmap
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -42,6 +41,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.testTag
@@ -321,7 +322,7 @@ private fun VideoPlayer(
     modifier: Modifier = Modifier,
     item: RTSPItem,
     viewModel: RTSPVideoPlayerViewModel? = null,
-    onImageAvailable: (RTSPItem, Bitmap) -> Unit,
+    onImageAvailable: (RTSPItem, ImageBitmap) -> Unit,
 ) {
     // Check if we are in Android Studio Preview mode to avoid Hilt/Native errors
     if (LocalInspectionMode.current) {
@@ -341,7 +342,12 @@ private fun VideoPlayer(
         val rtspViewModel: RTSPVideoPlayerViewModel =
             viewModel ?: hiltViewModel<RTSPVideoPlayerViewModel, RTSPVideoPlayerViewModel.Factory>(
                 creationCallback = { factory ->
-                    factory.create(item.uri, item.forceTcp) { onImageAvailable(item, it) }
+                    factory.create(item.uri, item.forceTcp) {
+                        onImageAvailable(
+                            item,
+                            it.asImageBitmap()
+                        )
+                    }
                 }
             )
 
@@ -455,7 +461,7 @@ private fun StreamItemScreenPreview(
                 screenActions = object : StreamItemScreenActions {
                     override fun onEditItemSelected() {}
                     override fun onDeleteItemSelected() {}
-                    override fun onImageAvailable(item: RTSPItem, bitmap: Bitmap) {}
+                    override fun onImageAvailable(item: RTSPItem, bitmap: ImageBitmap) {}
                 },
             )
         }
