@@ -88,6 +88,14 @@ kotlin {
 
                 // database
                 implementation(libs.androidx.room.room.runtime)
+
+                // di
+                implementation(project.dependencies.platform(libs.koin.bom))
+                implementation(libs.koin.core)
+                implementation(libs.koin.compose)
+                implementation(libs.koin.compose.viewmodel)
+                // path
+                implementation(libs.okio)
             }
         }
 
@@ -96,6 +104,7 @@ kotlin {
                 implementation(libs.kotlin.test)
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.turbine)
+                implementation(libs.koin.test)
             }
         }
 
@@ -104,6 +113,7 @@ kotlin {
                 // Add Android-specific dependencies here. Note that this source set depends on
                 // commonMain by default and will correctly pull the Android artifacts of any KMP
                 // dependencies declared in commonMain.
+                implementation(libs.koin.android)
             }
         }
 
