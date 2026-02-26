@@ -37,25 +37,8 @@ object AppModule {
     @Singleton
     fun provideRTSPItemRepository(
         @ApplicationContext context: Context,
-        db: AppDatabase
     ): RTSPItemRepository {
-        return RTSPItemRepositoryImpl(context, db)
-    }
-
-    /**
-     * Provides a singleton instance of the [AppDatabase].
-     *
-     * This method initializes the Room database with the name "RTSP_Viewer_database".
-     *
-     * @param context The application context provided by Hilt, used to create the database builder.
-     * @return The built Room database instance.
-     */
-    @Provides
-    @Singleton
-    fun provideAppDatabase(@ApplicationContext context: Context): AppDatabase {
-        return Room
-            .databaseBuilder(context, AppDatabase::class.java, "RTSP_Viewer_database")
-            .build()
+        return RTSPItemRepositoryImpl(context)
     }
 
 }

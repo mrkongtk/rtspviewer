@@ -241,9 +241,11 @@ fun StreamItemScreen(
                 // Note: fastForEach is used for performance optimization (avoids iterator allocation)
                 val rows = listOf(nameRow, uriRow, forceTcpRow, tagsRow)
                 rows.fastForEach { rowComposable ->
-                    rowComposable(Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = PaddingM))
+                    rowComposable(
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = PaddingM)
+                    )
                 }
             }
         }

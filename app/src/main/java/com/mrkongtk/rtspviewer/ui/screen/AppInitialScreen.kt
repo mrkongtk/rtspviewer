@@ -178,13 +178,12 @@ private fun AppInitialScreenPreview() {
     RTSPViewerTheme {
         val navController = rememberNavController()
         val context = LocalContext.current
-        
+
         // Manual Dependency Injection for Preview stability.
         // This simulates the data layer without hitting the real Android SQLite system.
         val mockViewModel = AppViewModel(
             RTSPItemRepositoryImpl(
                 context,
-                MockAppDatabase(),
             )
         )
 

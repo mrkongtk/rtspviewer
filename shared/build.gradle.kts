@@ -88,6 +88,7 @@ kotlin {
 
                 // database
                 implementation(libs.androidx.room.room.runtime)
+                implementation(libs.androidx.sqlite.bundled)
 
                 // di
                 implementation(project.dependencies.platform(libs.koin.bom))

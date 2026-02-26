@@ -33,10 +33,10 @@ import javax.inject.Inject
  */
 class RTSPItemRepositoryImpl @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val db: AppDatabase,
 ) : RTSPItemRepository, KoinComponent {
 
     private val fileRepository: FileRepository by inject()
+    private val db: AppDatabase by inject()
 
     /**
      * A stream of all RTSP items.

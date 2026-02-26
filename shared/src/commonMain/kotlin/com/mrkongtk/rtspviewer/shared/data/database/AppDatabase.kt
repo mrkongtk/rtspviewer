@@ -1,11 +1,13 @@
 package com.mrkongtk.rtspviewer.shared.data.database
 
+import androidx.room.ConstructedBy
 import androidx.room.Database
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import com.mrkongtk.rtspviewer.shared.data.database.dao.RTSPItemDao
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.di.AppDatabaseConstructor
 import kotlinx.serialization.json.Json
 
 /**
@@ -23,6 +25,7 @@ import kotlinx.serialization.json.Json
     exportSchema = true           // Exports schema to JSON for version control (check build.gradle arguments)
 )
 @TypeConverters(ListStringConverters::class) // Registers the custom type converter globally for this database
+@ConstructedBy(AppDatabaseConstructor::class) // Required for KMP
 abstract class AppDatabase : RoomDatabase() {
 
     /**

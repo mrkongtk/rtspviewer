@@ -205,14 +205,17 @@ internal fun RTSPVideoPlayerContent(
                 RTSPVideoPlayerPlaybackState.Buffering -> {
                     LoadingOverlay(Modifier.fillMaxSize())
                 }
+
                 RTSPVideoPlayerPlaybackState.Idle,
                 RTSPVideoPlayerPlaybackState.Ready -> {
                     PlayButtonOverlay(Modifier.fillMaxSize(), onPlayClick)
                 }
+
                 RTSPVideoPlayerPlaybackState.Playing -> {
                     // Transparent overlay to detect clicks for pausing the stream
                     PauseButtonOverlay(Modifier.fillMaxSize(), onPauseClick)
                 }
+
                 else -> {}
             }
         } ?: run {
