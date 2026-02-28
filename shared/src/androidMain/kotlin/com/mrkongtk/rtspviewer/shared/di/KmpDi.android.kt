@@ -9,6 +9,10 @@ import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.FileRepositoryAndroidImpl
 import org.koin.dsl.module
 
+/**
+ * Android implementation of the platform-specific dependencies.
+ * Requires the Android Context for most implementations.
+ */
 actual val platformModule = module {
     single<FileRepository> { FileRepositoryAndroidImpl(get()) }
     single<DeviceInfo> { DeviceInfoAndroidImpl(get()) }

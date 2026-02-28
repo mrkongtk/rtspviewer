@@ -9,6 +9,9 @@ import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.FileRepositoryIosImpl
 import org.koin.dsl.module
 
+/**
+ * iOS implementation of the platform-specific dependencies.
+ */
 actual val platformModule = module {
     single<FileRepository> { FileRepositoryIosImpl() }
     single<DeviceInfo> { DeviceInfoIosImpl() }

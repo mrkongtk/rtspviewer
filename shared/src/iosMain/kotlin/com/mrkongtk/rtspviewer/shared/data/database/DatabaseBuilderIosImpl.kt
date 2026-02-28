@@ -10,6 +10,10 @@ import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
 
+/**
+ * iOS-specific database configuration.
+ * Stores the database in the Application's Document Directory.
+ */
 class DatabaseBuilderIosImpl : DatabaseBuilder, KoinComponent {
 
     private val deviceInfo: DeviceInfo by inject()
@@ -21,6 +25,9 @@ class DatabaseBuilderIosImpl : DatabaseBuilder, KoinComponent {
         )
     }
 
+    /**
+     * Resolves the standard iOS Documents directory path.
+     */
     @OptIn(ExperimentalForeignApi::class)
     private fun documentDirectory(): String {
         val documentDirectory = NSFileManager.defaultManager.URLForDirectory(
@@ -33,4 +40,3 @@ class DatabaseBuilderIosImpl : DatabaseBuilder, KoinComponent {
         return requireNotNull(documentDirectory?.path)
     }
 }
-
