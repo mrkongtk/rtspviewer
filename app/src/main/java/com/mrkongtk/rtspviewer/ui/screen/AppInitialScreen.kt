@@ -22,8 +22,6 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rtspviewer.AppScreen
 import com.mrkongtk.rtspviewer.data.AppUiState
-import com.mrkongtk.rtspviewer.data.database.MockAppDatabase
-import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepositoryImpl
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.compose.AppBar
 import com.mrkongtk.rtspviewer.ui.screen.action.NavigationScreenActions
@@ -181,11 +179,7 @@ private fun AppInitialScreenPreview() {
 
         // Manual Dependency Injection for Preview stability.
         // This simulates the data layer without hitting the real Android SQLite system.
-        val mockViewModel = AppViewModel(
-            RTSPItemRepositoryImpl(
-                context,
-            )
-        )
+        val mockViewModel = AppViewModel()
 
         val mockAppBarViewModel = AppBarViewModel()
 

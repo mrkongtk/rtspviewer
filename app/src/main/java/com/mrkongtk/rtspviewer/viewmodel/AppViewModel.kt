@@ -4,9 +4,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mrkongtk.rtspviewer.data.AppUiState
-import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
+import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -15,7 +15,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import okio.Path.Companion.toOkioPath
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import javax.inject.Inject
@@ -37,11 +36,10 @@ import javax.inject.Inject
  * @property fileRepository Handles filesystem I/O for persisting preview images.
  */
 @HiltViewModel
-class AppViewModel @Inject constructor(
-    private val rtspItemRepository: RTSPItemRepository,
-) : ViewModel(), KoinComponent {
+class AppViewModel @Inject constructor() : ViewModel(), KoinComponent {
 
     private val fileRepository: FileRepository by inject()
+    private val rtspItemRepository: RTSPItemRepository by inject()
 
     private val _selectedTag = MutableStateFlow<String?>(null)
     private val _selectedItem = MutableStateFlow<RTSPItem?>(null)
@@ -163,7 +161,7 @@ class AppViewModel @Inject constructor(
     fun savePreview(rtspItem: RTSPItem, bitmap: ImageBitmap) {
         viewModelScope.launch {
             val file = rtspItemRepository.previewPathFor(rtspItem)
-            if (fileRepository.writeJPEG(file.toOkioPath(), bitmap)) {
+            if (fileRepository.writeJPEG(file, bitmap)) {
                 // Update memory cache only after a successful disk write
                 rtspItemRepository.cachePreviewFor(rtspItem, bitmap)
             }
