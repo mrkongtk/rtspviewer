@@ -1,36 +1,40 @@
 package com.mrkongtk.rtspviewer.shared.data.database.dao
 
-import android.content.Context
-import androidx.room.Room
-import androidx.test.core.app.ApplicationProvider
-import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.room.RoomDatabase
+import androidx.sqlite.driver.bundled.BundledSQLiteDriver
 import app.cash.turbine.test
 import com.mrkongtk.rtspviewer.shared.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItemOrderUpdate
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.test.runTest
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Before
-import org.junit.Test
-import org.junit.runner.RunWith
+import kotlin.test.AfterTest
+import kotlin.test.BeforeTest
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
-@RunWith(AndroidJUnit4::class)
-class RTSPItemDaoTest {
+abstract class RTSPItemDaoTest {
 
     private lateinit var db: AppDatabase
     private lateinit var dao: RTSPItemDao
 
-    @Before
+    abstract fun getDatabaseBuilder(): RoomDatabase.Builder<AppDatabase>
+
+    @BeforeTest
     fun createDb() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        // Using an in-memory database because the information is saved in RAM
-        // and disappears when the process is killed.
-        db = Room.inMemoryDatabaseBuilder(context, AppDatabase::class.java).build()
+        // Use the platform-specific builder
+        val builder = getDatabaseBuilder()
+
+        // Use BundledSQLiteDriver for KMM in-memory testing
+        db = builder
+            .setDriver(BundledSQLiteDriver())
+            .setQueryCoroutineContext(Dispatchers.Unconfined)
+            .build()
+
         dao = db.rtspItemDao()
     }
 
-    @After
+    @AfterTest
     fun closeDb() {
         db.close()
     }
@@ -48,13 +52,12 @@ class RTSPItemDaoTest {
     @Test
     fun testPaginationAndSorting() = runTest {
         val items = listOf(
-            RTSPItem(1, "B", "url", emptyList(), 2), // Higher order
-            RTSPItem(2, "A", "url", emptyList(), 1), // Lower order
-            RTSPItem(3, "C", "url", emptyList(), 1)  // Same order as A, but name is C
+            RTSPItem(1, "B", "url", emptyList(), 2),
+            RTSPItem(2, "A", "url", emptyList(), 1),
+            RTSPItem(3, "C", "url", emptyList(), 1)
         )
         dao.insertAll(items)
 
-        // Should return A then C because order is 1, then B because order is 2
         val result = dao.getItems(offset = 0, limit = 10)
         assertEquals(2L, result[0].id) // A
         assertEquals(3L, result[1].id) // C
@@ -66,24 +69,21 @@ class RTSPItemDaoTest {
         val item = RTSPItem(1, "Office", "rtsp://url", emptyList(), 0)
         dao.insert(item)
 
-        // Update only the order
         dao.updateOrders(listOf(RTSPItemOrderUpdate(id = 1, order = 99)))
 
         val updatedItem = dao.getItems(limit = 1)[0]
         assertEquals(99, updatedItem.order)
-        assertEquals("Office", updatedItem.name) // Name should remain unchanged
+        assertEquals("Office", updatedItem.name)
     }
 
     @Test
     fun testFlowUpdates() = runTest {
         dao.getAllItemsFlow().test {
-            // Initially empty
             assertEquals(0, awaitItem().size)
 
             val item = RTSPItem(1, "Office", "rtsp://url", emptyList(), 0)
             dao.insert(item)
 
-            // Flow should emit new list
             val list = awaitItem()
             assertEquals(1, list.size)
             assertEquals("Office", list[0].name)
