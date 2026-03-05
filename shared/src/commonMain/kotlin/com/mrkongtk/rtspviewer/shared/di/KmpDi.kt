@@ -4,9 +4,11 @@ import androidx.room.RoomDatabaseConstructor
 import com.mrkongtk.rtspviewer.shared.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepositoryImpl
+import com.mrkongtk.rtspviewer.shared.viewmodel.AppViewModel
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
+import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.KoinAppDeclaration
 import org.koin.dsl.includes
 import org.koin.dsl.module
@@ -15,6 +17,7 @@ import org.koin.dsl.module
  * Shared Koin module for dependencies available across all platforms.
  */
 val commonModule = module {
+    viewModel { AppViewModel(get(), get()) }
     single<RTSPItemRepository> { RTSPItemRepositoryImpl() }
 }
 

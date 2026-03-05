@@ -1,13 +1,12 @@
-package com.mrkongtk.rtspviewer.viewmodel
+package com.mrkongtk.rtspviewer.shared.viewmodel
 
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mrkongtk.rtspviewer.data.AppUiState
+import com.mrkongtk.rtspviewer.shared.data.AppUiState
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepository
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -16,15 +15,13 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
-import javax.inject.Inject
 
 /**
  * The primary [ViewModel] for the application, acting as the state holder and coordinator
  * between the UI and data layers.
  *
  * It follows the Unidirectional Data Flow (UDF) pattern, exposing a single [uiState]
- * and handling events to modify data via repositories.
+ * and handling events to modify data via repositories. Dependencies are provided via Koin.
  *
  * **Key Responsibilities:**
  * - **Reactive State Management:** Combines database items, tags, and selection states into a single UI state.
@@ -32,27 +29,27 @@ import javax.inject.Inject
  * - **Tag Management:** Aggregates and filters unique tags for the UI.
  * - **Media Persistence:** Handles saving and caching RTSP stream snapshots (thumbnails).
  *
- * @property rtspItemRepository Source of truth for RTSP metadata and in-memory preview caching.
  * @property fileRepository Handles filesystem I/O for persisting preview images.
+ * @property rtspItemRepository Source of truth for RTSP metadata and in-memory preview caching.
  */
-@HiltViewModel
-class AppViewModel @Inject constructor() : ViewModel(), KoinComponent {
-
-    private val fileRepository: FileRepository by inject()
-    private val rtspItemRepository: RTSPItemRepository by inject()
+class AppViewModel(
+    private val fileRepository: FileRepository,
+    private val rtspItemRepository: RTSPItemRepository
+) : ViewModel(), KoinComponent {
 
     private val _selectedTag = MutableStateFlow<String?>(null)
     private val _selectedItem = MutableStateFlow<RTSPItem?>(null)
 
     /**
-     * The unified UI state for the application.
+     * The unified UI state for the application, exposed as a [StateFlow].
      *
-     * Automatically reacts to changes in:
-     * 1. The database [itemList].
-     * 2. The in-memory bitmap cache [cachedPreviews].
-     * 3. User selections ([_selectedItem], [_selectedTag]).
+     * Automatically reacts to and combines changes from:
+     * 1. The database stream ([rtspItemRepository.items]).
+     * 2. The in-memory bitmap cache ([rtspItemRepository.cachedPreviews]).
+     * 3. User UI selections ([_selectedItem] and [_selectedTag]).
      *
-     * Includes logic to validate that selections remain valid when the underlying data changes.
+     * The logic ensures that if an item or tag is deleted from the database, the
+     * selection state is invalidated to prevent UI inconsistencies.
      */
     val uiState: StateFlow<AppUiState> = combine(
         rtspItemRepository.items,
@@ -67,9 +64,9 @@ class AppViewModel @Inject constructor() : ViewModel(), KoinComponent {
         }
 
         // Extract and sort unique tags from all items for the filter UI
-        val tags = itemList.flatMap { it.tags }.toSortedSet().toList()
+        val tags = itemList.flatMap { it.tags }.toSet().sorted()
 
-        // Reset the tag filter if the selected tag no longer exists
+        // Reset the tag filter if the selected tag no longer exists in the current dataset
         val validTag = selectedTag?.let {
             if (tags.contains(it)) it else null
         }
@@ -96,7 +93,9 @@ class AppViewModel @Inject constructor() : ViewModel(), KoinComponent {
     }
 
     /**
-     * Updates the currently selected RTSP stream.
+     * Updates the currently selected RTSP stream for viewing or editing.
+     *
+     * @param rtspItem The [RTSPItem] to be set as the current selection.
      */
     fun select(rtspItem: RTSPItem) {
         viewModelScope.launch {
@@ -105,7 +104,9 @@ class AppViewModel @Inject constructor() : ViewModel(), KoinComponent {
     }
 
     /**
-     * Updates the active tag filter. Use `null` to clear the filter.
+     * Updates the active tag filter used to narrow down the displayed list of streams.
+     *
+     * @param selectedTag The name of the tag to filter by, or `null` to show all items.
      */
     fun select(selectedTag: String?) {
         viewModelScope.launch {
@@ -114,7 +115,9 @@ class AppViewModel @Inject constructor() : ViewModel(), KoinComponent {
     }
 
     /**
-     * Persists a new RTSP item to the database.
+     * Persists a new RTSP item to the underlying database.
+     *
+     * @param rtspItem The new stream configuration to save.
      */
     fun addItem(rtspItem: RTSPItem) {
         viewModelScope.launch {
@@ -124,7 +127,9 @@ class AppViewModel @Inject constructor() : ViewModel(), KoinComponent {
 
     /**
      * Updates the sort order of items in the database.
-     * Usually triggered by a drag-and-drop interaction in the UI.
+     * Usually triggered by a drag-and-drop interaction in the UI list.
+     *
+     * @param items The full list of items in their new desired order.
      */
     fun reorderItems(items: List<RTSPItem>) {
         if (items.isNotEmpty()) {
@@ -135,7 +140,9 @@ class AppViewModel @Inject constructor() : ViewModel(), KoinComponent {
     }
 
     /**
-     * Updates an existing RTSP item's metadata (e.g., name, URL, or tags).
+     * Updates an existing RTSP item's metadata (e.g., name, URL, or tags) in the database.
+     *
+     * @param rtspItem The item containing updated information.
      */
     fun editItem(rtspItem: RTSPItem) {
         viewModelScope.launch {
@@ -144,7 +151,9 @@ class AppViewModel @Inject constructor() : ViewModel(), KoinComponent {
     }
 
     /**
-     * Deletes an RTSP item from the database.
+     * Deletes a specific RTSP item from the database.
+     *
+     * @param rtspItem The item to be removed.
      */
     fun deleteItem(rtspItem: RTSPItem) {
         viewModelScope.launch {
@@ -156,13 +165,13 @@ class AppViewModel @Inject constructor() : ViewModel(), KoinComponent {
      * Saves a snapshot of an RTSP stream to disk and updates the in-memory cache.
      *
      * @param rtspItem The item the preview belongs to.
-     * @param bitmap The image data to persist.
+     * @param bitmap The [ImageBitmap] data to persist as a JPEG.
      */
     fun savePreview(rtspItem: RTSPItem, bitmap: ImageBitmap) {
         viewModelScope.launch {
             val file = rtspItemRepository.previewPathFor(rtspItem)
             if (fileRepository.writeJPEG(file, bitmap)) {
-                // Update memory cache only after a successful disk write
+                // Update memory cache only after a successful disk write to ensure consistency
                 rtspItemRepository.cachePreviewFor(rtspItem, bitmap)
             }
         }

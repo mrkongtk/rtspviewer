@@ -21,14 +21,18 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rtspviewer.AppScreen
-import com.mrkongtk.rtspviewer.data.AppUiState
+import com.mrkongtk.rtspviewer.shared.data.AppUiState
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
+import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepository
+import com.mrkongtk.rtspviewer.shared.viewmodel.AppViewModel
 import com.mrkongtk.rtspviewer.ui.compose.AppBar
 import com.mrkongtk.rtspviewer.ui.screen.action.NavigationScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.viewmodel.AppBarViewModel
-import com.mrkongtk.rtspviewer.viewmodel.AppViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import okio.Path
 
 
 /**
@@ -63,7 +67,7 @@ import kotlinx.coroutines.flow.map
 fun AppInitialScreen(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
-    viewModel: AppViewModel = hiltViewModel(),
+    viewModel: AppViewModel,
     appBarViewModel: AppBarViewModel = hiltViewModel(),
 ) {
 
@@ -177,9 +181,61 @@ private fun AppInitialScreenPreview() {
         val navController = rememberNavController()
         val context = LocalContext.current
 
+        val fileRepository = object : FileRepository {
+            override suspend fun writeJPEG(
+                file: Path,
+                bitmap: ImageBitmap
+            ): Boolean {
+                return true
+            }
+
+            override suspend fun readJPEG(file: Path): ImageBitmap? {
+                return null
+            }
+
+            override fun getCacheDir(): Path {
+                return okio.FileSystem.SYSTEM_TEMPORARY_DIRECTORY
+            }
+        }
+
+        val rtspItemRepository = object : RTSPItemRepository {
+            override val items = MutableStateFlow<List<RTSPItem>>(emptyList())
+            override val cachedPreviews = MutableStateFlow<Map<Long, ImageBitmap>>(emptyMap())
+
+            override suspend fun addItem(item: RTSPItem): Long {
+                return 1
+            }
+
+            override suspend fun reorderItems(items: List<RTSPItem>): Int {
+                return 1
+            }
+
+            override suspend fun updateItem(item: RTSPItem): Int {
+                return 1
+            }
+
+            override suspend fun deleteItem(item: RTSPItem): Int {
+                return 1
+            }
+
+            override fun previewPathFor(item: RTSPItem): Path {
+                return okio.FileSystem.SYSTEM_TEMPORARY_DIRECTORY
+            }
+
+            override fun cachePreviewFor(
+                item: RTSPItem,
+                bitmap: ImageBitmap
+            ) {
+            }
+
+            override fun removeCachedPreviews() {
+            }
+
+        }
+
         // Manual Dependency Injection for Preview stability.
         // This simulates the data layer without hitting the real Android SQLite system.
-        val mockViewModel = AppViewModel()
+        val mockViewModel = AppViewModel(fileRepository, rtspItemRepository)
 
         val mockAppBarViewModel = AppBarViewModel()
 

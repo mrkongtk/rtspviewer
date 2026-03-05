@@ -129,55 +129,54 @@ abstract class RTSPItemRepositoryImplTest {
         repository.removeCachedPreviews()
         assertTrue(repository.cachedPreviews.value.isEmpty())
     }
-}
 
+    class FakeRTSPItemDao : RTSPItemDao {
+        val insertedItems = mutableListOf<RTSPItem>()
+        val updatedItems = mutableListOf<RTSPItem>()
+        val deletedItems = mutableListOf<RTSPItem>()
+        var orderUpdates = listOf<RTSPItemOrderUpdate>()
 
-class FakeRTSPItemDao : RTSPItemDao {
-    val insertedItems = mutableListOf<RTSPItem>()
-    val updatedItems = mutableListOf<RTSPItem>()
-    val deletedItems = mutableListOf<RTSPItem>()
-    var orderUpdates = listOf<RTSPItemOrderUpdate>()
+        private val flow = MutableSharedFlow<List<RTSPItem>>()
+        suspend fun emit(list: List<RTSPItem>) = flow.emit(list)
 
-    private val flow = MutableSharedFlow<List<RTSPItem>>()
-    suspend fun emit(list: List<RTSPItem>) = flow.emit(list)
+        override suspend fun insert(item: RTSPItem): Long {
+            insertedItems.add(item)
+            return 1L
+        }
 
-    override suspend fun insert(item: RTSPItem): Long {
-        insertedItems.add(item)
-        return 1L
+        override fun getAllItemsFlow() = flow
+        override suspend fun update(item: RTSPItem): Int {
+            updatedItems.add(item)
+            return 1
+        }
+
+        override suspend fun updateOrders(updates: List<RTSPItemOrderUpdate>): Int {
+            orderUpdates = updates
+            return updates.size
+        }
+
+        override suspend fun delete(item: RTSPItem): Int {
+            deletedItems.add(item)
+            return 1
+        }
+
+        // Implement others as no-ops...
+        override suspend fun insertAll(items: List<RTSPItem>) = emptyList<Long>()
+        override suspend fun getItems(offset: Long, limit: Long) = emptyList<RTSPItem>()
     }
 
-    override fun getAllItemsFlow() = flow
-    override suspend fun update(item: RTSPItem): Int {
-        updatedItems.add(item)
-        return 1
+    class FakeFileRepository : FileRepository {
+        var readCount = 0
+        var lastReadPath: okio.Path? = null
+        var bitmapToReturn: ImageBitmap? = null
+
+        override suspend fun readJPEG(file: okio.Path): ImageBitmap? {
+            readCount++
+            lastReadPath = file
+            return bitmapToReturn
+        }
+
+        override suspend fun writeJPEG(file: okio.Path, bitmap: ImageBitmap) = true
+        override fun getCacheDir(): okio.Path = okio.FileSystem.SYSTEM_TEMPORARY_DIRECTORY
     }
-
-    override suspend fun updateOrders(updates: List<RTSPItemOrderUpdate>): Int {
-        orderUpdates = updates
-        return updates.size
-    }
-
-    override suspend fun delete(item: RTSPItem): Int {
-        deletedItems.add(item)
-        return 1
-    }
-
-    // Implement others as no-ops...
-    override suspend fun insertAll(items: List<RTSPItem>) = emptyList<Long>()
-    override suspend fun getItems(offset: Long, limit: Long) = emptyList<RTSPItem>()
-}
-
-private class FakeFileRepository : FileRepository {
-    var readCount = 0
-    var lastReadPath: okio.Path? = null
-    var bitmapToReturn: ImageBitmap? = null
-
-    override suspend fun readJPEG(file: okio.Path): ImageBitmap? {
-        readCount++
-        lastReadPath = file
-        return bitmapToReturn
-    }
-
-    override suspend fun writeJPEG(file: okio.Path, bitmap: ImageBitmap) = true
-    override fun getCacheDir(): okio.Path = okio.FileSystem.SYSTEM_TEMPORARY_DIRECTORY
 }
