@@ -4,16 +4,15 @@ import android.content.Context
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.mrkongtk.rtspviewer.shared.data.DeviceInfo
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 
 /**
  * Android-specific database configuration.
  * Stores the database in the standard system database path.
  */
-class DatabaseBuilderAndroidImpl(private val context: Context): DatabaseBuilder, KoinComponent {
-
-    private val deviceInfo: DeviceInfo by inject()
+class DatabaseBuilderAndroidImpl(
+    private val context: Context,
+    private val deviceInfo: DeviceInfo
+) : DatabaseBuilder {
 
     override fun getBuilder(): RoomDatabase.Builder<AppDatabase> {
         val appContext = context.applicationContext

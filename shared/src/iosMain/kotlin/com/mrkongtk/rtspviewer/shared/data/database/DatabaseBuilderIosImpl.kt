@@ -4,8 +4,6 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.mrkongtk.rtspviewer.shared.data.DeviceInfo
 import kotlinx.cinterop.ExperimentalForeignApi
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 import platform.Foundation.NSDocumentDirectory
 import platform.Foundation.NSFileManager
 import platform.Foundation.NSUserDomainMask
@@ -14,9 +12,7 @@ import platform.Foundation.NSUserDomainMask
  * iOS-specific database configuration.
  * Stores the database in the Application's Document Directory.
  */
-class DatabaseBuilderIosImpl : DatabaseBuilder, KoinComponent {
-
-    private val deviceInfo: DeviceInfo by inject()
+class DatabaseBuilderIosImpl(private val deviceInfo: DeviceInfo) : DatabaseBuilder {
 
     override fun getBuilder(): RoomDatabase.Builder<AppDatabase> {
         val dbFilePath = documentDirectory() + "/db_${deviceInfo.bundleId}.db"

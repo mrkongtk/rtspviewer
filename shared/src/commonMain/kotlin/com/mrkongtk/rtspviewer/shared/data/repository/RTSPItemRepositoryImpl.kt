@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import okio.FileSystem
 import okio.Path
-import org.koin.core.component.KoinComponent
-import org.koin.core.component.inject
 
 /**
  * Single Source of Truth (SSOT) for RTSP stream metadata and preview assets.
@@ -25,10 +23,10 @@ import org.koin.core.component.inject
  * @property fileRepository Helper for performing disk I/O operations for images.
  * @property db The Room database instance.
  */
-class RTSPItemRepositoryImpl : RTSPItemRepository, KoinComponent {
-
-    private val fileRepository: FileRepository by inject()
-    private val db: AppDatabase by inject()
+class RTSPItemRepositoryImpl(
+    private val fileRepository: FileRepository,
+    private val db: AppDatabase
+) : RTSPItemRepository {
 
     /**
      * A stream of all RTSP items.

@@ -14,7 +14,6 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import org.koin.core.component.KoinComponent
 
 /**
  * The primary [ViewModel] for the application, acting as the state holder and coordinator
@@ -35,7 +34,7 @@ import org.koin.core.component.KoinComponent
 class AppViewModel(
     private val fileRepository: FileRepository,
     private val rtspItemRepository: RTSPItemRepository
-) : ViewModel(), KoinComponent {
+) : ViewModel() {
 
     private val _selectedTag = MutableStateFlow<String?>(null)
     private val _selectedItem = MutableStateFlow<RTSPItem?>(null)

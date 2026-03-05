@@ -16,5 +16,5 @@ import org.koin.dsl.module
 actual val platformModule = module {
     single<FileRepository> { FileRepositoryAndroidImpl(get()) }
     single<DeviceInfo> { DeviceInfoAndroidImpl(get()) }
-    single<AppDatabase> { DatabaseBuilderAndroidImpl(get()).getDatabase() }
+    single<AppDatabase> { DatabaseBuilderAndroidImpl(get(), get()).getDatabase() }
 }

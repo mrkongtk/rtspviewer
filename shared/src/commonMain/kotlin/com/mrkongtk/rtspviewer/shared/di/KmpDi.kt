@@ -18,7 +18,7 @@ import org.koin.dsl.module
  */
 val commonModule = module {
     viewModel { AppViewModel(get(), get()) }
-    single<RTSPItemRepository> { RTSPItemRepositoryImpl() }
+    single<RTSPItemRepository> { RTSPItemRepositoryImpl(get(), get()) }
 }
 
 /**

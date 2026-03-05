@@ -64,7 +64,7 @@ abstract class RTSPItemRepositoryImplTest {
             })
         }
 
-        repository = RTSPItemRepositoryImpl()
+        repository = RTSPItemRepositoryImpl(fakeFileRepository, mockDb)
     }
 
     @AfterTest
