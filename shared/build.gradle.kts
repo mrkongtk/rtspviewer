@@ -34,6 +34,9 @@ kotlin {
         }.configure {
             instrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         }
+
+        @Suppress("OPT_IN_USAGE")
+        experimentalProperties["android.experimental.kmp.enableAndroidResources"] = true
     }
 
     // For iOS targets, this is also where you should
@@ -142,4 +145,9 @@ kotlin {
 
 dependencies {
     ksp(libs.androidx.room.room.compiler)
+}
+
+compose.resources {
+    // This makes the generated Res class public so your :app module can see it
+    publicResClass = true
 }

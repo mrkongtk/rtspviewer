@@ -1,8 +1,8 @@
-package com.mrkongtk.rtspviewer.data
+package com.mrkongtk.rtspviewer.shared.data
 
-import androidx.annotation.StringRes
-import com.mrkongtk.rtspviewer.AppScreen
+import com.mrkongtk.rtspviewer.shared.AppScreen
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import org.jetbrains.compose.resources.StringResource
 
 /**
  * Represents the configuration state of the Top App Bar across the application.
@@ -28,12 +28,11 @@ data class AppBarState(
  * string resource (the template) and a list of arguments to be injected into that
  * template (e.g., replacing %1 with a camera name).
  *
- * @property id The string resource ID (`@StringRes`) acting as the title template.
- * Defaults to 0 (empty/no title).
+ * @property id The string resource ID  acting as the title template.
  * @property args A list of strings to be formatted into the resource template via
  * the `formatText` extension.
  */
 data class AppBarTitle(
-    @StringRes val id: Int = 0,
+    val id: StringResource? = null,
     val args: List<String> = emptyList()
 )

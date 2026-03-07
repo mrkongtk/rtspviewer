@@ -13,12 +13,12 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mrkongtk.rtspviewer.R
-import com.mrkongtk.rtspviewer.data.AppBarTitle
+import com.mrkongtk.rtspviewer.shared.data.AppBarTitle
+import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.util.formatText
-import com.mrkongtk.rtspviewer.viewmodel.AppBarViewModel
+import org.jetbrains.compose.resources.stringResource
 
 /**
  * A Material 3 [CenterAlignedTopAppBar] that serves as the global navigation header.
@@ -45,7 +45,7 @@ import com.mrkongtk.rtspviewer.viewmodel.AppBarViewModel
 @Composable
 fun AppBar(
     modifier: Modifier = Modifier,
-    viewModel: AppBarViewModel = hiltViewModel(),
+    viewModel: AppBarViewModel,
     navigateUp: () -> Unit,
 ) {
 
@@ -56,11 +56,9 @@ fun AppBar(
     CenterAlignedTopAppBar(
         title = {
 
-            val formattedTitle = if (title.id > 0) {
-                stringResource(title.id).formatText(title.args)
-            } else {
-                ""
-            }
+            val formattedTitle = title.id?.let {
+                stringResource(it).formatText(title.args)
+            } ?: ""
 
             Text(text = formattedTitle, modifier = Modifier.testTag("AppBarTitle"))
         },

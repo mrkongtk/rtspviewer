@@ -15,21 +15,20 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.mrkongtk.rtspviewer.AppScreen
+import com.mrkongtk.rtspviewer.shared.AppScreen
 import com.mrkongtk.rtspviewer.shared.data.AppUiState
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepository
+import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppViewModel
 import com.mrkongtk.rtspviewer.ui.compose.AppBar
 import com.mrkongtk.rtspviewer.ui.screen.action.NavigationScreenActions
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.viewmodel.AppBarViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import okio.Path
@@ -68,7 +67,7 @@ fun AppInitialScreen(
     modifier: Modifier = Modifier,
     navController: NavHostController = rememberNavController(),
     viewModel: AppViewModel,
-    appBarViewModel: AppBarViewModel = hiltViewModel(),
+    appBarViewModel: AppBarViewModel,
 ) {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()

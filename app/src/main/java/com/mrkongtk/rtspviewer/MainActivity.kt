@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppViewModel
 import com.mrkongtk.rtspviewer.ui.screen.AppInitialScreen
 import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
@@ -37,12 +38,15 @@ class MainActivity : ComponentActivity() {
                 // to this Activity (or the navigation graph if used within a NavHost).
                 val viewModel: AppViewModel = getViewModel()
 
+                val appBarViewModel: AppBarViewModel = getViewModel()
+
                 // Render the root screen of the application.
                 // We apply windowInsetsPadding(WindowInsets.systemBars) here to ensure
                 // the root content respects the safe areas defined by the edge-to-edge configuration.
                 AppInitialScreen(
                     navController = navController,
                     viewModel = viewModel,
+                    appBarViewModel = appBarViewModel,
                     modifier = Modifier
                         .fillMaxSize()
                 )

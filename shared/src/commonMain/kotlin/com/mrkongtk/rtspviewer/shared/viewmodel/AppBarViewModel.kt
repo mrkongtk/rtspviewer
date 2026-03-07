@@ -1,17 +1,15 @@
-package com.mrkongtk.rtspviewer.viewmodel
+package com.mrkongtk.rtspviewer.shared.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.mrkongtk.rtspviewer.AppScreen
-import com.mrkongtk.rtspviewer.data.AppBarState
-import com.mrkongtk.rtspviewer.data.AppBarTitle
+import com.mrkongtk.rtspviewer.shared.AppScreen
+import com.mrkongtk.rtspviewer.shared.data.AppBarState
+import com.mrkongtk.rtspviewer.shared.data.AppBarTitle
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
-import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import javax.inject.Inject
 
 /**
  * ViewModel responsible for managing the state and content of the Top App Bar.
@@ -25,8 +23,8 @@ import javax.inject.Inject
  * - Determining whether the 'Back' navigation button should be visible.
  * - Decoupling the UI's `Scaffold` components from individual screen logic.
  */
-@HiltViewModel
-class AppBarViewModel @Inject constructor() : ViewModel() {
+
+class AppBarViewModel : ViewModel() {
 
     /**
      * Internal state containing the current screen context and selected item data.
@@ -59,10 +57,8 @@ class AppBarViewModel @Inject constructor() : ViewModel() {
      * @param canNavigateBack Set to true if there is a previous entry in the backstack.
      */
     fun update(appScreen: AppScreen, canNavigateBack: Boolean) {
-        viewModelScope.launch {
-            _appBarState.update {
-                it.copy(appScreen = appScreen, canNavigateBack = canNavigateBack)
-            }
+        _appBarState.update {
+            it.copy(appScreen = appScreen, canNavigateBack = canNavigateBack)
         }
     }
 
@@ -75,10 +71,8 @@ class AppBarViewModel @Inject constructor() : ViewModel() {
      * @param item The [RTSPItem] currently in focus, or null to clear item-specific titles.
      */
     fun update(item: RTSPItem?) {
-        viewModelScope.launch {
-            _appBarState.update {
-                it.copy(selectedItem = item)
-            }
+        _appBarState.update {
+            it.copy(selectedItem = item)
         }
     }
 }

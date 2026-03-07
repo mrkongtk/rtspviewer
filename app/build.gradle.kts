@@ -78,6 +78,7 @@ dependencies {
     implementation(libs.koin.android)
     // path
     implementation(libs.okio)
+    implementation(libs.compose.components.resources)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
