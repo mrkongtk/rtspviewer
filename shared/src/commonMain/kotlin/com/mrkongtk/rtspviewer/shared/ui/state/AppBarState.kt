@@ -1,7 +1,7 @@
 package com.mrkongtk.rtspviewer.shared.ui.state
 
-import com.mrkongtk.rtspviewer.shared.AppScreen
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.ui.navigation.AppScreen
 
 /**
  * Represents the configuration state of the Top App Bar across the application.

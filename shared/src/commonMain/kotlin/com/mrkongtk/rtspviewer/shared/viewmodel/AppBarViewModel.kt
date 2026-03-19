@@ -1,8 +1,8 @@
 package com.mrkongtk.rtspviewer.shared.viewmodel
 
 import androidx.lifecycle.ViewModel
-import com.mrkongtk.rtspviewer.shared.AppScreen
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.ui.navigation.AppScreen
 import com.mrkongtk.rtspviewer.shared.ui.state.AppBarState
 import com.mrkongtk.rtspviewer.shared.ui.state.AppBarTitle
 import kotlinx.coroutines.flow.MutableStateFlow

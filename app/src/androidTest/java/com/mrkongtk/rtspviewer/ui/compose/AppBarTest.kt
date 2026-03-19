@@ -6,7 +6,7 @@ import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import com.mrkongtk.rtspviewer.AppScreen
+import com.mrkongtk.rtspviewer.shared.ui.navigation.AppScreen
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme

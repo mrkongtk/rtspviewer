@@ -18,8 +18,8 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.mrkongtk.rtspviewer.AppScreen
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.ui.navigation.AppScreen
 import com.mrkongtk.rtspviewer.shared.ui.state.AppUiState
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions

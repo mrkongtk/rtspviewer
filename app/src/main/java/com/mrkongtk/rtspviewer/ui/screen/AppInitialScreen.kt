@@ -19,10 +19,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.mrkongtk.rtspviewer.shared.AppScreen
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepository
+import com.mrkongtk.rtspviewer.shared.ui.navigation.AppScreen
 import com.mrkongtk.rtspviewer.shared.ui.state.AppUiState
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel

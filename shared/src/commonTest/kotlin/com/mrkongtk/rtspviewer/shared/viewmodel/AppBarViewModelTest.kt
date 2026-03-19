@@ -1,7 +1,7 @@
 package com.mrkongtk.rtspviewer.shared.viewmodel
 
 import app.cash.turbine.test
-import com.mrkongtk.rtspviewer.shared.AppScreen
+import com.mrkongtk.rtspviewer.shared.ui.navigation.AppScreen
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi

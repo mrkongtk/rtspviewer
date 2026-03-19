@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.shared
+package com.mrkongtk.rtspviewer.shared.ui.navigation
 
 import org.jetbrains.compose.resources.StringResource
 import rtspviewer.shared.generated.resources.Res
@@ -6,7 +6,6 @@ import rtspviewer.shared.generated.resources.app_name
 import rtspviewer.shared.generated.resources.screen_add_rtsp_item
 import rtspviewer.shared.generated.resources.screen_edit_rtsp_item
 import rtspviewer.shared.generated.resources.screen_rtsp_display
-
 
 /**
  * Enumerates the navigation routes available in the RTSP Viewer application.
