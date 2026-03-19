@@ -46,7 +46,7 @@ import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.shared.ui.theme.PreviewWidth
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.shared.ui.theme.RoundedCornerSize
-import com.mrkongtk.rtspviewer.util.formatText
+import com.mrkongtk.rtspviewer.shared.util.formatText
 
 /**
  * A UI component representing a single RTSP stream entry in a list.

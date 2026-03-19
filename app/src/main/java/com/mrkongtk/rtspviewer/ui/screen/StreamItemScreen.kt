@@ -64,10 +64,10 @@ import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingS
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.shared.util.formatText
 import com.mrkongtk.rtspviewer.shared.viewmodel.RTSPVideoPlayerViewModel
 import com.mrkongtk.rtspviewer.ui.compose.KeepScreenOn
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
-import com.mrkongtk.rtspviewer.util.formatText
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
 

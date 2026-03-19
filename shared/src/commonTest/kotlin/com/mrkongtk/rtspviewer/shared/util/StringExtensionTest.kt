@@ -1,7 +1,7 @@
-package com.mrkongtk.rtspviewer.util
+package com.mrkongtk.rtspviewer.shared.util
 
-import org.junit.Assert.assertEquals
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /**
  * Unit tests for String extension functions.
@@ -10,7 +10,7 @@ import org.junit.Test
 class StringExtensionTest {
 
     @Test
-    fun `formatText with single argument replaces percent1`() {
+    fun formatText_with_single_argument_replaces_percent1() {
         val template = "Viewing %1"
         val expected = "Viewing Living Room"
         val result = template.formatText("Living Room")
@@ -19,7 +19,7 @@ class StringExtensionTest {
     }
 
     @Test
-    fun `formatText with multiple arguments replaces in correct order`() {
+    fun formatText_with_multiple_arguments_replaces_in_correct_order() {
         val template = "Camera %1 is located in %2"
         val expected = "Camera Front Door is located in Backyard"
         val result = template.formatText("Front Door", "Backyard")
@@ -28,7 +28,7 @@ class StringExtensionTest {
     }
 
     @Test
-    fun `formatText with list argument works same as vararg`() {
+    fun formatText_with_list_argument_works_same_as_vararg() {
         val template = "Editing %1"
         val args = listOf("Kitchen Cam")
         val expected = "Editing Kitchen Cam"
@@ -38,7 +38,7 @@ class StringExtensionTest {
     }
 
     @Test
-    fun `formatText handles out of order placeholders`() {
+    fun formatText_handles_out_of_order_placeholders() {
         // The logic replaces %1 with args[0], %2 with args[1] regardless of position in string
         val template = "Target: %2, Source: %1"
         val expected = "Target: Destination, Source: Origin"
@@ -48,7 +48,7 @@ class StringExtensionTest {
     }
 
     @Test
-    fun `formatText replaces all occurrences of the same placeholder`() {
+    fun formatText_replaces_all_occurrences_of_the_same_placeholder() {
         val template = "%1 and %1 and %1"
         val expected = "Alert and Alert and Alert"
         val result = template.formatText("Alert")
@@ -57,7 +57,7 @@ class StringExtensionTest {
     }
 
     @Test
-    fun `formatText leaves placeholder untouched if no matching argument is provided`() {
+    fun formatText_leaves_placeholder_untouched_if_no_matching_argument_is_provided() {
         val template = "Valid: %1, Missing: %2"
         val expected = "Valid: Success, Missing: %2"
         val result = template.formatText("Success")
@@ -66,7 +66,7 @@ class StringExtensionTest {
     }
 
     @Test
-    fun `formatText ignores extra arguments that have no corresponding placeholder`() {
+    fun formatText_ignores_extra_arguments_that_have_no_corresponding_placeholder() {
         val template = "Only %1"
         val expected = "Only One"
         val result = template.formatText("One", "Two", "Three")
@@ -75,7 +75,7 @@ class StringExtensionTest {
     }
 
     @Test
-    fun `formatText returns original string if no placeholders exist`() {
+    fun formatText_returns_original_string_if_no_placeholders_exist() {
         val template = "Static string with no tags"
         val result = template.formatText("Unused")
 
@@ -83,7 +83,7 @@ class StringExtensionTest {
     }
 
     @Test
-    fun `formatText handles empty strings and special characters in arguments`() {
+    fun formatText_handles_empty_strings_and_special_characters_in_arguments() {
         val template = "User: [%1], Status: [%2]"
         val expected = "User: [], Status: [Active! @#$]"
         val result = template.formatText("", "Active! @#$")

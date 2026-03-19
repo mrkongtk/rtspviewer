@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.util
+package com.mrkongtk.rtspviewer.shared.util
 
 /**
  * Extension functions for the [String] class to handle custom text formatting and template replacement.
@@ -15,7 +15,7 @@ package com.mrkongtk.rtspviewer.util
  * @param args Variable number of string arguments to insert into the template.
  * @return The formatted string with placeholders replaced.
  */
-internal fun String.formatText(vararg args: String): String {
+fun String.formatText(vararg args: String): String {
     return formatText(args.toList())
 }
 
@@ -36,7 +36,7 @@ internal fun String.formatText(vararg args: String): String {
  * @param args A list of strings used to fill the placeholders.
  * @return A new string with all applicable placeholders replaced.
  */
-internal fun String.formatText(args: List<String>): String {
+fun String.formatText(args: List<String>): String {
     // 1. Create a combined list where the first element is the template string itself.
     // 2. Use reduceIndexed to iterate through the arguments.
     // 3. Since the template is at index 0, the first actual argument is at index 1,
