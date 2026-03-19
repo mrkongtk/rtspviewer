@@ -112,6 +112,7 @@ kotlin {
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.turbine)
                 implementation(libs.koin.test)
+                implementation(libs.compose.ui.test)
             }
         }
 
@@ -122,6 +123,7 @@ kotlin {
                 // dependencies declared in commonMain.
                 implementation(libs.koin.android)
 
+                implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.media3.media3.exoplayer.rtsp)
                 implementation(libs.androidx.media3.media3.ui)
             }
@@ -133,6 +135,11 @@ kotlin {
                 implementation(libs.androidx.core)
                 implementation(libs.androidx.junit)
                 implementation(libs.androidx.room.testing)
+
+                implementation(project.dependencies.platform(libs.androidx.compose.bom))
+                implementation(libs.androidx.activity.compose)
+                implementation(libs.androidx.compose.ui.test.manifest)
+
             }
         }
 

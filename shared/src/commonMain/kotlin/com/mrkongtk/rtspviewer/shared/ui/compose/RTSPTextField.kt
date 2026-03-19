@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.ui.compose
+package com.mrkongtk.rtspviewer.shared.ui.compose
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -29,8 +29,8 @@ import com.mrkongtk.rtspviewer.shared.ui.theme.RoundedCornerSize
  * @param modifier The [Modifier] to be applied to the container column.
  * @param placeholder The placeholder text to be displayed when the text field is empty.
  * @param errorMessage An optional error message string. If not null, the field enters an error state and displays the message below the input.
- * @param keyboardOptions Software keyboard options (e.g., input type, IME action). Defaults to [KeyboardOptions.Default].
- * @param keyboardActions Software keyboard actions (e.g., what happens when 'Done' is pressed). Defaults to [KeyboardActions.Default].
+ * @param keyboardOptions Software keyboard options (e.g., input type, IME action). Defaults to [KeyboardOptions.Companion.Default].
+ * @param keyboardActions Software keyboard actions (e.g., what happens when 'Done' is pressed). Defaults to [KeyboardActions.Companion.Default].
  * @param singleLine When set to true, this text field becomes a single horizontally scrolling text field. Defaults to true.
  */
 @Composable
