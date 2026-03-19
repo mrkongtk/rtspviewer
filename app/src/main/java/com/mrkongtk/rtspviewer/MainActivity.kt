@@ -11,7 +11,6 @@ import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppViewModel
 import com.mrkongtk.rtspviewer.ui.screen.AppInitialScreen
-import dagger.hilt.android.AndroidEntryPoint
 import org.koin.androidx.viewmodel.ext.android.getViewModel
 
 /**
@@ -21,7 +20,6 @@ import org.koin.androidx.viewmodel.ext.android.getViewModel
  * to enable Hilt dependency injection, allowing view models and other dependencies to be
  * injected into the Compose hierarchy.
  */
-@AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
