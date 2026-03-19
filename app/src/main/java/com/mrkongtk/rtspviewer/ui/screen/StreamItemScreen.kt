@@ -53,13 +53,13 @@ import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mrkongtk.rtspviewer.R
-import com.mrkongtk.rtspviewer.data.MoreOptionState
-import com.mrkongtk.rtspviewer.data.not
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.database.entity.hideCredentialUri
 import com.mrkongtk.rtspviewer.shared.ui.compose.RTSPVideoPlayer
 import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerPlaybackState
 import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerState
+import com.mrkongtk.rtspviewer.shared.ui.state.MoreOptionState
+import com.mrkongtk.rtspviewer.shared.ui.state.not
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingS
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingXs

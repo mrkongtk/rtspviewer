@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.data
+package com.mrkongtk.rtspviewer.shared.ui.state
 
 /**
  * Encapsulates the visual state of the "More Options" menu.
