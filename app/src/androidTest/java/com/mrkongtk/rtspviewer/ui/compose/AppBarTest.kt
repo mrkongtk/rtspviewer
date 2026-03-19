@@ -9,7 +9,7 @@ import androidx.compose.ui.test.performClick
 import com.mrkongtk.rtspviewer.AppScreen
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
-import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.viewmodel.AppBarViewModel
 import org.junit.Assert.assertTrue
 import org.junit.Rule

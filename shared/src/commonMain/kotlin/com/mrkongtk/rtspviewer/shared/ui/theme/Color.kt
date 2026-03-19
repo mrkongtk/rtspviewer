@@ -1,4 +1,5 @@
-package com.mrkongtk.rtspviewer.ui.theme
+package com.mrkongtk.rtspviewer.shared.ui.theme
+
 
 import androidx.compose.ui.graphics.Color
 

@@ -1,26 +1,19 @@
-package com.mrkongtk.rtspviewer.ui.compose
+package com.mrkongtk.rtspviewer.shared.ui.compose
 
-import android.annotation.SuppressLint
-import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.os.Handler
-import android.os.Looper
-import android.util.Log
-import android.view.PixelCopy
-import android.view.SurfaceView
-import android.view.TextureView
-import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material3.CircularProgressIndicator
@@ -30,37 +23,24 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.viewinterop.AndroidView
-import androidx.core.graphics.createBitmap
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.PlayerView
-import com.mrkongtk.rtspviewer.data.RTSPVideoPlayerPlaybackState
-import com.mrkongtk.rtspviewer.ui.theme.OnOverlayerBackgroundColor
-import com.mrkongtk.rtspviewer.ui.theme.OverlayerBackgroundColor
-import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.viewmodel.RTSPVideoPlayerViewModel
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.isActive
+import com.mrkongtk.rtspviewer.shared.player.RTSPVideoPlayer
+import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerPlaybackState
+import com.mrkongtk.rtspviewer.shared.ui.theme.OnOverlayerBackgroundColor
+import com.mrkongtk.rtspviewer.shared.ui.theme.OverlayerBackgroundColor
+import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.shared.viewmodel.RTSPVideoPlayerViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * The main stateful entry point for the RTSP Video Player screen.
@@ -71,33 +51,24 @@ import kotlinx.coroutines.isActive
  * 3. **UI Delegation**: Passes processed state to the stateless [RTSPVideoPlayerContent].
  *
  * @param modifier The modifier to be applied to the layout.
- * @param viewModel The Hilt-injected ViewModel managing the Media3 ExoPlayer instance.
+ * @param viewModel The ViewModel managing the player instance and stream state.
  */
-@OptIn(UnstableApi::class)
 @Composable
 fun RTSPVideoPlayer(
     modifier: Modifier = Modifier,
-    viewModel: RTSPVideoPlayerViewModel = hiltViewModel(),
+    viewModel: RTSPVideoPlayerViewModel,
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
-    val configuration = LocalConfiguration.current
-    var orientation = configuration.orientation
 
     // -- State Observation --
 
     // Uses collectAsStateWithLifecycle to automatically stop flow collection when the UI is not visible,
     // which is critical for reducing CPU/Battery usage in video-heavy apps.
     val playerState by viewModel.state.collectAsStateWithLifecycle(null)
-    val errorDescription by viewModel.state.map { it.error }.collectAsStateWithLifecycle(null)
+    val errorDescription = playerState?.error
 
     // Tracks the aspect ratio (width/height). Defaults to 16:9 until the RTSP stream provides metadata.
     val videoAspectRatio by viewModel.videoAspectRatio.collectAsStateWithLifecycle(16f / 9f)
-
-    // Update orientation state when configuration changes (e.g., screen rotation)
-    LaunchedEffect(configuration) {
-        snapshotFlow { configuration.orientation }
-            .collect { orientation = it }
-    }
 
     // -- Lifecycle Management --
 
@@ -115,16 +86,12 @@ fun RTSPVideoPlayer(
         }
     }
 
-    // Render the stateless UI content
     RTSPVideoPlayerContent(
-        modifier = modifier.aspectRatio(
-            videoAspectRatio,
-            // In landscape, we prioritize height to ensure the video fits the screen properly.
-            matchHeightConstraintsFirst = orientation == Configuration.ORIENTATION_LANDSCAPE
-        ),
-        player = viewModel.player,
+        modifier = modifier,
+        player = viewModel.videoPlayer,
+        videoAspectRatio = videoAspectRatio,
         playbackState = playerState?.playback ?: RTSPVideoPlayerPlaybackState.Idle,
-        errorMessage = errorDescription?.localizedMessage,
+        errorMessage = errorDescription?.message,
         onPlayClick = { viewModel.playVideo() },
         onPauseClick = { viewModel.stopVideo() },
         onImageAvailable = { viewModel.imageAvailable(it) }
@@ -132,100 +99,104 @@ fun RTSPVideoPlayer(
 }
 
 /**
- * The stateless UI renderer for the video player.
+ * Stateless content for the RTSP Video Player.
  *
- * Uses a [Box] to layer elements via Z-index logic:
- * 1. **Bottom**: The [AndroidView] (ExoPlayer Surface).
- * 2. **Middle**: Error messages or placeholders.
- * 3. **Top**: Interaction overlays (Loading indicators, Play/Pause buttons).
+ * This Composable handles the layout and decides which overlays to show based on the current
+ * playback state and error status. It uses [BoxWithConstraints] to adapt the video size
+ * to the available screen space while maintaining the correct aspect ratio.
  *
- * @param player The Media3 Player instance.
- * @param playbackState The current status (Idle, Buffering, Ready, Playing).
- * @param errorMessage Localized error string, if any.
- * @param onImageAvailable Callback providing a [Bitmap] of the current frame for thumbnailing/analysis.
+ * @param modifier The modifier for this layout.
+ * @param player The [RTSPVideoPlayer] instance used for rendering.
+ * @param videoAspectRatio The current aspect ratio of the video.
+ * @param playbackState The current state of playback (e.g., Playing, Buffering, Idle).
+ * @param errorMessage An optional error message to display in an overlay.
+ * @param onPlayClick Callback triggered when the user taps the play button.
+ * @param onPauseClick Callback triggered when the user taps to pause (stop) the stream.
+ * @param onImageAvailable Callback for processing captured video frames.
  */
-@OptIn(UnstableApi::class)
 @Composable
 internal fun RTSPVideoPlayerContent(
     modifier: Modifier = Modifier,
-    player: Player?,
+    player: RTSPVideoPlayer,
+    videoAspectRatio: Float,
     playbackState: RTSPVideoPlayerPlaybackState,
     errorMessage: String?,
     onPlayClick: () -> Unit,
     onPauseClick: () -> Unit,
-    onImageAvailable: (Bitmap) -> Unit,
+    onImageAvailable: (ImageBitmap) -> Unit,
 ) {
-    // Stores a reference to the PlayerView to perform bitmap captures (PixelCopy)
-    var playerViewRef by remember { mutableStateOf<PlayerView?>(null) }
 
-    // Snapshot Loop: Periodically captures the current video frame while the Composable is active.
-    LaunchedEffect(Unit) {
-        while (isActive) {
-            delay(5000) // Capture frequency: 5 seconds
-            playerViewRef?.let {
-                // Prevent capturing black frames or placeholders when the player is stopped
-                if (it.player?.isPlaying == true) {
-                    captureSnapshot(it) { bitmap ->
-                        onImageAvailable(bitmap)
-                    }
-                }
-            }
-        }
-    }
-
-    Box(
+    BoxWithConstraints(
         modifier = modifier,
         contentAlignment = Alignment.Center,
     ) {
-        errorMessage?.let { msg ->
-            ErrorOverlay(Modifier.fillMaxSize(), msg)
-        } ?: player?.let { playerInstance ->
+        val isLandscape = maxWidth > maxHeight
 
-            // Bridge to the legacy View system. PlayerView is required as Compose does not
-            // yet have a native high-performance Video Surface implementation.
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { ctx ->
-                    PlayerView(ctx).apply {
-                        resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
-                        useController = false // Custom UI is handled by Compose Overlays
-                        playerViewRef = this
-                    }
-                },
-                update = { view ->
-                    if (view.player != playerInstance) {
-                        view.player = playerInstance
-                    }
-                    playerViewRef = view
-                },
+        val childModifier = if (isLandscape) {
+            Modifier.fillMaxSize()
+        } else {
+            Modifier.fillMaxWidth().wrapContentHeight()
+        }.aspectRatio(
+            videoAspectRatio,
+            matchHeightConstraintsFirst = isLandscape
+        )
+
+        errorMessage?.let { msg ->
+            ErrorOverlay(childModifier, msg)
+        } ?: player.getPlayer<Any>()?.let {
+
+            RTSPVideoPlayerDisplay(
+                modifier = childModifier,
+                player = player,
+                onImageAvailable = onImageAvailable
             )
 
             // Playback State Overlays
             when (playbackState) {
                 RTSPVideoPlayerPlaybackState.Buffering -> {
-                    LoadingOverlay(Modifier.fillMaxSize())
+                    LoadingOverlay(childModifier)
                 }
 
                 RTSPVideoPlayerPlaybackState.Idle,
                 RTSPVideoPlayerPlaybackState.Ready -> {
-                    PlayButtonOverlay(Modifier.fillMaxSize(), onPlayClick)
+                    PlayButtonOverlay(childModifier, onPlayClick)
                 }
 
                 RTSPVideoPlayerPlaybackState.Playing -> {
                     // Transparent overlay to detect clicks for pausing the stream
-                    PauseButtonOverlay(Modifier.fillMaxSize(), onPauseClick)
+                    PauseButtonOverlay(childModifier, onPauseClick)
                 }
 
                 else -> {}
             }
         } ?: run {
-            EmptyPlayerOverlay(Modifier.fillMaxSize())
+            EmptyPlayerOverlay(childModifier)
         }
     }
 }
 
 /**
+ * Expect function for platform-specific video rendering.
+ *
+ * On Android, this typically wraps an `AndroidView` containing a `PlayerView` or `TextureView`.
+ * On other platforms, it uses the respective native rendering surface.
+ *
+ * @param modifier The modifier for the display surface.
+ * @param player The [RTSPVideoPlayer] instance providing the video data.
+ * @param onImageAvailable Callback invoked when a frame is captured from the stream.
+ */
+@Composable
+expect fun RTSPVideoPlayerDisplay(
+    modifier: Modifier = Modifier,
+    player: RTSPVideoPlayer,
+    onImageAvailable: (ImageBitmap) -> Unit,
+)
+
+/**
  * Overlay shown when an error occurs (e.g., Connection Timeout, Auth Failure).
+ *
+ * @param modifier The modifier for the overlay.
+ * @param errorMessage The description of the error to display.
  */
 @Composable
 internal fun ErrorOverlay(modifier: Modifier = Modifier, errorMessage: String) {
@@ -246,6 +217,8 @@ internal fun ErrorOverlay(modifier: Modifier = Modifier, errorMessage: String) {
 
 /**
  * Placeholder UI shown while the ViewModel is initializing the Player instance.
+ *
+ * @param modifier The modifier for the placeholder.
  */
 @Composable
 internal fun EmptyPlayerOverlay(modifier: Modifier = Modifier) {
@@ -260,6 +233,8 @@ internal fun EmptyPlayerOverlay(modifier: Modifier = Modifier) {
 
 /**
  * Indeterminate progress indicator shown during stream buffering.
+ *
+ * @param modifier The modifier for the loading overlay.
  */
 @Composable
 internal fun LoadingOverlay(modifier: Modifier = Modifier) {
@@ -278,6 +253,9 @@ internal fun LoadingOverlay(modifier: Modifier = Modifier) {
 
 /**
  * Large Play icon overlay for non-playing states.
+ *
+ * @param modifier The modifier for the play button overlay.
+ * @param onClick Callback triggered when the overlay is clicked.
  */
 @Composable
 internal fun PlayButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Unit) {
@@ -299,6 +277,9 @@ internal fun PlayButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Uni
 
 /**
  * A transparent click-interceptor used to trigger a pause action.
+ *
+ * @param modifier The modifier for the pause overlay.
+ * @param onClick Callback triggered when the overlay is clicked.
  */
 @Composable
 internal fun PauseButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Unit) {
@@ -309,49 +290,7 @@ internal fun PauseButtonOverlay(modifier: Modifier = Modifier, onClick: () -> Un
     )
 }
 
-/**
- * Performs a frame capture of the current video surface.
- *
- * **Logic**:
- * 1. If using [TextureView], uses [TextureView.getBitmap] (synchronous, easier).
- * 2. If using [SurfaceView], uses [PixelCopy] (asynchronous).
- *
- * Note: [PixelCopy] is necessary for [SurfaceView] because its contents are not
- * managed by the standard View hierarchy drawing pass.
- */
-@OptIn(UnstableApi::class)
-internal fun captureSnapshot(playerView: PlayerView, onBitmapReady: (Bitmap) -> Unit) {
-    val surfaceView = playerView.videoSurfaceView
-
-    // TextureView Branch
-    (surfaceView as? TextureView)?.let { textureView ->
-        textureView.bitmap?.let(onBitmapReady)
-    }
-    // SurfaceView Branch (Standard ExoPlayer default)
-        ?: (surfaceView as? SurfaceView)?.let { sv ->
-            try {
-                if (sv.width > 0 && sv.height > 0) {
-                    val bitmap = createBitmap(sv.width, sv.height)
-                    PixelCopy.request(
-                        sv,
-                        bitmap,
-                        { result ->
-                            if (result == PixelCopy.SUCCESS) {
-                                onBitmapReady(bitmap)
-                            }
-                        },
-                        Handler(Looper.getMainLooper()) // Callback runs on the main thread
-                    )
-                }
-            } catch (e: Exception) {
-                Log.e("RTSPVideoPlayer", "Failed to capture snapshot", e)
-            }
-        }
-}
-
-@SuppressLint("ViewModelConstructorInComposable")
-@Preview(name = "Day", showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_NO)
-@Preview(name = "Night", showSystemUi = true, uiMode = Configuration.UI_MODE_NIGHT_YES)
+@Preview
 @Composable
 private fun RTSPVideoPlayerPreview() {
     RTSPViewerTheme {
@@ -363,8 +302,28 @@ private fun RTSPVideoPlayerPreview() {
             // Note: This preview uses a manually instantiated ViewModel with nulls
             // for dependencies. Real-world previews might require a MockViewModel or
             // specifically separating logic further into a 'Component' level.
+            val videoPlayer = object : RTSPVideoPlayer {
+                override val currentState: StateFlow<RTSPVideoPlayerPlaybackState>
+                    get() = MutableStateFlow(RTSPVideoPlayerPlaybackState.Idle)
+                override val videoAspectRatio: StateFlow<Float>
+                    get() = MutableStateFlow(0.0f)
+                override val error: StateFlow<Throwable?>
+                    get() = MutableStateFlow(null)
+
+                override fun prepare(uri: String, forceTcp: Boolean) {}
+
+                override fun play() {}
+
+                override fun stop() {}
+
+                override fun release() {}
+
+                override fun <T> getPlayer(): T? {
+                    return null
+                }
+            }
             val viewModel = RTSPVideoPlayerViewModel(
-                LocalContext.current,
+                videoPlayer,
                 null,
                 false,
                 onImageAvailable = null

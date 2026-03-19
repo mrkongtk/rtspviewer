@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.systemBars
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -42,9 +43,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -52,23 +51,25 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.util.fastForEach
-import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.MoreOptionState
-import com.mrkongtk.rtspviewer.data.RTSPVideoPlayerPlaybackState
 import com.mrkongtk.rtspviewer.data.not
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.database.entity.hideCredentialUri
+import com.mrkongtk.rtspviewer.shared.ui.compose.RTSPVideoPlayer
+import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerPlaybackState
+import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerState
+import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingM
+import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingS
+import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingXs
+import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.shared.viewmodel.RTSPVideoPlayerViewModel
 import com.mrkongtk.rtspviewer.ui.compose.KeepScreenOn
-import com.mrkongtk.rtspviewer.ui.compose.RTSPVideoPlayer
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
-import com.mrkongtk.rtspviewer.ui.theme.PaddingM
-import com.mrkongtk.rtspviewer.ui.theme.PaddingS
-import com.mrkongtk.rtspviewer.ui.theme.PaddingXs
-import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.util.formatText
-import com.mrkongtk.rtspviewer.viewmodel.RTSPVideoPlayerViewModel
+import org.koin.compose.viewmodel.koinViewModel
+import org.koin.core.parameter.parametersOf
 
 
 /**
@@ -82,15 +83,13 @@ import com.mrkongtk.rtspviewer.viewmodel.RTSPVideoPlayerViewModel
  * @param item The data entity representing the stream configuration.
  * @param moreOption Initial visibility state of the action menu (useful for deep-linking/testing).
  * @param screenActions Interface to handle navigation or data logic (edit, delete, snapshot saving).
- * @param playerViewModel Optional ViewModel instance, primarily used for Preview or manual injection.
  */
 @Composable
 fun StreamItemScreen(
     modifier: Modifier = Modifier,
     item: RTSPItem,
     moreOption: Boolean = false,
-    screenActions: StreamItemScreenActions,
-    playerViewModel: RTSPVideoPlayerViewModel? = null,
+    screenActions: StreamItemScreenActions
 ) {
     val configuration = LocalConfiguration.current
     var orientation by remember { mutableIntStateOf(configuration.orientation) }
@@ -115,7 +114,6 @@ fun StreamItemScreen(
                     .testTag("VideoPlayerLandscape")
                     .fillMaxSize(),
                 item = item,
-                viewModel = playerViewModel,
             ) { item, bitmap ->
                 screenActions.onImageAvailable(item, bitmap)
             }
@@ -129,9 +127,9 @@ fun StreamItemScreen(
                 VideoPlayer(
                     Modifier
                         .testTag("VideoPlayer")
-                        .fillMaxWidth(),
-                    item,
-                    viewModel = playerViewModel,
+                        .fillMaxWidth()
+                        .wrapContentHeight(),
+                    item
                 ) { item, bitmap ->
                     screenActions.onImageAvailable(item, bitmap)
                 }
@@ -314,53 +312,34 @@ fun StreamItemScreen(
 }
 
 /**
- * A wrapper for [RTSPVideoPlayer] that handles Hilt ViewModel creation.
- *
- * Uses **Assisted Injection** via [RTSPVideoPlayerViewModel.Factory] to pass runtime
- * stream parameters (URI, TCP preference) into the ViewModel.
+ * A wrapper for [RTSPVideoPlayer] that handles Koin ViewModel creation.
  */
 @Composable
 private fun VideoPlayer(
     modifier: Modifier = Modifier,
     item: RTSPItem,
-    viewModel: RTSPVideoPlayerViewModel? = null,
     onImageAvailable: (RTSPItem, ImageBitmap) -> Unit,
 ) {
-    // Check if we are in Android Studio Preview mode to avoid Hilt/Native errors
-    if (LocalInspectionMode.current) {
-        viewModel?.let {
-
-            val state by it.state.collectAsStateWithLifecycle()
-            KeepScreenOn(state.playback == RTSPVideoPlayerPlaybackState.Playing)
-
-            RTSPVideoPlayer(viewModel = it, modifier = modifier)
-        } ?: run {
-            Box(modifier = modifier, contentAlignment = Alignment.Center) {
-                Text(modifier = Modifier.testTag("EmptyVideo"), text = "Video Player Preview")
-            }
-        }
-    } else {
-        // Resolve ViewModel: use the provided one or create a new one via Hilt factory
-        val rtspViewModel: RTSPVideoPlayerViewModel =
-            viewModel ?: hiltViewModel<RTSPVideoPlayerViewModel, RTSPVideoPlayerViewModel.Factory>(
-                creationCallback = { factory ->
-                    factory.create(item.uri, item.forceTcp) {
-                        onImageAvailable(
-                            item,
-                            it.asImageBitmap()
-                        )
-                    }
-                }
-            )
-
-        val state by rtspViewModel.state.collectAsStateWithLifecycle()
-        KeepScreenOn(state.playback == RTSPVideoPlayerPlaybackState.Playing)
-
-        RTSPVideoPlayer(
-            viewModel = rtspViewModel,
-            modifier = modifier,
+    val rtspViewModel = koinViewModel<RTSPVideoPlayerViewModel> {
+        parametersOf(
+            item.uri,
+            item.forceTcp,
+            { bitmap: ImageBitmap -> onImageAvailable(item, bitmap) }
         )
     }
+
+    val state by rtspViewModel.state.collectAsStateWithLifecycle(
+        RTSPVideoPlayerState(
+            RTSPVideoPlayerPlaybackState.Idle,
+            null
+        )
+    )
+    KeepScreenOn(state.playback == RTSPVideoPlayerPlaybackState.Playing)
+
+    RTSPVideoPlayer(
+        viewModel = rtspViewModel,
+        modifier = modifier,
+    )
 }
 
 /**

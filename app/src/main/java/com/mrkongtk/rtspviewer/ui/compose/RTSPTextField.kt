@@ -14,8 +14,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
-import com.mrkongtk.rtspviewer.ui.theme.PaddingM
-import com.mrkongtk.rtspviewer.ui.theme.RoundedCornerSize
+import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingM
+import com.mrkongtk.rtspviewer.shared.ui.theme.RoundedCornerSize
 
 /**
  * A customized OutlinedTextField component designed for the RTSP Viewer application.

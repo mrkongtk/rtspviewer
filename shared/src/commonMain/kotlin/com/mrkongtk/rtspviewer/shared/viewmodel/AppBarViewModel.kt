@@ -1,15 +1,13 @@
 package com.mrkongtk.rtspviewer.shared.viewmodel
 
 import androidx.lifecycle.ViewModel
-import androidx.lifecycle.viewModelScope
 import com.mrkongtk.rtspviewer.shared.AppScreen
-import com.mrkongtk.rtspviewer.shared.data.AppBarState
-import com.mrkongtk.rtspviewer.shared.data.AppBarTitle
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.ui.state.AppBarState
+import com.mrkongtk.rtspviewer.shared.ui.state.AppBarTitle
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
-import kotlinx.coroutines.launch
 
 /**
  * ViewModel responsible for managing the state and content of the Top App Bar.

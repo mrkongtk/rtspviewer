@@ -1,11 +1,13 @@
 package com.mrkongtk.rtspviewer.shared.di
 
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.room.RoomDatabaseConstructor
 import com.mrkongtk.rtspviewer.shared.data.database.AppDatabase
 import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepositoryImpl
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppViewModel
+import com.mrkongtk.rtspviewer.shared.viewmodel.RTSPVideoPlayerViewModel
 import org.koin.core.KoinApplication
 import org.koin.core.context.startKoin
 import org.koin.core.module.Module
@@ -20,6 +22,14 @@ import org.koin.dsl.module
 val commonModule = module {
     viewModel { AppBarViewModel() }
     viewModel { AppViewModel(get(), get()) }
+    viewModel { (uri: String?, tcp: Boolean, callback: ((ImageBitmap) -> Unit)?) ->
+        RTSPVideoPlayerViewModel(
+            get(),
+            uri,
+            tcp,
+            callback
+        )
+    }
     single<RTSPItemRepository> { RTSPItemRepositoryImpl(get(), get()) }
 }
 

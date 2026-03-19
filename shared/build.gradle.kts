@@ -100,6 +100,9 @@ kotlin {
                 implementation(libs.koin.compose.viewmodel)
                 // path
                 implementation(libs.okio)
+
+                // ui
+                implementation(libs.material.icons.extended)
             }
         }
 
@@ -118,6 +121,9 @@ kotlin {
                 // commonMain by default and will correctly pull the Android artifacts of any KMP
                 // dependencies declared in commonMain.
                 implementation(libs.koin.android)
+
+                implementation(libs.androidx.media3.media3.exoplayer.rtsp)
+                implementation(libs.androidx.media3.media3.ui)
             }
         }
 

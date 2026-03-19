@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.ui.theme
+package com.mrkongtk.rtspviewer.shared.ui.theme
 
 import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle

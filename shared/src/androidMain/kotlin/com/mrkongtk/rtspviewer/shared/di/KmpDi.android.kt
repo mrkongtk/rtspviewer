@@ -7,6 +7,8 @@ import com.mrkongtk.rtspviewer.shared.data.database.DatabaseBuilderAndroidImpl
 import com.mrkongtk.rtspviewer.shared.data.database.getDatabase
 import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.FileRepositoryAndroidImpl
+import com.mrkongtk.rtspviewer.shared.player.ExoVideoPlayer
+import com.mrkongtk.rtspviewer.shared.player.RTSPVideoPlayer
 import org.koin.dsl.module
 
 /**
@@ -17,4 +19,5 @@ actual val platformModule = module {
     single<FileRepository> { FileRepositoryAndroidImpl(get()) }
     single<DeviceInfo> { DeviceInfoAndroidImpl(get()) }
     single<AppDatabase> { DatabaseBuilderAndroidImpl(get(), get()).getDatabase() }
+    factory<RTSPVideoPlayer> { ExoVideoPlayer(get()) }
 }

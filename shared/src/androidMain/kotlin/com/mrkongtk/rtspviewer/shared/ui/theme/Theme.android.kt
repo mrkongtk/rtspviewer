@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.ui.theme
+package com.mrkongtk.rtspviewer.shared.ui.theme
 
 import android.content.res.Configuration
 import android.os.Build
@@ -7,7 +7,6 @@ import androidx.activity.SystemBarStyle
 import androidx.activity.compose.LocalActivity
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -22,10 +21,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.Modifier
@@ -35,48 +32,6 @@ import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.view.WindowCompat
 
-/**
- * Custom Dark Color Scheme mapping local color tokens to Material 3 semantic slots.
- */
-private val DarkColorScheme = darkColorScheme(
-    primary = DarkPrimary,
-    onPrimary = DarkOnPrimary,
-    primaryContainer = DarkSurface,
-    onPrimaryContainer = DarkTextPrimary,
-    background = DarkBackground,
-    onBackground = DarkTextPrimary,
-    surface = DarkSurface,
-    onSurface = DarkTextPrimary,
-    secondary = DarkSecondary,
-    onSecondary = DarkTextSecondary,
-    error = ErrorColor,
-    onError = OnErrorColor,
-)
-
-/**
- * Material Design 3 Light Color Scheme.
- *
- * This configuration maps the project's specific light mode color definitions
- * (e.g., [LightPrimary], [LightSurface]) to the standard Material 3 semantic slots.
- */
-private val LightColorScheme = lightColorScheme(
-    primary = LightPrimary,
-    onPrimary = LightOnPrimary,
-    primaryContainer = LightSurface,
-    onPrimaryContainer = LightTextPrimary,
-
-    background = LightBackground,
-    onBackground = LightTextPrimary,
-
-    surface = LightSurface,
-    onSurface = LightTextPrimary,
-
-    secondary = LightSecondary,
-    onSecondary = LightTextSecondary,
-
-    error = ErrorColor,
-    onError = OnErrorColor
-)
 
 /**
  * The application's primary Theme wrapper.
@@ -91,9 +46,9 @@ private val LightColorScheme = lightColorScheme(
  * @param content The UI hierarchy to be themed.
  */
 @Composable
-fun RTSPViewerTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
-    dynamicColor: Boolean = false,
+actual fun RTSPViewerTheme(
+    darkTheme: Boolean,
+    dynamicColor: Boolean,
     content: @Composable () -> Unit
 ) {
     // Determine the color palette (Dynamic vs Static)
@@ -150,6 +105,7 @@ fun RTSPViewerTheme(
         content = content
     )
 }
+
 
 /**
  * Theme Previews.

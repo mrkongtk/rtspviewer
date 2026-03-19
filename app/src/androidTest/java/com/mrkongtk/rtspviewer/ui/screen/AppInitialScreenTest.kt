@@ -17,7 +17,7 @@ import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
-import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.util.formatText
 import com.mrkongtk.rtspviewer.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.viewmodel.AppViewModel

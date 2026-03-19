@@ -20,15 +20,15 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rtspviewer.shared.AppScreen
-import com.mrkongtk.rtspviewer.shared.data.AppUiState
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepository
+import com.mrkongtk.rtspviewer.shared.ui.state.AppUiState
+import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppViewModel
 import com.mrkongtk.rtspviewer.ui.compose.AppBar
 import com.mrkongtk.rtspviewer.ui.screen.action.NavigationScreenActions
-import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import okio.Path

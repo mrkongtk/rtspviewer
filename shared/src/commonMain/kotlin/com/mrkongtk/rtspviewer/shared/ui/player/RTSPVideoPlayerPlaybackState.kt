@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.data
+package com.mrkongtk.rtspviewer.shared.ui.player
 
 /**
  * Represents the current playback lifecycle state of the RTSP video player.
@@ -19,17 +19,8 @@ enum class RTSPVideoPlayerPlaybackState(val value: Int) {
     Ended(4),
 
     /** The video is currently playing. */
-    Playing(10);
+    Playing(5),
 
-    companion object {
-        /**
-         * Finds the [RTSPVideoPlayerPlaybackState] corresponding to the given integer value.
-         *
-         * @param value The integer value to look up.
-         * @return The matching state, or null if no state matches the value.
-         */
-        fun fromValue(value: Int): RTSPVideoPlayerPlaybackState? {
-            return RTSPVideoPlayerPlaybackState.entries.firstOrNull { it.value == value }
-        }
-    }
+    /** The player is released and no longer available. */
+    Released(100);
 }

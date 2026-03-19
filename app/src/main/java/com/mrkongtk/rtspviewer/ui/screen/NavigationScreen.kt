@@ -19,13 +19,13 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.mrkongtk.rtspviewer.AppScreen
-import com.mrkongtk.rtspviewer.shared.data.AppUiState
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.ui.state.AppUiState
+import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
 import com.mrkongtk.rtspviewer.ui.screen.action.NavigationScreenActions
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamListScreenActions
-import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 
 /**
  * The central navigation graph and coordinator for the RTSP Viewer application.
@@ -123,7 +123,8 @@ fun NavigationScreen(
             // Guard clause: Only render if a selection exists in the state.
             // This prevents crashes during rapid navigation or state resets.
             uiState.selectedItem?.let { item ->
-                StreamItemScreen(
+
+            StreamItemScreen(
                     modifier = Modifier.fillMaxSize(),
                     item = item,
                     screenActions = actions,

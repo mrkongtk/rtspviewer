@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.data
+package com.mrkongtk.rtspviewer.shared.ui.player
 
 data class RTSPVideoPlayerState(
     val playback: RTSPVideoPlayerPlaybackState,

@@ -58,15 +58,15 @@ import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.data.MoreOptionState
 import com.mrkongtk.rtspviewer.data.not
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.ui.theme.ErrorColor
+import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingM
+import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingS
+import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingXs
+import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.ui.compose.DraggableLazyColumn
 import com.mrkongtk.rtspviewer.ui.compose.StreamListItem
 import com.mrkongtk.rtspviewer.ui.compose.StreamSortingItem
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamListScreenActions
-import com.mrkongtk.rtspviewer.ui.theme.ErrorColor
-import com.mrkongtk.rtspviewer.ui.theme.PaddingM
-import com.mrkongtk.rtspviewer.ui.theme.PaddingS
-import com.mrkongtk.rtspviewer.ui.theme.PaddingXs
-import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
 
 /**
  * The main dashboard screen for viewing and managing RTSP streams.

@@ -14,7 +14,7 @@ import androidx.compose.ui.test.performClick
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
-import com.mrkongtk.rtspviewer.ui.theme.RTSPViewerTheme
+import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith

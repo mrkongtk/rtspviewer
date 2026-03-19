@@ -15,7 +15,7 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mrkongtk.rtspviewer.R
-import com.mrkongtk.rtspviewer.shared.data.AppBarTitle
+import com.mrkongtk.rtspviewer.shared.ui.state.AppBarTitle
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.util.formatText
 import org.jetbrains.compose.resources.stringResource
