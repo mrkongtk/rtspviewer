@@ -1,7 +1,7 @@
 [versions]
 adaptive = "1.2.0"
 agp = "9.0.0"
-kotlin = "2.3.0"
+kotlin = "2.3.20"
 kotlinxCoroutinesTest = "1.10.2"
 ksp = "2.3.2" # must match with the kotlin version
 coreKtx = "1.17.0"
@@ -27,11 +27,11 @@ runner = "1.7.0"
 core = "1.7.0"
 
 #kmp
-composeMultiplatform = "1.10.1"
-androidx-lifecycle = "2.9.6"
+composeMultiplatform = "1.10.3"
+androidx-lifecycle = "2.10.0"
 material3 = "1.10.0-alpha05"
-koin-bom = "4.2.0-RC1"
-okio = "3.16.4"
+koin-bom = "4.2.0"
+okio = "3.17.0"
 
 [libraries]
 adaptive = { module = "org.jetbrains.compose.material3.adaptive:adaptive", version.ref = "adaptive" }
