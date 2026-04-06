@@ -14,6 +14,6 @@ import org.jetbrains.compose.resources.StringResource
  * the `formatText` extension.
  */
 data class AppBarTitle(
-    val id: StringResource? = null,
+    val id: StringResource,
     val args: List<String> = emptyList()
 )

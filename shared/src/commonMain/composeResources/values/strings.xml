@@ -25,7 +25,7 @@
     <string name="field_tags">Tags:</string>
     <string name="field_placeholder_tags">Separate with comma</string>
     <string name="checkbox_force_tcp">Force TCP:</string>
-    <string name="checkbox_placeholder_force_tcp">Try enable it if the stream cannot be connect.</string>
+    <string name="checkbox_placeholder_force_tcp">Try enable it if the stream cannot be connected.</string>
     <string name="player_state_play">Play</string>
     <string name="player_state_pause">Pause</string>
     <string name="label_name">Name:</string>
