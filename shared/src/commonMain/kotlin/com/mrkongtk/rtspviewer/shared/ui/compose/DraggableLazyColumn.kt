@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.ui.compose
+package com.mrkongtk.rtspviewer.shared.ui.compose
 
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.OverscrollEffect

@@ -1,35 +1,31 @@
-package com.mrkongtk.rtspviewer.ui.compose
+package com.mrkongtk.rtspviewer.shared.ui.compose
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.height
 import androidx.compose.material3.Text
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performTouchInput
+import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
-import org.junit.Assert.assertEquals
-import org.junit.Rule
-import org.junit.Test
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(ExperimentalTestApi::class)
 class DraggableLazyColumnTest {
-
-    @get:Rule
-    val rule = createComposeRule()
 
     // We use a fixed height for items to make drag-distance calculations predictable in tests
     private val itemHeightDp = 50.dp
 
     @Test
-    fun testInitialRendering() {
+    fun testInitialRendering() = runComposeUiTest {
         val items = listOf("Item A", "Item B", "Item C")
 
-        rule.setContent {
+        setContent {
             DraggableLazyColumn(
                 items = items,
                 onReordered = {},
@@ -41,16 +37,16 @@ class DraggableLazyColumnTest {
 
         // Assert all items are displayed
         items.forEach { item ->
-            rule.onNodeWithText(item).assertIsDisplayed()
+            onNodeWithText(item).assertIsDisplayed()
         }
     }
 
     @Test
-    fun testDragToReorder_Down() {
+    fun testDragToReorder_Down() = runComposeUiTest {
         val initialItems = listOf("1", "2", "3")
         var reorderedItems = listOf<String>()
 
-        rule.setContent {
+        setContent {
             // Get density for pixel conversions if needed, though usually automatic in touch input
             DraggableLazyColumn(
                 items = initialItems,
@@ -75,7 +71,7 @@ class DraggableLazyColumnTest {
         // 3. Item "1" should end up at Index 1.
         // 4. Expected result: ["2", "1", "3"]
 
-        rule.onNodeWithText("1").performTouchInput {
+        onNodeWithText("1").performTouchInput {
             // 1. Long press to activate drag
             down(center)
             advanceEventTime(1000L) // Wait longer than long-press timeout
@@ -92,18 +88,18 @@ class DraggableLazyColumnTest {
         }
 
         // Wait for Compose to settle (animations etc)
-        rule.waitForIdle()
+        waitForIdle()
 
         // Assert the callback was called with the new order
         assertEquals(listOf("2", "1", "3"), reorderedItems)
     }
 
     @Test
-    fun testDragToReorder_Up() {
+    fun testDragToReorder_Up() = runComposeUiTest {
         val initialItems = listOf("A", "B", "C")
         var reorderedItems = listOf<String>()
 
-        rule.setContent {
+        setContent {
             DraggableLazyColumn(
                 items = initialItems,
                 onReordered = { reorderedItems = it },
@@ -125,7 +121,7 @@ class DraggableLazyColumnTest {
         // 2. Drag it UP past Item "B" (Index 1).
         // 3. Expected result: ["A", "C", "B"]
 
-        rule.onNodeWithText("C").performTouchInput {
+        onNodeWithText("C").performTouchInput {
             down(center)
             advanceEventTime(1000L) // Trigger Long Press
 
@@ -136,17 +132,17 @@ class DraggableLazyColumnTest {
             up()
         }
 
-        rule.waitForIdle()
+        waitForIdle()
 
         assertEquals(listOf("A", "C", "B"), reorderedItems)
     }
 
     @Test
-    fun testDragAndCancel_ShouldNotReorder() {
+    fun testDragAndCancel_ShouldNotReorder() = runComposeUiTest {
         val initialItems = listOf("X", "Y", "Z")
         var callbackCalled = false
 
-        rule.setContent {
+        setContent {
             DraggableLazyColumn(
                 items = initialItems,
                 onReordered = { callbackCalled = true },
@@ -156,14 +152,14 @@ class DraggableLazyColumnTest {
             )
         }
 
-        rule.onNodeWithText("X").performTouchInput {
+        onNodeWithText("X").performTouchInput {
             down(center)
             advanceEventTime(1000L)
             moveBy(Offset(0f, height * 1.5f + 2.dp.toPx())) // Drag it so it *visually* swaps
             cancel() // Simulating the system cancelling the touch (e.g., incoming call or parent scroll takeover)
         }
 
-        rule.waitForIdle()
+        waitForIdle()
 
         // The logic in your code resets draggingItemIndex onCancel,
         // BUT it does NOT trigger onReordered.
