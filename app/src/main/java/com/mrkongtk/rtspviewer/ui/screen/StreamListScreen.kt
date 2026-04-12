@@ -94,6 +94,7 @@ fun StreamListScreen(
 ) {
     var isSorting by remember { mutableStateOf(false) }
     var isOptionOpening by remember { mutableStateOf(MoreOptionState.CLOSED) }
+    var reorderedItemList by remember(itemList) { mutableStateOf(itemList) }
 
     if (itemList.isEmpty()) {
         // State 1: Empty - Guidance for new users
@@ -117,7 +118,7 @@ fun StreamListScreen(
             modifier = modifier,
             itemList = itemList,
             previews = previews,
-            onItemsReordered = { screenActions.onItemsReordered(it) },
+            onItemsReordered = { reorderedItemList = it },
         )
     } else {
         // State 3: Viewing Mode - Content list with category filtering
@@ -179,6 +180,11 @@ fun StreamListScreen(
                 onClick = {
                     if (isSorting) {
                         isSorting = false // Exit sorting mode
+                        val hasOrderChanged = itemList.size != reorderedItemList.size ||
+                                itemList.indices.any { i -> itemList[i].id != reorderedItemList[i].id }
+                        if (hasOrderChanged) {
+                            screenActions.onItemsReordered(reorderedItemList)
+                        }
                     } else {
                         isOptionOpening = !isOptionOpening // Toggle more options
                     }
