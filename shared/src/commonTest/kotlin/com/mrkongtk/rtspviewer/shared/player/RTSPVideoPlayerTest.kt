@@ -2,7 +2,11 @@ package com.mrkongtk.rtspviewer.shared.player
 
 import app.cash.turbine.test
 import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerPlaybackState
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,6 +42,7 @@ abstract class RTSPVideoPlayerTest {
         }
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun testPrepareChangeStateToPlaying() = runTest {
         val player: RTSPVideoPlayer = createPlayer()
@@ -46,9 +51,19 @@ abstract class RTSPVideoPlayerTest {
             .test(timeout = 30.seconds) {
 
                 assertEquals(RTSPVideoPlayerPlaybackState.Idle to null, awaitItem())
-                runOnMainThreadSync {
-                    player.prepare(uri = uri, forceTcp = true)
+                launch {
+                    delay(1000)
+                    runOnMainThreadSync {
+                        player.prepare(uri = uri, forceTcp = true)
+                    }
                 }
+
+                // Verify nothing happens before the delay
+                advanceTimeBy(500)
+                expectNoEvents()
+
+                // Advance to trigger the prepare call
+                advanceTimeBy(500)
                 assertEquals(RTSPVideoPlayerPlaybackState.Buffering to null, awaitItem())
                 assertEquals(RTSPVideoPlayerPlaybackState.Ready to null, awaitItem())
                 assertEquals(RTSPVideoPlayerPlaybackState.Playing to null, awaitItem())
