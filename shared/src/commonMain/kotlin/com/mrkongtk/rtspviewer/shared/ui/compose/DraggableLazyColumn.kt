@@ -29,10 +29,20 @@ import androidx.compose.ui.zIndex
 /**
  * A wrapper around [LazyColumn] that provides drag-and-drop reordering functionality.
  *
+ * @param T The type of items in the list.
+ * @param modifier The modifier to be applied to the layout.
  * @param items The list of data items to display.
- * @param onReordered Callback invoked when the user finishes dragging. Returns the new ordered list.
  * @param itemKey Unique key for each item. Crucial for correct animation and state preservation during reordering.
- * @param itemContent The composable content for each list item.
+ * @param contentPadding A padding around the whole content.
+ * @param reverseLayout Reverse the direction of scrolling and layout.
+ * @param verticalArrangement The vertical arrangement of the layout's children.
+ * @param horizontalAlignment The horizontal alignment of the layout's children.
+ * @param flingBehavior Logic describing fling behavior.
+ * @param userScrollEnabled Whether the scrolling via the user gestures or accessibility actions is enabled.
+ * @param overscrollEffect The overscroll effect to use.
+ * @param onReordered Callback invoked when the user finishes dragging. Returns the new ordered list.
+ * @param itemContent The composable content for each list item. Receives a [Modifier] that must be
+ * applied to the root element of the item to enable drag-and-drop.
  */
 @Composable
 fun <T> DraggableLazyColumn(
@@ -50,16 +60,16 @@ fun <T> DraggableLazyColumn(
     onReordered: (List<T>) -> Unit,
     itemContent: @Composable (Modifier, T) -> Unit,
 ) {
-    // create a local mutable copy of the items to allow immediate UI updates
-    // while dragging, before syncing back to the source of truth.
-    val items = remember(items) { items.toMutableStateList() }
+    // Maintain a local mutable copy of the items to allow immediate UI updates
+    // while dragging, before syncing back to the source of truth via onReordered.
+    val internalItems = remember(items) { items.toMutableStateList() }
 
     val listState = rememberLazyListState()
 
-    // Tracks the index of the item currently being dragged (-1 means no drag active)
+    // Index of the item currently being dragged. -1 indicates no active drag.
     var draggingItemIndex by remember { mutableIntStateOf(-1) }
 
-    // Tracks the vertical pixel displacement of the dragged item relative to its original slot
+    // Vertical displacement of the dragged item relative to its original position.
     var draggingItemOffset by remember { mutableFloatStateOf(0f) }
 
     LazyColumn(
@@ -73,43 +83,33 @@ fun <T> DraggableLazyColumn(
         userScrollEnabled = userScrollEnabled,
         overscrollEffect = overscrollEffect
     ) {
-
         itemsIndexed(
-            items = items,
-            // Optimization: Using a stable ID helps Compose identify items
-            // strictly for smoother reordering animations and less flickering.
+            items = internalItems,
             key = itemKey
         ) { index, item ->
-
-            // Capture current index in a state to avoid closure capture issues during reorders
+            // Use rememberUpdatedState to ensure the gesture handler uses the most recent index.
             val currentIndex by rememberUpdatedState(index)
-
-            // Check if this specific item is the one currently being held
             val isDragging = index == draggingItemIndex
 
-            // Animate elevation to give the "lifted" visual effect
+            // Animate elevation to provide visual feedback when an item is "lifted".
             val elevation by animateDpAsState(if (isDragging) 8.dp else 0.dp)
 
-            val modifier: Modifier = Modifier
-                // 1. Placement Animation:
-                // This modifier makes NON-dragged items slide smoothly into their new positions
-                // when the list order changes.
+            val itemModifier = Modifier
+                // 1. Reordering Animation:
+                // Smoothly animates non-dragged items to their new positions.
                 .animateItem()
-
-                // 2. Visual Transformations (The Dragged Item):
-                // We apply translation and scaling here. Note that translationY moves the *pixels*
-                // but does not change the item's physical layout position in the column.
+                // 2. Visual Feedback for the Dragged Item:
+                // Applies translation, scaling, and elevation.
                 .graphicsLayer {
                     translationY = if (isDragging) draggingItemOffset else 0f
-                    scaleX = if (isDragging) 1.05f else 1f // Slight pop effect
+                    scaleX = if (isDragging) 1.05f else 1f
                     scaleY = if (isDragging) 1.05f else 1f
                     shadowElevation = elevation.toPx()
-                    // Increase Z-Index to ensure the dragged item floats above others
                 }
+                // Ensure the dragged item stays on top of others.
                 .zIndex(if (isDragging) 1f else 0f)
-
                 // 3. Gesture Detection:
-                // Handles the long-press and subsequent drag movements.
+                // Handles long-press to start dragging and subsequent movement.
                 .pointerInput(Unit) {
                     detectDragGesturesAfterLongPress(
                         onDragStart = {
@@ -120,34 +120,39 @@ fun <T> DraggableLazyColumn(
                             change.consume()
                             draggingItemOffset += dragAmount.y
 
-                            // --- REORDERING LOGIC --- //
-
+                            // Dynamic reordering logic:
+                            // Determines if the dragged item has moved far enough to swap with a neighbor.
                             val currentItemInfo = listState.layoutInfo.visibleItemsInfo
                                 .firstOrNull { it.index == draggingItemIndex }
 
-                            currentItemInfo?.let {
-                                if (draggingItemOffset > 0) {
-                                    val currentOffset =
-                                        it.offset + it.size.toFloat() + draggingItemOffset
-                                    val lastIndex =
-                                        listState.layoutInfo.visibleItemsInfo.indexOfLast { item ->
-                                            item.offset + item.size.toFloat() / 2f < currentOffset
+                            currentItemInfo?.let { info ->
+                                if (draggingItemOffset > 0) { // Dragging down
+                                    val currentOffset = info.offset + info.size + draggingItemOffset
+                                    val targetIndex =
+                                        listState.layoutInfo.visibleItemsInfo.indexOfLast {
+                                            it.offset + it.size / 2f < currentOffset
                                         }
-                                    if (draggingItemIndex != lastIndex && lastIndex >= 0) {
-                                        draggingItemOffset -= listState.layoutInfo.visibleItemsInfo[lastIndex].size
-                                        items.add(lastIndex, items.removeAt(draggingItemIndex))
-                                        draggingItemIndex = lastIndex
+                                    if (draggingItemIndex != targetIndex && targetIndex >= 0) {
+                                        draggingItemOffset -= listState.layoutInfo.visibleItemsInfo[targetIndex].size
+                                        internalItems.add(
+                                            targetIndex,
+                                            internalItems.removeAt(draggingItemIndex)
+                                        )
+                                        draggingItemIndex = targetIndex
                                     }
-                                } else if (draggingItemOffset < 0) {
-                                    val currentOffset = it.offset + draggingItemOffset
-                                    val firstIndex =
-                                        listState.layoutInfo.visibleItemsInfo.indexOfFirst { item ->
-                                            item.offset + item.size.toFloat() / 2f > currentOffset
+                                } else if (draggingItemOffset < 0) { // Dragging up
+                                    val currentOffset = info.offset + draggingItemOffset
+                                    val targetIndex =
+                                        listState.layoutInfo.visibleItemsInfo.indexOfFirst {
+                                            it.offset + it.size / 2f > currentOffset
                                         }
-                                    if (draggingItemIndex != firstIndex && firstIndex >= 0) {
-                                        draggingItemOffset += listState.layoutInfo.visibleItemsInfo[firstIndex].size
-                                        items.add(firstIndex, items.removeAt(draggingItemIndex))
-                                        draggingItemIndex = firstIndex
+                                    if (draggingItemIndex != targetIndex && targetIndex >= 0) {
+                                        draggingItemOffset += listState.layoutInfo.visibleItemsInfo[targetIndex].size
+                                        internalItems.add(
+                                            targetIndex,
+                                            internalItems.removeAt(draggingItemIndex)
+                                        )
+                                        draggingItemIndex = targetIndex
                                     }
                                 }
                             }
@@ -155,8 +160,7 @@ fun <T> DraggableLazyColumn(
                         onDragEnd = {
                             draggingItemIndex = -1
                             draggingItemOffset = 0f
-                            // Persist the final order via callback
-                            onReordered(items.toList())
+                            onReordered(internalItems.toList())
                         },
                         onDragCancel = {
                             draggingItemIndex = -1
@@ -165,7 +169,7 @@ fun <T> DraggableLazyColumn(
                     )
                 }
 
-            itemContent(modifier, item)
+            itemContent(itemModifier, item)
         }
     }
 }
