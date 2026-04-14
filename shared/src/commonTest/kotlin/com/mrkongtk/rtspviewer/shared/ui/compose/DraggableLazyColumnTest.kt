@@ -54,13 +54,10 @@ class DraggableLazyColumnTest {
                 // Add a test tag to find the specific rows easily
                 itemKey = { _, item -> item },
                 itemContent = { modifier, item ->
-                    Box(
-                        modifier = modifier
-                            .height(itemHeightDp) // Fixed height is crucial for test math
-                            .background(Color.LightGray)
-                    ) {
-                        Text(text = item)
-                    }
+                    Text(
+                        text = item, modifier
+                            .height(itemHeightDp)
+                    ) // Fixed height is crucial for test math
                 }
             )
         }
@@ -92,6 +89,55 @@ class DraggableLazyColumnTest {
 
         // Assert the callback was called with the new order
         assertEquals(listOf("2", "1", "3"), reorderedItems)
+    }
+
+    @Test
+    fun testDragToReorder_MultipleDown() = runComposeUiTest {
+        val initialItems = listOf("1", "2", "3", "4")
+        var reorderedItems = listOf<String>()
+
+        setContent {
+            // Get density for pixel conversions if needed, though usually automatic in touch input
+            DraggableLazyColumn(
+                items = initialItems,
+                onReordered = { reorderedItems = it },
+                // Add a test tag to find the specific rows easily
+                itemKey = { _, item -> item },
+                itemContent = { modifier, item ->
+                    Text(text = item, modifier = modifier.height(itemHeightDp))
+                }
+            )
+        }
+
+        // Logic:
+        // 1. Find Item "1" (Index 0).
+        // 2. Drag it DOWN past Item "2" (Index 1).
+        // 3. Item "1" should end up at Index 1.
+        // 4. Expected result: ["2", "1", "3"]
+
+        onNodeWithText("1").performTouchInput {
+            // 1. Long press to activate drag
+            down(center)
+            advanceEventTime(1000L) // Wait longer than long-press timeout
+            val currentHeight = height.toFloat()
+
+            // 2. Drag down
+            // We need to move enough pixels to cross the middle of the item below.
+            // Since item height is 50.dp, moving ~1.6x height ensures a swap.
+            // Note: coordinates in performTouchInput are in pixels.
+            moveBy(Offset(0f, currentHeight))
+            moveBy(Offset(0f, currentHeight))
+            moveBy(Offset(0f, currentHeight * 0.6f))
+
+            // 3. Release
+            up()
+        }
+
+        // Wait for Compose to settle (animations etc)
+        waitForIdle()
+
+        // Assert the callback was called with the new order
+        assertEquals(listOf("2", "3", "1", "4"), reorderedItems)
     }
 
     @Test
@@ -138,6 +184,48 @@ class DraggableLazyColumnTest {
     }
 
     @Test
+    fun testDragToReorder_MultipleUp() = runComposeUiTest {
+        val initialItems = listOf("A", "B", "C", "D")
+        var reorderedItems = listOf<String>()
+
+        setContent {
+            DraggableLazyColumn(
+                items = initialItems,
+                onReordered = { reorderedItems = it },
+                itemKey = { _, item -> item },
+                itemContent = { modifier, item ->
+                    Text(
+                        text = item, modifier = modifier
+                            .height(itemHeightDp)
+                    )
+                }
+            )
+        }
+
+        // Logic:
+        // 1. Find Item "C" (Index 2).
+        // 2. Drag it UP past Item "B" (Index 1).
+        // 3. Expected result: ["A", "C", "B"]
+
+        onNodeWithText("D").performTouchInput {
+            down(center)
+            advanceEventTime(1000L) // Trigger Long Press
+            val currentHeight = height.toFloat()
+
+            // Drag UP in steps to ensure multiple onDrag events are triggered
+            moveBy(Offset(0f, -currentHeight))
+            moveBy(Offset(0f, -currentHeight))
+            moveBy(Offset(0f, -currentHeight * 0.6f))
+
+            up()
+        }
+
+        waitForIdle()
+
+        assertEquals(listOf("A", "D", "B", "C"), reorderedItems)
+    }
+
+    @Test
     fun testDragAndCancel_ShouldNotReorder() = runComposeUiTest {
         val initialItems = listOf("X", "Y", "Z")
         var callbackCalled = false
@@ -147,7 +235,7 @@ class DraggableLazyColumnTest {
                 items = initialItems,
                 onReordered = { callbackCalled = true },
                 itemContent = { modifier, item ->
-                    Box(modifier.height(itemHeightDp)) { Text(item) }
+                    Text(item, modifier.height(itemHeightDp))
                 }
             )
         }

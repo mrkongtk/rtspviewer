@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.toMutableStateList
 import androidx.compose.ui.Alignment
@@ -80,6 +81,9 @@ fun <T> DraggableLazyColumn(
             key = itemKey
         ) { index, item ->
 
+            // Capture current index in a state to avoid closure capture issues during reorders
+            val currentIndex by rememberUpdatedState(index)
+
             // Check if this specific item is the one currently being held
             val isDragging = index == draggingItemIndex
 
@@ -109,7 +113,7 @@ fun <T> DraggableLazyColumn(
                 .pointerInput(Unit) {
                     detectDragGesturesAfterLongPress(
                         onDragStart = {
-                            draggingItemIndex = index
+                            draggingItemIndex = currentIndex
                             draggingItemOffset = 0f
                         },
                         onDrag = { change, dragAmount ->
@@ -118,50 +122,33 @@ fun <T> DraggableLazyColumn(
 
                             // --- REORDERING LOGIC --- //
 
-                            // Find the LayoutInfo for the item currently being dragged
                             val currentItemInfo = listState.layoutInfo.visibleItemsInfo
                                 .firstOrNull { it.index == draggingItemIndex }
 
-                            if (currentItemInfo != null) {
-                                // Calculate the absolute visual bounds of the dragged item
-                                val currentBottom =
-                                    currentItemInfo.offset + currentItemInfo.size + draggingItemOffset
-                                val currentTop = currentItemInfo.offset + draggingItemOffset
-
-                                // Find the adjacent items in the visible viewport
-                                val itemBelow = listState.layoutInfo.visibleItemsInfo
-                                    .firstOrNull { it.index == draggingItemIndex + 1 }
-
-                                val itemAbove = listState.layoutInfo.visibleItemsInfo
-                                    .lastOrNull { it.index == draggingItemIndex - 1 }
-
-                                // Check if we should swap DOWN
-                                if (itemBelow != null && currentBottom > itemBelow.offset.toFloat() + (itemBelow.size.toFloat() / 2f)) {
-                                    // Move data in the list
-                                    items.add(
-                                        draggingItemIndex + 1,
-                                        items.removeAt(draggingItemIndex)
-                                    )
-                                    draggingItemIndex += 1
-
-                                    // Offset Correction:
-                                    // When the item physically moves down one slot in the list, its
-                                    // layout position changes. We must subtract that distance from the
-                                    // visual offset so the item stays under the user's finger.
-                                    draggingItemOffset -= itemBelow.size
-                                }
-                                // Check if we should swap UP
-                                else if (itemAbove != null && currentTop < itemAbove.offset.toFloat() + (itemAbove.size.toFloat() / 2f)) {
-                                    // Move data in the list
-                                    items.add(
-                                        draggingItemIndex - 1,
-                                        items.removeAt(draggingItemIndex)
-                                    )
-                                    draggingItemIndex -= 1
-
-                                    // Offset Correction:
-                                    // When moving up, we add the size of the item we just jumped over.
-                                    draggingItemOffset += itemAbove.size
+                            currentItemInfo?.let {
+                                if (draggingItemOffset > 0) {
+                                    val currentOffset =
+                                        it.offset + it.size.toFloat() + draggingItemOffset
+                                    val lastIndex =
+                                        listState.layoutInfo.visibleItemsInfo.indexOfLast { item ->
+                                            item.offset + item.size.toFloat() / 2f < currentOffset
+                                        }
+                                    if (draggingItemIndex != lastIndex && lastIndex >= 0) {
+                                        draggingItemOffset -= listState.layoutInfo.visibleItemsInfo[lastIndex].size
+                                        items.add(lastIndex, items.removeAt(draggingItemIndex))
+                                        draggingItemIndex = lastIndex
+                                    }
+                                } else if (draggingItemOffset < 0) {
+                                    val currentOffset = it.offset + draggingItemOffset
+                                    val firstIndex =
+                                        listState.layoutInfo.visibleItemsInfo.indexOfFirst { item ->
+                                            item.offset + item.size.toFloat() / 2f > currentOffset
+                                        }
+                                    if (draggingItemIndex != firstIndex && firstIndex >= 0) {
+                                        draggingItemOffset += listState.layoutInfo.visibleItemsInfo[firstIndex].size
+                                        items.add(firstIndex, items.removeAt(draggingItemIndex))
+                                        draggingItemIndex = firstIndex
+                                    }
                                 }
                             }
                         },

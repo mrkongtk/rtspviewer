@@ -124,7 +124,7 @@ fun NavigationScreen(
             // This prevents crashes during rapid navigation or state resets.
             uiState.selectedItem?.let { item ->
 
-            StreamItemScreen(
+                StreamItemScreen(
                     modifier = Modifier.fillMaxSize(),
                     item = item,
                     screenActions = actions,

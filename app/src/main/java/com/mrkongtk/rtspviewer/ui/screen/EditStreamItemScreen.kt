@@ -41,10 +41,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.net.toUri
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.ui.compose.RTSPTextField
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingS
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.shared.ui.compose.RTSPTextField
 import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
 
 /**
