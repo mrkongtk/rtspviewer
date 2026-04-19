@@ -27,22 +27,27 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 
 /**
- * A wrapper around [LazyColumn] that provides drag-and-drop reordering functionality.
+ * A custom [LazyColumn] that enables manual reordering of items via long-press and drag.
  *
- * @param T The type of items in the list.
- * @param modifier The modifier to be applied to the layout.
- * @param items The list of data items to display.
- * @param itemKey Unique key for each item. Crucial for correct animation and state preservation during reordering.
- * @param contentPadding A padding around the whole content.
- * @param reverseLayout Reverse the direction of scrolling and layout.
+ * This component handles the complex gesture logic and visual state changes required for
+ * an intuitive drag-and-drop experience. It provides real-time visual feedback by scaling
+ * and elevating the dragged item while automatically animating the displacement of other items.
+ *
+ * @param T The type of data items.
+ * @param modifier The [Modifier] to be applied to the underlying [LazyColumn].
+ * @param items The initial list of items to display.
+ * @param itemKey A factory to provide a stable and unique key for each item. **Highly recommended**
+ * for correct reordering animations and scroll state preservation.
+ * @param contentPadding Padding around the whole content of the list.
+ * @param reverseLayout When true, items are laid out in reverse order.
  * @param verticalArrangement The vertical arrangement of the layout's children.
  * @param horizontalAlignment The horizontal alignment of the layout's children.
- * @param flingBehavior Logic describing fling behavior.
- * @param userScrollEnabled Whether the scrolling via the user gestures or accessibility actions is enabled.
+ * @param flingBehavior The fling behavior to be used for scrolling.
+ * @param userScrollEnabled Whether scrolling via gestures is enabled.
  * @param overscrollEffect The overscroll effect to use.
- * @param onReordered Callback invoked when the user finishes dragging. Returns the new ordered list.
- * @param itemContent The composable content for each list item. Receives a [Modifier] that must be
- * applied to the root element of the item to enable drag-and-drop.
+ * @param onReordered Callback triggered when a drag gesture completes and the list order has changed.
+ * @param itemContent The composable UI for each item. It receives a [Modifier] that **must**
+ * be applied to the root element of the item to enable reordering functionality.
  */
 @Composable
 fun <T> DraggableLazyColumn(
@@ -60,16 +65,12 @@ fun <T> DraggableLazyColumn(
     onReordered: (List<T>) -> Unit,
     itemContent: @Composable (Modifier, T) -> Unit,
 ) {
-    // Maintain a local mutable copy of the items to allow immediate UI updates
-    // while dragging, before syncing back to the source of truth via onReordered.
+    // Keep a local mutable state of items to provide immediate visual feedback during the drag process.
     val internalItems = remember(items) { items.toMutableStateList() }
-
     val listState = rememberLazyListState()
 
-    // Index of the item currently being dragged. -1 indicates no active drag.
+    // State to track the index and the current vertical displacement of the item being dragged.
     var draggingItemIndex by remember { mutableIntStateOf(-1) }
-
-    // Vertical displacement of the dragged item relative to its original position.
     var draggingItemOffset by remember { mutableFloatStateOf(0f) }
 
     LazyColumn(
@@ -80,36 +81,35 @@ fun <T> DraggableLazyColumn(
         verticalArrangement = verticalArrangement,
         horizontalAlignment = horizontalAlignment,
         flingBehavior = flingBehavior,
-        userScrollEnabled = userScrollEnabled,
+        userScrollEnabled = userScrollEnabled && draggingItemIndex == -1,
         overscrollEffect = overscrollEffect
     ) {
         itemsIndexed(
             items = internalItems,
             key = itemKey
         ) { index, item ->
-            // Use rememberUpdatedState to ensure the gesture handler uses the most recent index.
             val currentIndex by rememberUpdatedState(index)
             val isDragging = index == draggingItemIndex
 
-            // Animate elevation to provide visual feedback when an item is "lifted".
-            val elevation by animateDpAsState(if (isDragging) 8.dp else 0.dp)
+            // Smoothly animate elevation when the item is picked up or dropped.
+            val elevation by animateDpAsState(
+                targetValue = if (isDragging) 8.dp else 0.dp,
+                label = "DraggableItemElevation"
+            )
 
             val itemModifier = Modifier
-                // 1. Reordering Animation:
-                // Smoothly animates non-dragged items to their new positions.
+                // 1. Position Animation: Handles the smooth sliding of items not being dragged.
                 .animateItem()
-                // 2. Visual Feedback for the Dragged Item:
-                // Applies translation, scaling, and elevation.
+                // 2. Drag Transformation: Applies visual offsets and scale to the active item.
                 .graphicsLayer {
                     translationY = if (isDragging) draggingItemOffset else 0f
                     scaleX = if (isDragging) 1.05f else 1f
                     scaleY = if (isDragging) 1.05f else 1f
                     shadowElevation = elevation.toPx()
                 }
-                // Ensure the dragged item stays on top of others.
+                // 3. Layering: Ensure the dragged item is rendered above all other items.
                 .zIndex(if (isDragging) 1f else 0f)
-                // 3. Gesture Detection:
-                // Handles long-press to start dragging and subsequent movement.
+                // 4. Gesture Interaction: Detects long-press to initiate and track the drag.
                 .pointerInput(Unit) {
                     detectDragGesturesAfterLongPress(
                         onDragStart = {
@@ -119,45 +119,39 @@ fun <T> DraggableLazyColumn(
                         onDrag = { change, dragAmount ->
                             change.consume()
                             draggingItemOffset += dragAmount.y
-
-                            // Dynamic reordering logic:
-                            // Determines if the dragged item has moved far enough to swap with a neighbor.
+                        },
+                        onDragEnd = {
+                            // Calculate the new position based on the final gesture offset.
                             val currentItemInfo = listState.layoutInfo.visibleItemsInfo
                                 .firstOrNull { it.index == draggingItemIndex }
 
                             currentItemInfo?.let { info ->
-                                if (draggingItemOffset > 0) { // Dragging down
-                                    val currentOffset = info.offset + info.size + draggingItemOffset
-                                    val targetIndex =
-                                        listState.layoutInfo.visibleItemsInfo.indexOfLast {
-                                            it.offset + it.size / 2f < currentOffset
-                                        }
-                                    if (draggingItemIndex != targetIndex && targetIndex >= 0) {
-                                        draggingItemOffset -= listState.layoutInfo.visibleItemsInfo[targetIndex].size
-                                        internalItems.add(
-                                            targetIndex,
-                                            internalItems.removeAt(draggingItemIndex)
-                                        )
-                                        draggingItemIndex = targetIndex
+                                val currentOffset = info.offset + draggingItemOffset
+
+                                // Determine the target index by checking where the item was dropped
+                                // relative to the current layout positions of visible items.
+                                val targetIndex = if (draggingItemOffset > 0) {
+                                    listState.layoutInfo.visibleItemsInfo.indexOfLast {
+                                        it.offset < currentOffset && it.index > draggingItemIndex
                                     }
-                                } else if (draggingItemOffset < 0) { // Dragging up
-                                    val currentOffset = info.offset + draggingItemOffset
-                                    val targetIndex =
-                                        listState.layoutInfo.visibleItemsInfo.indexOfFirst {
-                                            it.offset + it.size / 2f > currentOffset
-                                        }
-                                    if (draggingItemIndex != targetIndex && targetIndex >= 0) {
-                                        draggingItemOffset += listState.layoutInfo.visibleItemsInfo[targetIndex].size
-                                        internalItems.add(
-                                            targetIndex,
-                                            internalItems.removeAt(draggingItemIndex)
-                                        )
-                                        draggingItemIndex = targetIndex
+                                } else if (draggingItemOffset < 0) {
+                                    listState.layoutInfo.visibleItemsInfo.indexOfFirst {
+                                        it.offset > currentOffset && it.index < draggingItemIndex
                                     }
+                                } else {
+                                    -1
+                                }
+
+                                // Update the internal state if the item was moved to a different position.
+                                if (targetIndex >= 0 && draggingItemIndex != targetIndex) {
+                                    internalItems.add(
+                                        targetIndex,
+                                        internalItems.removeAt(draggingItemIndex)
+                                    )
                                 }
                             }
-                        },
-                        onDragEnd = {
+
+                            // Cleanup state and notify the parent of the final reordered list.
                             draggingItemIndex = -1
                             draggingItemOffset = 0f
                             onReordered(internalItems.toList())
