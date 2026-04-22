@@ -55,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.database.entity.hideCredentialUri
+import com.mrkongtk.rtspviewer.shared.ui.compose.KeepScreenOn
 import com.mrkongtk.rtspviewer.shared.ui.compose.RTSPVideoPlayer
 import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerPlaybackState
 import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerState
@@ -66,7 +67,6 @@ import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.shared.util.formatText
 import com.mrkongtk.rtspviewer.shared.viewmodel.RTSPVideoPlayerViewModel
-import com.mrkongtk.rtspviewer.ui.compose.KeepScreenOn
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
