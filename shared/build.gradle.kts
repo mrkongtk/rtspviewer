@@ -126,6 +126,7 @@ kotlin {
                 implementation(libs.androidx.activity.compose)
                 implementation(libs.androidx.media3.media3.exoplayer.rtsp)
                 implementation(libs.androidx.media3.media3.ui)
+                implementation(libs.compose.uiTooling)
             }
         }
 
