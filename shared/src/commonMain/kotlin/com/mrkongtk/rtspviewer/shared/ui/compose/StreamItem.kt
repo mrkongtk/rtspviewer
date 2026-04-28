@@ -31,6 +31,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_NO
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.util.fastForEach
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
@@ -89,31 +91,39 @@ fun StreamItem(
                     modifier = Modifier
                         .width(PreviewWidth)
                         .aspectRatio(it.width.toFloat() / it.height.toFloat())
-                        .clip(RoundedCornerShape(RoundedCornerSize)),
+                        .clip(RoundedCornerShape(RoundedCornerSize))
+                        .testTag("thumbnail"),
                     bitmap = it,
                     contentDescription = stringResource(
                         Res.string.rtsp_item_preview_description
-                    ).formatText(data.name)
+                    ).formatText(data.name),
                 )
-                Spacer(modifier = Modifier.width(PaddingM))
             } ?: run {
-                Icon(
+                Row(
                     modifier = Modifier
                         .width(PreviewWidth)
                         .aspectRatio(16.0f / 9.0f)
-                        .clip(RoundedCornerShape(RoundedCornerSize)),
-                    painter = painterResource(Res.drawable.video_label_24px),
-                    contentDescription = "No Stream Available",
-                    tint = Color.Black,
-                )
-                Spacer(modifier = Modifier.width(PaddingM))
+                        .clip(RoundedCornerShape(RoundedCornerSize))
+                        .background(MaterialTheme.colorScheme.secondary)
+                        .testTag("no thumbnail"),
+                ) {
+                    Icon(
+                        modifier = Modifier
+                            .fillMaxSize(),
+                        painter = painterResource(Res.drawable.video_label_24px),
+                        contentDescription = "No Stream Available",
+                        tint = MaterialTheme.colorScheme.onSecondary,
+                    )
+                }
             }
+            Spacer(modifier = Modifier.width(PaddingM))
 
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(PaddingS)
             ) {
                 Text(
+                    modifier = Modifier.testTag("item name"),
                     text = data.name,
                     style = MaterialTheme.typography.titleMedium,
                     maxLines = 1
@@ -121,7 +131,7 @@ fun StreamItem(
 
                 if (data.tags.isNotEmpty()) {
                     FlowRow(
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().testTag("item tags"),
                         horizontalArrangement = Arrangement.spacedBy(
                             space = PaddingS,
                             alignment = Alignment.Start
@@ -151,7 +161,8 @@ fun StreamItem(
     }
 }
 
-@Preview(showBackground = true)
+@Preview(showBackground = true, showSystemUi = true, uiMode = UI_MODE_NIGHT_NO)
+@Preview(showBackground = true, showSystemUi = true, uiMode = UI_MODE_NIGHT_YES)
 @Composable
 private fun StreamItemPreview() {
     RTSPViewerTheme {

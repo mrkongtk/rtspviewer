@@ -1,26 +1,21 @@
-package com.mrkongtk.rtspviewer.ui.compose
+package com.mrkongtk.rtspviewer.shared.ui.compose
 
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
-import androidx.core.graphics.createBitmap
-import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.compose.ui.test.runComposeUiTest
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
-import org.junit.Assert.assertEquals
-import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
+import com.mrkongtk.rtspviewer.shared.util.createPlainImage
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
-@RunWith(AndroidJUnit4::class)
+@OptIn(ExperimentalTestApi::class)
 class StreamListItemTest {
-
-    @get:Rule
-    val composeTestRule = createComposeRule()
 
     // Mock Data
     private val mockItem = RTSPItem(
@@ -36,8 +31,8 @@ class StreamListItemTest {
      * item's name and all associated tags.
      */
     @Test
-    fun streamListItem_displaysNameAndTags() {
-        composeTestRule.setContent {
+    fun streamListItem_displaysNameAndTags() = runComposeUiTest {
+        setContent {
             RTSPViewerTheme {
                 StreamListItem(
                     data = mockItem,
@@ -48,11 +43,11 @@ class StreamListItemTest {
         }
 
         // Verify the stream name is visible
-        composeTestRule.onNodeWithText("Front Door Camera").assertIsDisplayed()
+        onNodeWithText("Front Door Camera").assertIsDisplayed()
 
         // Verify tags are visible using the testTag defined in StreamItem.kt
-        composeTestRule.onNodeWithTag("Tag Outdoor", useUnmergedTree = true).assertIsDisplayed()
-        composeTestRule.onNodeWithTag("Tag Security", useUnmergedTree = true).assertIsDisplayed()
+        onNodeWithTag("Tag Outdoor", useUnmergedTree = true).assertIsDisplayed()
+        onNodeWithTag("Tag Security", useUnmergedTree = true).assertIsDisplayed()
     }
 
     /**
@@ -60,10 +55,10 @@ class StreamListItemTest {
      * with the correct RTSPItem data.
      */
     @Test
-    fun streamListItem_clickTriggersCallback() {
+    fun streamListItem_clickTriggersCallback() = runComposeUiTest {
         var capturedItem: RTSPItem? = null
 
-        composeTestRule.setContent {
+        setContent {
             RTSPViewerTheme {
                 StreamListItem(
                     data = mockItem,
@@ -74,23 +69,21 @@ class StreamListItemTest {
         }
 
         // Perform click on the item
-        composeTestRule.onNodeWithText("Front Door Camera").performClick()
+        onNodeWithText("Front Door Camera").performClick()
 
         // Assert that the callback was received with the correct item
-        assertEquals(mockItem, capturedItem)
+        assertEquals(capturedItem, mockItem)
     }
 
     /**
      * Verifies that when a preview bitmap is provided, the item renders correctly.
      */
     @Test
-    fun streamListItem_withPreview_rendersCorrectly() {
+    fun streamListItem_withPreview_rendersCorrectly() = runComposeUiTest {
         // Create a simple 1x1 dummy bitmap
-        val dummyBitmap = createBitmap(100, 100).apply {
-            eraseColor(Color.Red.toArgb())
-        }
+        val dummyBitmap = ImageBitmap.createPlainImage(100, 100, Color.Red)
 
-        composeTestRule.setContent {
+        setContent {
             RTSPViewerTheme {
                 StreamListItem(
                     data = mockItem,
@@ -101,7 +94,7 @@ class StreamListItemTest {
         }
 
         // The name should still be visible alongside the image
-        composeTestRule.onNodeWithText("Front Door Camera").assertIsDisplayed()
+        onNodeWithText("Front Door Camera").assertIsDisplayed()
 
         // Note: Testing actual bitmap content is complex in Compose tests,
         // but checking the layout nodes ensures the logic didn't crash.
