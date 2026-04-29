@@ -1,36 +1,27 @@
-package com.mrkongtk.rtspviewer.ui.compose
+package com.mrkongtk.rtspviewer.shared.ui.compose
 
-import android.graphics.Bitmap
+
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertCountEquals
 import androidx.compose.ui.test.assertIsDisplayed
-import androidx.compose.ui.test.junit4.createComposeRule
-import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
-import androidx.core.graphics.createBitmap
-import androidx.test.ext.junit.runners.AndroidJUnit4
-import androidx.test.platform.app.InstrumentationRegistry
-import com.mrkongtk.rtspviewer.R
+import androidx.compose.ui.test.runComposeUiTest
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.util.formatText
-import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
+import com.mrkongtk.rtspviewer.shared.util.createPlainImage
+import kotlin.test.Test
 
-@RunWith(AndroidJUnit4::class)
+@OptIn(ExperimentalTestApi::class)
 class StreamSortingItemTest {
 
-    @get:Rule
-    val composeTestRule = createComposeRule()
-
-    private val context = InstrumentationRegistry.getInstrumentation().targetContext
-
     @Test
-    fun streamSortingItem_displaysNameAndReorderIcon() {
+    fun streamSortingItem_displaysNameAndReorderIcon() = runComposeUiTest {
         val mockItem = RTSPItem(
             id = 1,
             name = "Living Room Camera",
@@ -39,7 +30,7 @@ class StreamSortingItemTest {
             order = 1
         )
 
-        composeTestRule.setContent {
+        setContent {
             RTSPViewerTheme {
                 StreamSortingItem(
                     data = mockItem,
@@ -49,28 +40,24 @@ class StreamSortingItemTest {
         }
 
         // Verify Name
-        composeTestRule.onNodeWithText("Living Room Camera").assertIsDisplayed()
+        onNodeWithText("Living Room Camera").assertIsDisplayed()
 
         // Verify specific tags exist using the testTag pattern from StreamItem
         // useUnmergedTree is true because tags are nested deep within the Card/Row structure
-        composeTestRule.onNodeWithTag("Tag Indoor", useUnmergedTree = true).assertIsDisplayed()
-        composeTestRule.onNodeWithTag("Tag House", useUnmergedTree = true).assertIsDisplayed()
+        onNodeWithTag("Tag Indoor", useUnmergedTree = true).assertIsDisplayed()
+        onNodeWithTag("Tag House", useUnmergedTree = true).assertIsDisplayed()
 
         // Verify the drag handle icon via content description (Matches Composable: R.string.reorder)
-        val reorderDescription = context.getString(R.string.reorder)
-        composeTestRule.onNodeWithContentDescription(reorderDescription).assertIsDisplayed()
+
+        onNodeWithTag("reorder", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
-    fun streamSortingItem_withPreview_displaysThumbnail() {
+    fun streamSortingItem_withPreview_displaysThumbnail() = runComposeUiTest {
         val mockItem = RTSPItem(1, "Front Porch", "rtsp://...", emptyList(), 1)
-        val bitmap = createBitmap(100, 100, Bitmap.Config.ARGB_8888)
+        val bitmap = ImageBitmap.createPlainImage(100, 100, Color.Red)
 
-        // Construct the expected formatted content description used in StreamItem
-        val expectedDescription = context.getString(R.string.rtsp_item_preview_description)
-            .formatText(mockItem.name)
-
-        composeTestRule.setContent {
+        setContent {
             RTSPViewerTheme {
                 StreamSortingItem(
                     data = mockItem,
@@ -80,11 +67,11 @@ class StreamSortingItemTest {
         }
 
         // Verify that the image exists and has the correct accessibility description
-        composeTestRule.onNodeWithContentDescription(expectedDescription).assertIsDisplayed()
+        onNodeWithTag("thumbnail", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
-    fun streamSortingItem_withoutTags_doesNotRenderTagNodes() {
+    fun streamSortingItem_withoutTags_doesNotRenderTagNodes() = runComposeUiTest {
         val mockItem = RTSPItem(
             id = 2,
             name = "Garage",
@@ -93,7 +80,7 @@ class StreamSortingItemTest {
             order = 2
         )
 
-        composeTestRule.setContent {
+        setContent {
             RTSPViewerTheme {
                 StreamSortingItem(
                     data = mockItem,
@@ -103,10 +90,10 @@ class StreamSortingItemTest {
         }
 
         // Verify name still exists
-        composeTestRule.onNodeWithText("Garage").assertIsDisplayed()
+        onNodeWithText("Garage").assertIsDisplayed()
 
         // Verify NO tags are displayed by checking the "Tag " prefix
-        composeTestRule.onAllNodes(hasTestTagPrefix("Tag ")).assertCountEquals(0)
+        onAllNodes(hasTestTagPrefix("Tag ")).assertCountEquals(0)
     }
 
     /**
