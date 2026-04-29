@@ -3,6 +3,7 @@ package com.mrkongtk.rtspviewer.shared.ui.compose
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -47,6 +48,7 @@ import com.mrkongtk.rtspviewer.shared.util.formatText
 import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import rtspviewer.shared.generated.resources.Res
+import rtspviewer.shared.generated.resources.no_stream_available
 import rtspviewer.shared.generated.resources.rtsp_item_preview_description
 import rtspviewer.shared.generated.resources.video_label_24px
 
@@ -86,32 +88,32 @@ fun StreamItem(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            preview?.let {
+            val previewModifier = Modifier
+                .width(PreviewWidth)
+                .clip(RoundedCornerShape(RoundedCornerSize))
+
+            if (preview != null) {
                 Image(
-                    modifier = Modifier
-                        .width(PreviewWidth)
-                        .aspectRatio(it.width.toFloat() / it.height.toFloat())
-                        .clip(RoundedCornerShape(RoundedCornerSize))
+                    modifier = previewModifier
+                        .aspectRatio(preview.width.toFloat() / preview.height.toFloat())
                         .testTag("thumbnail"),
-                    bitmap = it,
+                    bitmap = preview,
                     contentDescription = stringResource(
                         Res.string.rtsp_item_preview_description
                     ).formatText(data.name),
                 )
-            } ?: run {
-                Row(
-                    modifier = Modifier
-                        .width(PreviewWidth)
+            } else {
+                Box(
+                    modifier = previewModifier
                         .aspectRatio(16.0f / 9.0f)
-                        .clip(RoundedCornerShape(RoundedCornerSize))
                         .background(MaterialTheme.colorScheme.secondary)
                         .testTag("no thumbnail"),
+                    contentAlignment = Alignment.Center
                 ) {
                     Icon(
-                        modifier = Modifier
-                            .fillMaxSize(),
+                        modifier = Modifier.fillMaxSize(0.6f),
                         painter = painterResource(Res.drawable.video_label_24px),
-                        contentDescription = "No Stream Available",
+                        contentDescription = stringResource(Res.string.no_stream_available),
                         tint = MaterialTheme.colorScheme.onSecondary,
                     )
                 }

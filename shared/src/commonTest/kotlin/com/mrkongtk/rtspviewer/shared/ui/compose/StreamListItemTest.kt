@@ -76,11 +76,10 @@ class StreamListItemTest {
     }
 
     /**
-     * Verifies that when a preview bitmap is provided, the item renders correctly.
+     * Verifies that when a preview bitmap is provided, the item renders the thumbnail.
      */
     @Test
-    fun streamListItem_withPreview_rendersCorrectly() = runComposeUiTest {
-        // Create a simple 1x1 dummy bitmap
+    fun streamListItem_withPreview_rendersThumbnail() = runComposeUiTest {
         val dummyBitmap = ImageBitmap.createPlainImage(100, 100, Color.Red)
 
         setContent {
@@ -93,10 +92,87 @@ class StreamListItemTest {
             }
         }
 
-        // The name should still be visible alongside the image
+        onNodeWithTag("thumbnail", useUnmergedTree = true).assertIsDisplayed()
         onNodeWithText("Front Door Camera").assertIsDisplayed()
+    }
 
-        // Note: Testing actual bitmap content is complex in Compose tests,
-        // but checking the layout nodes ensures the logic didn't crash.
+    /**
+     * Verifies that when no preview is provided, a placeholder is displayed.
+     */
+    @Test
+    fun streamListItem_withoutPreview_displaysPlaceholder() = runComposeUiTest {
+        setContent {
+            RTSPViewerTheme {
+                StreamListItem(
+                    data = mockItem,
+                    preview = null,
+                    onClick = {}
+                )
+            }
+        }
+
+        onNodeWithTag("no thumbnail", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    /**
+     * Verifies that the tags container is not displayed when the item has no tags.
+     */
+    @Test
+    fun streamListItem_withoutTags_hidesTagsContainer() = runComposeUiTest {
+        val itemWithoutTags = mockItem.copy(tags = emptyList())
+
+        setContent {
+            RTSPViewerTheme {
+                StreamListItem(
+                    data = itemWithoutTags,
+                    preview = null,
+                    onClick = {}
+                )
+            }
+        }
+
+        onNodeWithTag("item tags").assertDoesNotExist()
+    }
+
+    /**
+     * Verifies that the detail icon (chevron) is displayed.
+     */
+    @Test
+    fun streamListItem_displaysDetailIcon() = runComposeUiTest {
+        setContent {
+            RTSPViewerTheme {
+                StreamListItem(
+                    data = mockItem,
+                    preview = null,
+                    onClick = {}
+                )
+            }
+        }
+
+        onNodeWithTag("detail", useUnmergedTree = true).assertIsDisplayed()
+    }
+
+    /**
+     * Verifies that clicking the detail icon triggers the onClick callback.
+     */
+    @Test
+    fun streamListItem_clickDetailIcon_triggersCallback() = runComposeUiTest {
+        var capturedItem: RTSPItem? = null
+
+        setContent {
+            RTSPViewerTheme {
+                StreamListItem(
+                    data = mockItem,
+                    preview = null,
+                    onClick = { capturedItem = it }
+                )
+            }
+        }
+
+        // Perform click on the detail icon
+        onNodeWithTag("detail", useUnmergedTree = true).performClick()
+
+        // Assert that the callback was received
+        assertEquals(capturedItem, mockItem)
     }
 }

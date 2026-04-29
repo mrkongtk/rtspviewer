@@ -147,7 +147,7 @@ class StreamItemTest {
             }
         }
 
-        onNodeWithContentDescription("No Stream Available").assertIsDisplayed()
+        onNodeWithTag("no thumbnail", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
@@ -163,7 +163,7 @@ class StreamItemTest {
             }
         }
 
-        onNodeWithContentDescription("Custom Icon").assertIsDisplayed()
+        onNodeWithContentDescription("Custom Icon", useUnmergedTree = true).assertIsDisplayed()
     }
 
     @Test
@@ -221,7 +221,7 @@ class StreamItemTest {
             }
         }
 
-        onNodeWithContentDescription("Custom Icon").performClick()
+        onNodeWithContentDescription("Custom Icon", useUnmergedTree = true).performClick()
         assertNotNull(clickedItem, "Callback was not triggered via icon click")
         assertEquals(mockItem.id, clickedItem.id)
         assertEquals(mockItem.name, clickedItem.name)
