@@ -1,6 +1,5 @@
-package com.mrkongtk.rtspviewer.ui.screen
+package com.mrkongtk.rtspviewer.shared.ui.screen
 
-import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -34,27 +33,40 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusDirection
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_NO
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.core.net.toUri
-import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.ui.compose.RTSPTextField
+import com.mrkongtk.rtspviewer.shared.ui.screen.action.EditStreamItemScreenActions
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingS
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
+import io.ktor.http.Url
+import org.jetbrains.compose.resources.StringResource
+import org.jetbrains.compose.resources.stringResource
+import rtspviewer.shared.generated.resources.Res
+import rtspviewer.shared.generated.resources.checkbox_force_tcp
+import rtspviewer.shared.generated.resources.clear_button
+import rtspviewer.shared.generated.resources.field_name
+import rtspviewer.shared.generated.resources.field_name_error
+import rtspviewer.shared.generated.resources.field_placeholder_name
+import rtspviewer.shared.generated.resources.field_placeholder_tags
+import rtspviewer.shared.generated.resources.field_placeholder_uri
+import rtspviewer.shared.generated.resources.field_tags
+import rtspviewer.shared.generated.resources.field_uri
+import rtspviewer.shared.generated.resources.field_uri_error
+import rtspviewer.shared.generated.resources.save_button
 
 /**
- * Holds the temporary state for the stream edition/creation form.
- * This class handles validation logic and data conversion separate from the UI.
+ * Temporary state for the stream edition/creation form.
  *
- * @property name The display name of the stream.
- * @property uri The RTSP address.
- * @property tags A list of tags for categorization.
- * @property forceTcp Whether to force RTSP over TCP.
+ * @property name Display name of the stream.
+ * @property uri RTSP address.
+ * @property tags Category tags.
+ * @property forceTcp Flag to force RTSP over TCP.
  */
 private data class FieldsValue(
     val name: String = "",
@@ -63,71 +75,47 @@ private data class FieldsValue(
     val forceTcp: Boolean = false
 ) {
     /**
-     * Converts the list of tags into a comma-separated string for display in the TextField.
-     * Example: ["Camera", "Home"] -> "Camera,Home"
+     * Comma-separated representation of the tags for the UI.
      */
     val tagsString: String
-        get() {
-            return tags.joinToString(",")
-        }
+        get() = tags.joinToString(",")
 
     /**
-     * Parses a comma-separated string back into a list of tags.
-     * Used when the user types into the tags TextField.
+     * Parses a comma-separated string into a list of tags.
      */
-    fun toTags(tagString: String): List<String> {
-        return tagString.split(",")
-    }
+    fun toTags(tagString: String): List<String> = tagString.split(",")
 
     /**
-     * Validates the name field.
-     * @return A resource ID for the error message if invalid (empty/blank), null otherwise.
+     * Returns an error resource if the name is blank.
      */
-    val nameError: Int?
-        get() = if (name.isNotEmpty() && name.isNotBlank()) {
-            null
-        } else {
-            R.string.field_name_error
-        }
+    val nameError: StringResource?
+        get() = if (name.isNotBlank()) null else Res.string.field_name_error
 
     /**
-     * Validates the URI field.
-     * Checks if the URI parses correctly, uses the 'rtsp' scheme, and contains a host.
-     *
-     * @return A [Result] containing the error resource ID if invalid, or null if valid/empty.
+     * Validates the URI format and scheme.
+     * @return [Result] containing an error resource or null if valid.
      */
-    val uriError: Result<Int>?
+    val uriError: Result<StringResource>?
         get() = try {
             if (uri.isEmpty()) {
                 null
             } else {
-                val uri = uri.toUri()
-                // Ensure scheme is strictly rtsp://
-                val isRtsp = uri.scheme?.equals("rtsp", ignoreCase = true) ?: false
-                val hasHost = !uri.host.isNullOrEmpty()
+                val parsedUri = Url(uri)
+                val isRtsp = parsedUri.protocolOrNull?.name.equals("rtsp", ignoreCase = true)
+                val hasHost = parsedUri.host.isNotEmpty()
 
-                if (isRtsp && hasHost) {
-                    null
-                } else {
-                    // Return failure resource if format is wrong
-                    Result.success(R.string.field_uri_error)
-                }
+                if (isRtsp && hasHost) null else Result.success(Res.string.field_uri_error)
             }
         } catch (e: Throwable) {
             Result.failure(e)
         }
 
     /**
-     * Checks if the entire form is valid.
-     * Used to enable/disable the Save button.
-     * Requires valid name, valid URI format, and URI must not be empty.
+     * Returns true if all required fields are valid.
      */
     val isValid: Boolean
         get() = nameError == null && uriError == null && uri.isNotEmpty()
 
-    /**
-     * Secondary constructor to initialize the form fields from an existing database item.
-     */
     constructor(rtspItem: RTSPItem) : this(
         name = rtspItem.name,
         uri = rtspItem.uri,
@@ -136,8 +124,7 @@ private data class FieldsValue(
     )
 
     /**
-     * Merges the current form values into an existing RTSPItem.
-     * Used when saving to update the original object.
+     * Updates an [RTSPItem] with the current form values.
      */
     fun mergeTo(rtspItem: RTSPItem): RTSPItem {
         return rtspItem.copy(name = name, uri = uri, tags = tags, forceTcp = forceTcp)
@@ -145,28 +132,18 @@ private data class FieldsValue(
 }
 
 /**
- * A unified input form for creating or modifying RTSP stream configurations.
+ * Unified input form for creating or modifying RTSP stream configurations.
  *
- * This screen manages its own internal state using a local [FieldsValue] instance to track
- * user input across name, URI, categorical tags, and transport protocol preferences.
- * It acts as the shared UI for both "Add" and "Edit" flows.
+ * Features:
+ * - Real-time validation for name and URI.
+ * - Auto-parsing of comma-separated tags.
+ * - Form reset (Restore) capability.
+ * - Keyboard navigation (Next/Done actions).
+ * - Scrollable layout for various screen sizes and orientations.
  *
- * **Key Behaviors:**
- * - **Validation:** Real-time checking of URI formats and name requirements. The "Save"
- *   action is disabled until the form is valid.
- * - **Sanitization:** Automatically parses comma-separated input into a list of tags
- *   and masks sensitive credentials in the URI display logic (via [FieldsValue]).
- * - **UX Optimizations:** Uses [LocalFocusManager] to transition between fields via
- *   keyboard "Next" actions and provides a "Restore" button to reset the form to its
- *   initial state.
- * - **Responsiveness:** Wrapped in a [verticalScroll] to ensure usability in landscape
- *   orientation or on smaller devices.
- *
- * @param modifier The modifier to be applied to the root scrollable container.
- * @param item The source [RTSPItem] providing initial values. For new items, pass
- *             an empty template (typically provided by [AddStreamItemScreen]).
- * @param screenActions A delegate interface (typically implemented by the navigation
- *                      layer) to handle persistence events, such as saving the item.
+ * @param modifier Root container modifier.
+ * @param item Initial [RTSPItem] data.
+ * @param screenActions Actions handler for persistence.
  */
 @Composable
 fun EditStreamItemScreen(
@@ -174,39 +151,25 @@ fun EditStreamItemScreen(
     item: RTSPItem,
     screenActions: EditStreamItemScreenActions,
 ) {
-    // Focus manager used to handle keyboard actions (Next/Done)
     val focusManager = LocalFocusManager.current
-
-    // Store the initial state to allow the "Restore/Reset" functionality
     val defaultValue = FieldsValue(rtspItem = item)
+    var fieldsValue by remember { mutableStateOf(defaultValue) }
 
-    // Mutable state holder for the form input fields
-    var fieldsValue by remember {
-        mutableStateOf(defaultValue)
-    }
-
-    // Main container: Scrollable column is essential for ensuring all fields
-    // are accessible on small screens or in landscape mode/split-screen.
     Column(
         modifier = modifier
             .padding(PaddingM)
             .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.SpaceBetween
     ) {
-        // --- Form Input Section ---
         Column(
             modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(PaddingS, Alignment.Top),
         ) {
-
-            // 1. Name Input
             RTSPTextField(
                 value = fieldsValue.name,
-                onValueChange = {
-                    fieldsValue = fieldsValue.copy(name = it)
-                },
-                label = stringResource(R.string.field_name),
-                placeholder = stringResource(R.string.field_placeholder_name),
+                onValueChange = { fieldsValue = fieldsValue.copy(name = it) },
+                label = stringResource(Res.string.field_name),
+                placeholder = stringResource(Res.string.field_placeholder_name),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 keyboardActions = KeyboardActions(
                     onNext = { focusManager.moveFocus(FocusDirection.Down) }
@@ -216,23 +179,17 @@ fun EditStreamItemScreen(
                     .testTag("NameTextField"),
             )
 
-            // 2. URI Input
             RTSPTextField(
                 value = fieldsValue.uri,
-                onValueChange = {
-                    fieldsValue = fieldsValue.copy(uri = it)
-                },
-                label = stringResource(R.string.field_uri),
-                placeholder = stringResource(R.string.field_placeholder_uri),
-                // Extract error message from Result<Int> if it exists
+                onValueChange = { fieldsValue = fieldsValue.copy(uri = it) },
+                label = stringResource(Res.string.field_uri),
+                placeholder = stringResource(Res.string.field_placeholder_uri),
                 errorMessage = fieldsValue.uriError?.let { uriError ->
-                    uriError.fold({ resId ->
-                        stringResource(resId)
-                    }, { throwable ->
-                        throwable.localizedMessage
-                    })
+                    uriError.fold(
+                        onSuccess = { resId -> stringResource(resId) },
+                        onFailure = { it.message }
+                    )
                 },
-                // Optimized keyboard for URL entry
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Uri,
                     imeAction = ImeAction.Next
@@ -245,15 +202,11 @@ fun EditStreamItemScreen(
                     .testTag("UriTextField"),
             )
 
-            // 3. Tags Input (Comma separated)
             RTSPTextField(
                 value = fieldsValue.tagsString,
-                onValueChange = {
-                    // Convert string input back to List<String> immediately
-                    fieldsValue = fieldsValue.copy(tags = fieldsValue.toTags(it))
-                },
-                label = stringResource(R.string.field_tags),
-                placeholder = stringResource(R.string.field_placeholder_tags),
+                onValueChange = { fieldsValue = fieldsValue.copy(tags = fieldsValue.toTags(it)) },
+                label = stringResource(Res.string.field_tags),
+                placeholder = stringResource(Res.string.field_placeholder_tags),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(
                     onDone = { focusManager.clearFocus() }
@@ -263,32 +216,30 @@ fun EditStreamItemScreen(
                     .testTag("TagsTextField"),
             )
 
-            // 4. Force TCP Checkbox
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(
-                    stringResource(R.string.checkbox_force_tcp),
+                    stringResource(Res.string.checkbox_force_tcp),
                     color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier.testTag("ForceTCPLabel")
                 )
-                Checkbox(checked = fieldsValue.forceTcp, onCheckedChange = {
-                    fieldsValue = fieldsValue.copy(forceTcp = it)
-                }, modifier = Modifier.testTag("ForceTCPCheckbox"))
+                Checkbox(
+                    checked = fieldsValue.forceTcp,
+                    onCheckedChange = { fieldsValue = fieldsValue.copy(forceTcp = it) },
+                    modifier = Modifier.testTag("ForceTCPCheckbox")
+                )
             }
         }
 
-        // --- Action Buttons Section (Clear / Save) ---
-        Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-
-            // Clear Button: Resets the form to the original state (defaultValue)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
             IconButton(
-                onClick = {
-                    fieldsValue = defaultValue
-                },
-                // Only enable if changes have been made
+                onClick = { fieldsValue = defaultValue },
                 enabled = defaultValue != fieldsValue,
                 colors = IconButtonDefaults.iconButtonColors(
                     contentColor = MaterialTheme.colorScheme.onSurface,
@@ -296,15 +247,11 @@ fun EditStreamItemScreen(
                 ),
                 modifier = Modifier.testTag("ClearButton")
             ) {
-                Icon(imageVector = Icons.Default.Restore, stringResource(R.string.clear_button))
+                Icon(imageVector = Icons.Default.Restore, stringResource(Res.string.clear_button))
             }
 
-            // Save Button: Persists data
             IconButton(
-                onClick = {
-                    screenActions.onSaveItem(fieldsValue.mergeTo(item))
-                },
-                // Only enable if validation passes
+                onClick = { screenActions.onSaveItem(fieldsValue.mergeTo(item)) },
                 enabled = fieldsValue.isValid,
                 colors = IconButtonDefaults.iconButtonColors(
                     contentColor = MaterialTheme.colorScheme.onSurface,
@@ -312,29 +259,26 @@ fun EditStreamItemScreen(
                 ),
                 modifier = Modifier.testTag("SaveButton")
             ) {
-                Icon(imageVector = Icons.Default.Save, stringResource(R.string.save_button))
+                Icon(imageVector = Icons.Default.Save, stringResource(Res.string.save_button))
             }
         }
     }
 }
 
-// --- Previews ---
-
 @Preview(
     name = "Day",
     showSystemUi = true,
     showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_NO
+    uiMode = UI_MODE_NIGHT_NO
 )
 @Preview(
     name = "Night",
     showSystemUi = true,
     showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+    uiMode = UI_MODE_NIGHT_YES
 )
 @Composable
 private fun StreamItemScreenPreview() {
-    // Create a dummy item for preview purposes
     val mockItem = RTSPItem(
         id = 1,
         name = "Front Door",
@@ -345,14 +289,11 @@ private fun StreamItemScreenPreview() {
     )
 
     RTSPViewerTheme {
-        // Scaffold acts as the top-level container to mimic the actual application structure.
-        // It applies window insets so the preview respects the status bar and navigation bar areas.
         Scaffold(
             modifier = Modifier
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) { innerPadding ->
-            // Render the screen with the mock data and apply the Scaffold's content padding.
             EditStreamItemScreen(
                 modifier = Modifier
                     .fillMaxSize()

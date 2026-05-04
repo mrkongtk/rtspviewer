@@ -12,8 +12,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
+import com.mrkongtk.rtspviewer.shared.ui.screen.EditStreamItemScreen
+import com.mrkongtk.rtspviewer.shared.ui.screen.action.EditStreamItemScreenActions
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
+
 
 /**
  * A specialized entry-point screen for creating new RTSP stream configurations.

@@ -100,6 +100,8 @@ kotlin {
                 implementation(libs.koin.compose.viewmodel)
                 // path
                 implementation(libs.okio)
+                // ktor
+                implementation(libs.ktor.client.core)
 
                 // ui
                 implementation(libs.material.icons.extended)
@@ -127,6 +129,8 @@ kotlin {
                 implementation(libs.androidx.media3.media3.exoplayer.rtsp)
                 implementation(libs.androidx.media3.media3.ui)
                 implementation(libs.compose.uiTooling)
+                // ktor
+                implementation(libs.ktor.client.okhttp)
             }
         }
 
@@ -151,6 +155,9 @@ kotlin {
                 // part of KMP’s default source set hierarchy. Note that this source set depends
                 // on common by default and will correctly pull the iOS artifacts of any
                 // KMP dependencies declared in commonMain.
+
+                // ktor
+                implementation(libs.ktor.client.darwin)
             }
         }
     }

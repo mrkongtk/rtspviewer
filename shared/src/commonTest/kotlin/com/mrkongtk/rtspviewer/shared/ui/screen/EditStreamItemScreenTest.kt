@@ -1,5 +1,7 @@
-package com.mrkongtk.rtspviewer.ui.screen
+package com.mrkongtk.rtspviewer.shared.ui.screen
 
+import androidx.compose.ui.test.ComposeUiTest
+import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
@@ -7,32 +9,21 @@ import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
-import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextClearance
 import androidx.compose.ui.test.performTextInput
-import androidx.test.ext.junit.runners.AndroidJUnit4
+import androidx.compose.ui.test.runComposeUiTest
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
-import com.mrkongtk.rtspviewer.ui.screen.action.EditStreamItemScreenActions
-import org.junit.Rule
-import org.junit.Test
-import org.junit.runner.RunWith
-import org.mockito.kotlin.argumentCaptor
-import org.mockito.kotlin.mock
-import org.mockito.kotlin.verify
+import com.mrkongtk.rtspviewer.shared.ui.screen.action.EditStreamItemScreenActions
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 /**
  * UI Test class for [EditStreamItemScreen].
  */
-@RunWith(AndroidJUnit4::class)
+@OptIn(ExperimentalTestApi::class)
 class EditStreamItemScreenTest {
-
-    @get:Rule
-    val composeTestRule = createComposeRule()
-
-    // Mock the interface instead of a raw lambda
-    private val actionsMock: EditStreamItemScreenActions = mock()
 
     private val testItem = RTSPItem(
         id = 1,
@@ -44,8 +35,14 @@ class EditStreamItemScreenTest {
     )
 
     @Test
-    fun initialRendering_populatesFieldsCorrectly() {
-        composeTestRule.setContent {
+    fun initialRendering_populatesFieldsCorrectly() = runComposeUiTest {
+
+        val actionsMock: EditStreamItemScreenActions = object : EditStreamItemScreenActions {
+            override fun onSaveItem(newItem: RTSPItem) {
+            }
+        }
+
+        setContent {
             EditStreamItemScreen(
                 item = testItem,
                 screenActions = actionsMock // Updated parameter name
@@ -56,14 +53,20 @@ class EditStreamItemScreenTest {
         onRTSPField("UriTextField").assertTextContains("rtsp://192.168.1.1")
         onRTSPField("TagsTextField").assertTextContains("Home,Security")
 
-        composeTestRule.onNodeWithTag("ForceTCPCheckbox").assertIsOff()
-        composeTestRule.onNodeWithTag("SaveButton").assertIsEnabled()
-        composeTestRule.onNodeWithTag("ClearButton").assertIsNotEnabled()
+        onNodeWithTag("ForceTCPCheckbox").assertIsOff()
+        onNodeWithTag("SaveButton").assertIsEnabled()
+        onNodeWithTag("ClearButton").assertIsNotEnabled()
     }
 
     @Test
-    fun validation_invalidUri_showsErrorAndDisablesSave() {
-        composeTestRule.setContent {
+    fun validation_invalidUri_showsErrorAndDisablesSave() = runComposeUiTest {
+
+        val actionsMock: EditStreamItemScreenActions = object : EditStreamItemScreenActions {
+            override fun onSaveItem(newItem: RTSPItem) {
+            }
+        }
+
+        setContent {
             EditStreamItemScreen(
                 item = testItem.copy(uri = ""),
                 screenActions = actionsMock
@@ -72,17 +75,23 @@ class EditStreamItemScreenTest {
 
         // Enter invalid scheme
         onRTSPField("UriTextField").performTextInput("http://google.com")
-        composeTestRule.onNodeWithTag("SaveButton").assertIsNotEnabled()
+        onNodeWithTag("SaveButton").assertIsNotEnabled()
 
         // Correct to valid RTSP
         onRTSPField("UriTextField").performTextClearance()
         onRTSPField("UriTextField").performTextInput("rtsp://valid.address")
-        composeTestRule.onNodeWithTag("SaveButton").assertIsEnabled()
+        onNodeWithTag("SaveButton").assertIsEnabled()
     }
 
     @Test
-    fun validation_emptyName_disablesSave() {
-        composeTestRule.setContent {
+    fun validation_emptyName_disablesSave() = runComposeUiTest {
+
+        val actionsMock: EditStreamItemScreenActions = object : EditStreamItemScreenActions {
+            override fun onSaveItem(newItem: RTSPItem) {
+            }
+        }
+
+        setContent {
             EditStreamItemScreen(
                 item = testItem,
                 screenActions = actionsMock
@@ -90,12 +99,20 @@ class EditStreamItemScreenTest {
         }
 
         onRTSPField("NameTextField").performTextClearance()
-        composeTestRule.onNodeWithTag("SaveButton").assertIsNotEnabled()
+        onNodeWithTag("SaveButton").assertIsNotEnabled()
     }
 
     @Test
-    fun interaction_modifyFieldsAndSave_invokesCallbackWithCorrectData() {
-        composeTestRule.setContent {
+    fun interaction_modifyFieldsAndSave_invokesCallbackWithCorrectData() = runComposeUiTest {
+        var capturedItem: RTSPItem? = null
+
+        val actionsMock: EditStreamItemScreenActions = object : EditStreamItemScreenActions {
+            override fun onSaveItem(newItem: RTSPItem) {
+                capturedItem = newItem
+            }
+        }
+
+        setContent {
             EditStreamItemScreen(
                 item = testItem,
                 screenActions = actionsMock
@@ -107,29 +124,31 @@ class EditStreamItemScreenTest {
         onRTSPField("NameTextField").performTextInput("New Name")
 
         // Toggle TCP
-        composeTestRule.onNodeWithTag("ForceTCPCheckbox").performClick().assertIsOn()
+        onNodeWithTag("ForceTCPCheckbox").performClick().assertIsOn()
 
         // Modify Tags
         onRTSPField("TagsTextField").performTextClearance()
         onRTSPField("TagsTextField").performTextInput("TagA,TagB")
 
         // Click Save
-        composeTestRule.onNodeWithTag("SaveButton").performClick()
+        onNodeWithTag("SaveButton").performClick()
 
         // Verify interface method call
-        val captor = argumentCaptor<RTSPItem>()
-        verify(actionsMock).onSaveItem(captor.capture())
-
-        val capturedItem = captor.firstValue
-        assert(capturedItem.name == "New Name")
-        assert(capturedItem.forceTcp)
-        assert(capturedItem.tags == listOf("TagA", "TagB"))
-        assert(capturedItem.id == testItem.id)
+        assertEquals("New Name", capturedItem?.name)
+        assertEquals(true, capturedItem?.forceTcp)
+        assertEquals(listOf("TagA", "TagB"), capturedItem?.tags)
+        assertEquals(testItem.id, capturedItem?.id)
     }
 
     @Test
-    fun interaction_clearButton_resetsChanges() {
-        composeTestRule.setContent {
+    fun interaction_clearButton_resetsChanges() = runComposeUiTest {
+
+        val actionsMock: EditStreamItemScreenActions = object : EditStreamItemScreenActions {
+            override fun onSaveItem(newItem: RTSPItem) {
+            }
+        }
+
+        setContent {
             EditStreamItemScreen(
                 item = testItem,
                 screenActions = actionsMock
@@ -137,12 +156,12 @@ class EditStreamItemScreenTest {
         }
 
         onRTSPField("NameTextField").performTextInput(" - Modified")
-        composeTestRule.onNodeWithTag("ClearButton").assertIsEnabled()
+        onNodeWithTag("ClearButton").assertIsEnabled()
 
-        composeTestRule.onNodeWithTag("ClearButton").performClick()
+        onNodeWithTag("ClearButton").performClick()
 
         onRTSPField("NameTextField").assertTextContains("Test Camera")
-        composeTestRule.onNodeWithTag("ClearButton").assertIsNotEnabled()
+        onNodeWithTag("ClearButton").assertIsNotEnabled()
     }
 
     // --------------------------------------------------------------------------------
@@ -156,7 +175,7 @@ class EditStreamItemScreenTest {
      *    OutlinedTextField(modifier = Modifier.testTag("RTSPOutlinedTextField")) // Actual input
      * }
      */
-    private fun onRTSPField(tag: String) = composeTestRule.onNode(
+    private fun ComposeUiTest.onRTSPField(tag: String) = onNode(
         hasTestTag("RTSPOutlinedTextField") and hasAnyAncestor(hasTestTag(tag))
     )
 }
