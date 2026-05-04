@@ -34,18 +34,16 @@ class EditStreamItemScreenTest {
         forceTcp = false
     )
 
+    private val actionsNoOp = object : EditStreamItemScreenActions {
+        override fun onSaveItem(newItem: RTSPItem) {}
+    }
+
     @Test
     fun initialRendering_populatesFieldsCorrectly() = runComposeUiTest {
-
-        val actionsMock: EditStreamItemScreenActions = object : EditStreamItemScreenActions {
-            override fun onSaveItem(newItem: RTSPItem) {
-            }
-        }
-
         setContent {
             EditStreamItemScreen(
                 item = testItem,
-                screenActions = actionsMock // Updated parameter name
+                screenActions = actionsNoOp
             )
         }
 
@@ -59,17 +57,25 @@ class EditStreamItemScreenTest {
     }
 
     @Test
-    fun validation_invalidUri_showsErrorAndDisablesSave() = runComposeUiTest {
-
-        val actionsMock: EditStreamItemScreenActions = object : EditStreamItemScreenActions {
-            override fun onSaveItem(newItem: RTSPItem) {
-            }
+    fun initialRendering_emptyItem_fieldsAreEmptyAndSaveDisabled() = runComposeUiTest {
+        val emptyItem = RTSPItem(id = 0, name = "", uri = "", tags = emptyList(), order = 0, forceTcp = false)
+        setContent {
+            EditStreamItemScreen(item = emptyItem, screenActions = actionsNoOp)
         }
 
+        onRTSPField("NameTextField").assertTextContains("")
+        onRTSPField("UriTextField").assertTextContains("")
+        onRTSPField("TagsTextField").assertTextContains("")
+        onNodeWithTag("SaveButton").assertIsNotEnabled()
+    }
+
+    @Test
+    fun validation_invalidUri_showsErrorAndDisablesSave() = runComposeUiTest {
         setContent {
             EditStreamItemScreen(
+
                 item = testItem.copy(uri = ""),
-                screenActions = actionsMock
+                screenActions = actionsNoOp
             )
         }
 
@@ -84,17 +90,31 @@ class EditStreamItemScreenTest {
     }
 
     @Test
-    fun validation_emptyName_disablesSave() = runComposeUiTest {
-
-        val actionsMock: EditStreamItemScreenActions = object : EditStreamItemScreenActions {
-            override fun onSaveItem(newItem: RTSPItem) {
-            }
+    fun validation_uriWithoutHost_disablesSave() = runComposeUiTest {
+        setContent {
+            EditStreamItemScreen(item = testItem, screenActions = actionsNoOp)
         }
+        onRTSPField("UriTextField").performTextClearance()
+        onRTSPField("UriTextField").performTextInput("rtsp://")
+        onNodeWithTag("SaveButton").assertIsNotEnabled()
+    }
 
+    @Test
+    fun validation_malformedUri_disablesSave() = runComposeUiTest {
+        setContent {
+            EditStreamItemScreen(item = testItem, screenActions = actionsNoOp)
+        }
+        onRTSPField("UriTextField").performTextClearance()
+        onRTSPField("UriTextField").performTextInput("::::")
+        onNodeWithTag("SaveButton").assertIsNotEnabled()
+    }
+
+    @Test
+    fun validation_emptyName_disablesSave() = runComposeUiTest {
         setContent {
             EditStreamItemScreen(
                 item = testItem,
-                screenActions = actionsMock
+                screenActions = actionsNoOp
             )
         }
 
@@ -103,10 +123,20 @@ class EditStreamItemScreenTest {
     }
 
     @Test
+    fun validation_blankName_disablesSave() = runComposeUiTest {
+        setContent {
+            EditStreamItemScreen(item = testItem, screenActions = actionsNoOp)
+        }
+        onRTSPField("NameTextField").performTextClearance()
+        onRTSPField("NameTextField").performTextInput("   ")
+        onNodeWithTag("SaveButton").assertIsNotEnabled()
+    }
+
+    @Test
     fun interaction_modifyFieldsAndSave_invokesCallbackWithCorrectData() = runComposeUiTest {
         var capturedItem: RTSPItem? = null
 
-        val actionsMock: EditStreamItemScreenActions = object : EditStreamItemScreenActions {
+        val actionsMock = object : EditStreamItemScreenActions {
             override fun onSaveItem(newItem: RTSPItem) {
                 capturedItem = newItem
             }
@@ -119,21 +149,16 @@ class EditStreamItemScreenTest {
             )
         }
 
-        // Modify Name
         onRTSPField("NameTextField").performTextClearance()
         onRTSPField("NameTextField").performTextInput("New Name")
 
-        // Toggle TCP
         onNodeWithTag("ForceTCPCheckbox").performClick().assertIsOn()
 
-        // Modify Tags
         onRTSPField("TagsTextField").performTextClearance()
         onRTSPField("TagsTextField").performTextInput("TagA,TagB")
 
-        // Click Save
         onNodeWithTag("SaveButton").performClick()
 
-        // Verify interface method call
         assertEquals("New Name", capturedItem?.name)
         assertEquals(true, capturedItem?.forceTcp)
         assertEquals(listOf("TagA", "TagB"), capturedItem?.tags)
@@ -142,16 +167,10 @@ class EditStreamItemScreenTest {
 
     @Test
     fun interaction_clearButton_resetsChanges() = runComposeUiTest {
-
-        val actionsMock: EditStreamItemScreenActions = object : EditStreamItemScreenActions {
-            override fun onSaveItem(newItem: RTSPItem) {
-            }
-        }
-
         setContent {
             EditStreamItemScreen(
                 item = testItem,
-                screenActions = actionsMock
+                screenActions = actionsNoOp
             )
         }
 
@@ -164,17 +183,23 @@ class EditStreamItemScreenTest {
         onNodeWithTag("ClearButton").assertIsNotEnabled()
     }
 
+    @Test
+    fun interaction_undoChanges_disablesClearButton() = runComposeUiTest {
+        setContent {
+            EditStreamItemScreen(item = testItem, screenActions = actionsNoOp)
+        }
+        onRTSPField("NameTextField").performTextInput("X")
+        onNodeWithTag("ClearButton").assertIsEnabled()
+
+        onRTSPField("NameTextField").performTextClearance()
+        onRTSPField("NameTextField").performTextInput(testItem.name)
+        onNodeWithTag("ClearButton").assertIsNotEnabled()
+    }
+
     // --------------------------------------------------------------------------------
     // Helpers
     // --------------------------------------------------------------------------------
 
-    /**
-     * Helper to find the internal TextField node.
-     * Your production code:
-     * Column(modifier = modifier) { // "NameTextField" tag is here
-     *    OutlinedTextField(modifier = Modifier.testTag("RTSPOutlinedTextField")) // Actual input
-     * }
-     */
     private fun ComposeUiTest.onRTSPField(tag: String) = onNode(
         hasTestTag("RTSPOutlinedTextField") and hasAnyAncestor(hasTestTag(tag))
     )

@@ -21,7 +21,7 @@
     <string name="field_name_error">Name cannot be empty or space only.</string>
     <string name="field_uri">URL(*):</string>
     <string name="field_placeholder_uri">Start with rtsp://</string>
-    <string name="field_uri_error">URL can only start with \"rtsp://\"</string>
+    <string name="field_uri_error">Invalid URL format. Please ensure the URL starts with "rtsp://" and includes a valid hostname.</string>
     <string name="field_tags">Tags:</string>
     <string name="field_placeholder_tags">Separate with comma</string>
     <string name="checkbox_force_tcp">Force TCP:</string>

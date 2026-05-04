@@ -102,7 +102,10 @@ private data class FieldsValue(
             } else {
                 val parsedUri = Url(uri)
                 val isRtsp = parsedUri.protocolOrNull?.name.equals("rtsp", ignoreCase = true)
-                val hasHost = parsedUri.host.isNotEmpty()
+                val hostPart =
+                    uri.substringAfter("://", "").substringBefore("/").substringBefore("?")
+                        .substringBefore("#")
+                val hasHost = hostPart.isNotBlank() && parsedUri.host.isNotEmpty()
 
                 if (isRtsp && hasHost) null else Result.success(Res.string.field_uri_error)
             }
