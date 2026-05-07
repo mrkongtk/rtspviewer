@@ -64,6 +64,8 @@ import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.shared.util.formatText
 import com.mrkongtk.rtspviewer.shared.viewmodel.RTSPVideoPlayerViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
@@ -95,7 +97,8 @@ fun StreamItemScreen(
     modifier: Modifier = Modifier,
     item: RTSPItem,
     moreOption: Boolean = false,
-    screenActions: StreamItemScreenActions
+    screenActions: StreamItemScreenActions,
+    playerViewModel: RTSPVideoPlayerViewModel? = null
 ) {
     BoxWithConstraints(
         modifier = modifier.testTag("StreamItemScreenRoot"),
@@ -110,6 +113,7 @@ fun StreamItemScreen(
                     .testTag("VideoPlayerLandscape")
                     .fillMaxSize(),
                 item = item,
+                viewModel = playerViewModel,
             ) { item, bitmap ->
                 screenActions.onImageAvailable(item, bitmap)
             }
@@ -120,11 +124,12 @@ fun StreamItemScreen(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 VideoPlayer(
-                    Modifier
+                    modifier = Modifier
                         .testTag("VideoPlayer")
                         .fillMaxWidth()
                         .wrapContentHeight(),
-                    item
+                    item = item,
+                    viewModel = playerViewModel,
                 ) { item, bitmap ->
                     screenActions.onImageAvailable(item, bitmap)
                 }
@@ -300,9 +305,10 @@ fun StreamItemScreen(
 private fun VideoPlayer(
     modifier: Modifier = Modifier,
     item: RTSPItem,
+    viewModel: RTSPVideoPlayerViewModel? = null,
     onImageAvailable: (RTSPItem, ImageBitmap) -> Unit,
 ) {
-    val rtspViewModel = koinViewModel<RTSPVideoPlayerViewModel> {
+    val rtspViewModel = viewModel ?: koinViewModel<RTSPVideoPlayerViewModel> {
         parametersOf(
             item.uri,
             item.forceTcp,
@@ -409,6 +415,29 @@ private class StreamItemScreenPreviewParameterProvider :
 private fun StreamItemScreenPreview(
     @PreviewParameter(StreamItemScreenPreviewParameterProvider::class) params: Pair<RTSPItem, MoreOptionState>,
 ) {
+    val mockVideoPlayer = remember {
+        object : com.mrkongtk.rtspviewer.shared.player.RTSPVideoPlayer {
+            override val currentState: StateFlow<RTSPVideoPlayerPlaybackState> =
+                MutableStateFlow(RTSPVideoPlayerPlaybackState.Idle)
+            override val videoAspectRatio: StateFlow<Float> = MutableStateFlow(16f / 9f)
+            override val error: StateFlow<Throwable?> = MutableStateFlow(null)
+            override fun prepare(uri: String, forceTcp: Boolean) {}
+            override fun play() {}
+            override fun stop() {}
+            override fun release() {}
+            override fun <T> getPlayer(): T? = null
+        }
+    }
+
+    val mockViewModel = remember(params.first) {
+        RTSPVideoPlayerViewModel(
+            videoPlayer = mockVideoPlayer,
+            initialUri = params.first.uri,
+            initialForceTcp = params.first.forceTcp,
+            onImageAvailable = null
+        )
+    }
+
     RTSPViewerTheme {
         Scaffold(
             modifier = Modifier
@@ -426,6 +455,7 @@ private fun StreamItemScreenPreview(
                     override fun onDeleteItemSelected() {}
                     override fun onImageAvailable(item: RTSPItem, bitmap: ImageBitmap) {}
                 },
+                playerViewModel = mockViewModel
             )
         }
     }
