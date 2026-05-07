@@ -1,4 +1,4 @@
-package com.mrkongtk.rtspviewer.ui.screen.action
+package com.mrkongtk.rtspviewer.shared.ui.screen.action
 
 import androidx.compose.ui.graphics.ImageBitmap
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem

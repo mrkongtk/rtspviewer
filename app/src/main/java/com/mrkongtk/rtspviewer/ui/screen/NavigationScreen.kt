@@ -22,11 +22,12 @@ import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.ui.navigation.AppScreen
 import com.mrkongtk.rtspviewer.shared.ui.screen.AddStreamItemScreen
 import com.mrkongtk.rtspviewer.shared.ui.screen.EditStreamItemScreen
+import com.mrkongtk.rtspviewer.shared.ui.screen.StreamItemScreen
 import com.mrkongtk.rtspviewer.shared.ui.screen.action.EditStreamItemScreenActions
+import com.mrkongtk.rtspviewer.shared.ui.screen.action.StreamItemScreenActions
 import com.mrkongtk.rtspviewer.shared.ui.state.AppUiState
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.ui.screen.action.NavigationScreenActions
-import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
 import com.mrkongtk.rtspviewer.ui.screen.action.StreamListScreenActions
 
 /**

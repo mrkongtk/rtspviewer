@@ -1,9 +1,9 @@
-package com.mrkongtk.rtspviewer.ui.screen
+package com.mrkongtk.rtspviewer.shared.ui.screen
 
-import android.content.res.Configuration
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
@@ -33,32 +33,29 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_NO
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.data.database.entity.hideCredentialUri
 import com.mrkongtk.rtspviewer.shared.ui.compose.KeepScreenOn
 import com.mrkongtk.rtspviewer.shared.ui.compose.RTSPVideoPlayer
 import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerPlaybackState
 import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerState
+import com.mrkongtk.rtspviewer.shared.ui.screen.action.StreamItemScreenActions
 import com.mrkongtk.rtspviewer.shared.ui.state.MoreOptionState
 import com.mrkongtk.rtspviewer.shared.ui.state.not
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingM
@@ -67,22 +64,31 @@ import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.shared.util.formatText
 import com.mrkongtk.rtspviewer.shared.viewmodel.RTSPVideoPlayerViewModel
-import com.mrkongtk.rtspviewer.ui.screen.action.StreamItemScreenActions
+import org.jetbrains.compose.resources.stringResource
 import org.koin.compose.viewmodel.koinViewModel
 import org.koin.core.parameter.parametersOf
+import rtspviewer.shared.generated.resources.Res
+import rtspviewer.shared.generated.resources.add_rtsp_button
+import rtspviewer.shared.generated.resources.cancel
+import rtspviewer.shared.generated.resources.confirm
+import rtspviewer.shared.generated.resources.delete
+import rtspviewer.shared.generated.resources.delete_dialog_message
+import rtspviewer.shared.generated.resources.delete_dialog_title
+import rtspviewer.shared.generated.resources.edit
+import rtspviewer.shared.generated.resources.label_force_tcp
+import rtspviewer.shared.generated.resources.label_name
+import rtspviewer.shared.generated.resources.label_tags
+import rtspviewer.shared.generated.resources.label_uri
 
 
 /**
  * The main screen for viewing a specific RTSP stream and its metadata.
  *
- * Behavior:
- * - **Landscape**: Fullscreen video player for an immersive experience.
- * - **Portrait**: Split view with the video player on top and stream details below.
- * - **Security**: Uses `hideCredentialUri` to ensure sensitive RTSP credentials aren't visible in plain text.
+ * Provides a fullscreen experience in landscape and a detailed split view in portrait.
  *
  * @param item The data entity representing the stream configuration.
- * @param moreOption Initial visibility state of the action menu (useful for deep-linking/testing).
- * @param screenActions Interface to handle navigation or data logic (edit, delete, snapshot saving).
+ * @param moreOption Initial visibility state of the action menu.
+ * @param screenActions Actions for handling navigation and stream operations.
  */
 @Composable
 fun StreamItemScreen(
@@ -91,24 +97,14 @@ fun StreamItemScreen(
     moreOption: Boolean = false,
     screenActions: StreamItemScreenActions
 ) {
-    val configuration = LocalConfiguration.current
-    var orientation by remember { mutableIntStateOf(configuration.orientation) }
-
-    // Logic for the deletion confirmation dialog
-    var showDeleteConfirmationPrompt by remember { mutableStateOf(false) }
-
-    // Reactively track orientation changes to update the UI layout dynamically
-    LaunchedEffect(configuration) {
-        snapshotFlow { configuration.orientation }
-            .collect { orientation = it }
-    }
-
-    Box(
+    BoxWithConstraints(
         modifier = modifier.testTag("StreamItemScreenRoot"),
         contentAlignment = Alignment.Center
     ) {
-        if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
-            // --- LANDSCAPE UI: Focus purely on the video feed ---
+        val isLandscape = maxWidth > maxHeight
+        var showDeleteConfirmationPrompt by remember { mutableStateOf(false) }
+
+        if (isLandscape) {
             VideoPlayer(
                 modifier = Modifier
                     .testTag("VideoPlayerLandscape")
@@ -118,7 +114,6 @@ fun StreamItemScreen(
                 screenActions.onImageAvailable(item, bitmap)
             }
         } else {
-            // --- PORTRAIT UI: Video + Info List ---
             Column(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.Top,
@@ -134,12 +129,6 @@ fun StreamItemScreen(
                     screenActions.onImageAvailable(item, bitmap)
                 }
 
-                /*
-                 * Define row components for metadata.
-                 * Extracting these as lambdas keeps the layout code clean.
-                 */
-
-                // 1. Name Display
                 val nameRow: @Composable (Modifier) -> Unit = { mod ->
                     Row(
                         mod,
@@ -147,7 +136,7 @@ fun StreamItemScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            stringResource(R.string.label_name),
+                            stringResource(Res.string.label_name),
                             color = MaterialTheme.colorScheme.onSecondary
                         )
                         Text(
@@ -159,7 +148,6 @@ fun StreamItemScreen(
                     }
                 }
 
-                // 2. Masked URI Display
                 val uriRow: @Composable (Modifier) -> Unit = { mod ->
                     Row(
                         mod,
@@ -167,7 +155,7 @@ fun StreamItemScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            stringResource(R.string.label_uri),
+                            stringResource(Res.string.label_uri),
                             color = MaterialTheme.colorScheme.onSecondary
                         )
                         Text(
@@ -179,7 +167,6 @@ fun StreamItemScreen(
                     }
                 }
 
-                // 3. Tags (using FlowRow to handle wrapping)
                 val tagsRow: @Composable (Modifier) -> Unit = { mod ->
                     Row(
                         mod,
@@ -187,7 +174,7 @@ fun StreamItemScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            stringResource(R.string.label_tags),
+                            stringResource(Res.string.label_tags),
                             color = MaterialTheme.colorScheme.onSecondary
                         )
                         FlowRow(
@@ -215,7 +202,6 @@ fun StreamItemScreen(
                     }
                 }
 
-                // 4. Transport Protocol Checkbox
                 val forceTcpRow: @Composable (Modifier) -> Unit = { mod ->
                     Row(
                         mod,
@@ -223,7 +209,7 @@ fun StreamItemScreen(
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
                         Text(
-                            stringResource(R.string.label_force_tcp),
+                            stringResource(Res.string.label_force_tcp),
                             color = MaterialTheme.colorScheme.onSecondary
                         )
                         Checkbox(
@@ -235,8 +221,6 @@ fun StreamItemScreen(
                     }
                 }
 
-                // Iterate and render all rows with standard padding
-                // Note: fastForEach is used for performance optimization (avoids iterator allocation)
                 val rows = listOf(nameRow, uriRow, forceTcpRow, tagsRow)
                 rows.fastForEach { rowComposable ->
                     rowComposable(
@@ -248,8 +232,7 @@ fun StreamItemScreen(
             }
         }
 
-        // --- FLOATING ACTION MENU: Actions available in Portrait only ---
-        if (orientation != Configuration.ORIENTATION_LANDSCAPE) {
+        if (!isLandscape) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -264,7 +247,7 @@ fun StreamItemScreen(
                         onDismissRequest = { moreState = MoreOptionState.CLOSED }
                     ) {
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.edit)) },
+                            text = { Text(stringResource(Res.string.edit)) },
                             leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null) },
                             onClick = {
                                 moreState = MoreOptionState.CLOSED
@@ -273,7 +256,7 @@ fun StreamItemScreen(
                             modifier = Modifier.testTag("EditButton")
                         )
                         DropdownMenuItem(
-                            text = { Text(stringResource(R.string.delete)) },
+                            text = { Text(stringResource(Res.string.delete)) },
                             leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null) },
                             onClick = {
                                 moreState = MoreOptionState.CLOSED
@@ -290,14 +273,13 @@ fun StreamItemScreen(
                     ) {
                         Icon(
                             imageVector = if (moreState == MoreOptionState.CLOSED) Icons.Default.MoreVert else Icons.Default.Close,
-                            contentDescription = stringResource(R.string.add_rtsp_button)
+                            contentDescription = stringResource(Res.string.add_rtsp_button)
                         )
                     }
                 }
             }
         }
 
-        // --- MODALS ---
         if (showDeleteConfirmationPrompt) {
             DeleteConfirmDialogCompose(
                 rtspItem = item,
@@ -355,9 +337,9 @@ private fun DeleteConfirmDialogCompose(
         icon = { Icon(Icons.Default.Warning, contentDescription = null) },
         title = {
             // Replaces placeholders in the string (e.g., "Delete %s?") with the item name
-            Text(text = stringResource(R.string.delete_dialog_title).formatText(rtspItem.name))
+            Text(text = stringResource(Res.string.delete_dialog_title).formatText(rtspItem.name))
         },
-        text = { Text(text = stringResource(R.string.delete_dialog_message)) },
+        text = { Text(text = stringResource(Res.string.delete_dialog_message)) },
         containerColor = MaterialTheme.colorScheme.background,
         onDismissRequest = onDismissRequest,
         confirmButton = {
@@ -365,7 +347,7 @@ private fun DeleteConfirmDialogCompose(
                 onClick = onConfirmation,
                 modifier = Modifier.testTag("DeleteConfirmButton")
             ) {
-                Text(stringResource(R.string.confirm))
+                Text(stringResource(Res.string.confirm))
             }
         },
         dismissButton = {
@@ -373,7 +355,7 @@ private fun DeleteConfirmDialogCompose(
                 onClick = onDismissRequest,
                 modifier = Modifier.testTag("DeleteCancelButton")
             ) {
-                Text(stringResource(R.string.cancel))
+                Text(stringResource(Res.string.cancel))
             }
         },
         modifier = Modifier.testTag("DeleteConfirmDialog")
@@ -402,25 +384,25 @@ private class StreamItemScreenPreviewParameterProvider :
 @Preview(
     name = "Day Portrait",
     showSystemUi = true,
-    uiMode = Configuration.UI_MODE_NIGHT_NO,
+    uiMode = UI_MODE_NIGHT_NO,
     device = "spec:orientation=portrait,width=411dp,height=891dp"
 )
 @Preview(
     name = "Day Landscape",
     showSystemUi = true,
-    uiMode = Configuration.UI_MODE_NIGHT_NO,
+    uiMode = UI_MODE_NIGHT_NO,
     device = "spec:orientation=landscape,width=411dp,height=891dp"
 )
 @Preview(
     name = "Night Portrait",
     showSystemUi = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    uiMode = UI_MODE_NIGHT_YES,
     device = "spec:orientation=portrait,width=411dp,height=891dp"
 )
 @Preview(
     name = "Night Landscape",
     showSystemUi = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES,
+    uiMode = UI_MODE_NIGHT_YES,
     device = "spec:orientation=landscape,width=411dp,height=891dp"
 )
 @Composable
