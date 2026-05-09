@@ -105,6 +105,9 @@ kotlin {
 
                 // ui
                 implementation(libs.material.icons.extended)
+
+                // navigation
+                implementation(libs.navigation.compose)
             }
         }
 

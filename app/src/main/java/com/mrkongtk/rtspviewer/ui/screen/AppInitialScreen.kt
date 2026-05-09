@@ -24,11 +24,12 @@ import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.shared.ui.compose.AppBar
 import com.mrkongtk.rtspviewer.shared.ui.navigation.AppScreen
+import com.mrkongtk.rtspviewer.shared.ui.screen.NavigationScreen
+import com.mrkongtk.rtspviewer.shared.ui.screen.action.NavigationScreenActions
 import com.mrkongtk.rtspviewer.shared.ui.state.AppUiState
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppViewModel
-import com.mrkongtk.rtspviewer.ui.screen.action.NavigationScreenActions
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
 import okio.Path

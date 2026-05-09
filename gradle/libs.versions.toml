@@ -17,6 +17,7 @@ mockitoKotlin = "6.3.0"
 navigation = "2.9.7"
 kotlinJson = "1.10.0"
 media3 = "1.10.0"
+navigationCompose = "2.9.2"
 room = "2.8.4"
 sqliteBundled = "2.6.2"
 turbine = "1.2.1"
@@ -58,6 +59,7 @@ material-icons-extended = { module = "org.jetbrains.compose.material:material-ic
 mockito-android = { module = "org.mockito:mockito-android", version.ref = "mockito" }
 mockito-core = { module = "org.mockito:mockito-core", version.ref = "mockito" }
 mockito-kotlin = { module = "org.mockito.kotlin:mockito-kotlin", version.ref = "mockitoKotlin" }
+navigation-compose = { module = "org.jetbrains.androidx.navigation:navigation-compose", version.ref = "navigationCompose" }
 org-jetbrains-kotlinx-kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinJson" }
 androidx-media3-media3-exoplayer-rtsp = { group = "androidx.media3", name = "media3-exoplayer-rtsp", version.ref = "media3" }
 androidx-media3-media3-ui = { group = "androidx.media3", name = "media3-ui", version.ref = "media3" }
