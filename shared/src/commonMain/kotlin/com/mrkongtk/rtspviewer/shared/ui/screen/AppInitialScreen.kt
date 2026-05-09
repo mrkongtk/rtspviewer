@@ -1,7 +1,6 @@
-package com.mrkongtk.rtspviewer.ui.screen
+package com.mrkongtk.rtspviewer.shared.ui.screen
 
-import android.annotation.SuppressLint
-import android.content.res.Configuration
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
@@ -12,8 +11,9 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_NO
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavHostController
@@ -24,7 +24,6 @@ import com.mrkongtk.rtspviewer.shared.data.repository.FileRepository
 import com.mrkongtk.rtspviewer.shared.data.repository.RTSPItemRepository
 import com.mrkongtk.rtspviewer.shared.ui.compose.AppBar
 import com.mrkongtk.rtspviewer.shared.ui.navigation.AppScreen
-import com.mrkongtk.rtspviewer.shared.ui.screen.NavigationScreen
 import com.mrkongtk.rtspviewer.shared.ui.screen.action.NavigationScreenActions
 import com.mrkongtk.rtspviewer.shared.ui.state.AppUiState
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
@@ -36,32 +35,15 @@ import okio.Path
 
 
 /**
- * The top-level UI orchestrator and root container for the application.
+ * Root screen for the app.
  *
- * This Composable serves as the "Glue Layer" between the navigation system, the business
- * logic (ViewModels), and the global layout. It is responsible for the following
- * key architectural concerns:
+ * It wires navigation, shared UI state, and the top app bar together, while
+ * keeping screen events routed back into [AppViewModel].
  *
- * 1. **Scaffold Management**: Hosts the [Scaffold] which provides the global [AppBar]
- *    and ensures proper content padding across all screens.
- * 2. **Navigation Synchronization**: Observes the [navController] backstack entries
- *    in a [LaunchedEffect] to automatically update the [AppBarViewModel] with the
- *    correct [AppScreen] and "back-nav" status.
- * 3. **Dynamic Title Routing**: Synchronizes the currently selected [RTSPItem] from
- *    the [AppViewModel] to the [AppBarViewModel], allowing the Top Bar to display
- *    context-aware titles (e.g., the name of the camera being viewed).
- * 4. **Action Mapping (UDF)**: Implements [NavigationScreenActions] to bridge user
- *    interactions from the UI layer back to the [AppViewModel]. This maintains
- *    Unidirectional Data Flow by keeping event handling centralized.
- * 5. **Lifecycle-Aware State Collection**: Collects the [AppUiState] using
- *    `collectAsStateWithLifecycle` to ensure resources are only consumed when
- *    the UI is active.
- *
- * @param modifier [Modifier] to be applied to the root [Scaffold].
- * @param navController The [NavHostController] managing the application's navigation stack.
- * @param viewModel The primary [AppViewModel] handling business logic, data persistence, and UI state.
- * @param appBarViewModel The [AppBarViewModel] dedicated to managing the state and
- * appearance of the Top App Bar.
+ * @param modifier modifier applied to the root [Scaffold]
+ * @param navController navigation controller used to observe and drive routes
+ * @param viewModel source of app-wide state and actions
+ * @param appBarViewModel state holder for the top app bar
  */
 @Composable
 fun AppInitialScreen(
@@ -76,7 +58,6 @@ fun AppInitialScreen(
     LaunchedEffect(navBackStackEntry) {
         val currentEntry = navController.currentBackStackEntry
         val appScreen = currentEntry?.destination?.route?.let { route ->
-            AppScreen.Start
             try {
                 AppScreen.valueOf(route)
             } catch (_: IllegalArgumentException) {
@@ -106,7 +87,6 @@ fun AppInitialScreen(
             )
         }
     ) { innerPadding ->
-        // lifecycle-aware collection of the UI state flow
         val uiState by viewModel.uiState.collectAsStateWithLifecycle(AppUiState())
 
         val action = object : NavigationScreenActions {
@@ -143,43 +123,36 @@ fun AppInitialScreen(
 
         }
 
-        // Pass event lambdas down to the Content layer.
-        // This follows the "UDF (Unidirectional Data Flow)" pattern where
-        // events flow up to the ViewModel and state flows down to the UI.
         NavigationScreen(
             navController = navController,
             uiState = uiState,
             screenActions = action,
             modifier = Modifier
                 .fillMaxSize()
-                .padding(innerPadding), // Ensure content doesn't overlap the AppBar
+                .padding(innerPadding),
         )
     }
 }
 
 /**
- * Visual preview for Android Studio Layout Editor.
+ * Preview for Android Studio.
  *
- * We suppress ViewModelConstructorInComposable because we are manually creating
- * the ViewModel with Mock dependencies to avoid requiring a real Database context
- * during the preview rendering process.
+ * Uses in-memory stand-ins so the screen can render without app infrastructure.
  */
-@SuppressLint("ViewModelConstructorInComposable")
 @Preview(
     name = "Day Mode",
     showSystemUi = true,
-    uiMode = Configuration.UI_MODE_NIGHT_NO
+    uiMode = UI_MODE_NIGHT_NO
 )
 @Preview(
     name = "Night Mode",
     showSystemUi = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+    uiMode = UI_MODE_NIGHT_YES
 )
 @Composable
 private fun AppInitialScreenPreview() {
     RTSPViewerTheme {
         val navController = rememberNavController()
-        val context = LocalContext.current
 
         val fileRepository = object : FileRepository {
             override suspend fun writeJPEG(
@@ -233,8 +206,6 @@ private fun AppInitialScreenPreview() {
 
         }
 
-        // Manual Dependency Injection for Preview stability.
-        // This simulates the data layer without hitting the real Android SQLite system.
         val mockViewModel = AppViewModel(fileRepository, rtspItemRepository)
 
         val mockAppBarViewModel = AppBarViewModel()

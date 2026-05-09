@@ -7,10 +7,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.mrkongtk.rtspviewer.shared.ui.screen.AppInitialScreen
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppViewModel
-import com.mrkongtk.rtspviewer.ui.screen.AppInitialScreen
 import org.koin.androidx.viewmodel.ext.android.getViewModel
 
 /**
