@@ -1,8 +1,5 @@
-package com.mrkongtk.rtspviewer.ui.screen
+package com.mrkongtk.rtspviewer.shared.ui.screen
 
-import android.content.res.Configuration
-import android.graphics.Bitmap
-import android.graphics.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -42,10 +39,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_NO
+import androidx.compose.ui.tooling.preview.AndroidUiModes.UI_MODE_NIGHT_YES
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.tooling.preview.PreviewParameter
 import androidx.compose.ui.tooling.preview.PreviewParameterProvider
@@ -53,35 +49,42 @@ import androidx.compose.ui.tooling.preview.datasource.LoremIpsum
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFilter
 import androidx.compose.ui.util.fastForEachIndexed
-import androidx.core.graphics.createBitmap
-import com.mrkongtk.rtspviewer.R
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
 import com.mrkongtk.rtspviewer.shared.ui.compose.DraggableLazyColumn
 import com.mrkongtk.rtspviewer.shared.ui.compose.StreamListItem
 import com.mrkongtk.rtspviewer.shared.ui.compose.StreamSortingItem
+import com.mrkongtk.rtspviewer.shared.ui.screen.action.StreamListScreenActions
 import com.mrkongtk.rtspviewer.shared.ui.state.MoreOptionState
 import com.mrkongtk.rtspviewer.shared.ui.state.not
-import com.mrkongtk.rtspviewer.shared.ui.theme.ErrorColor
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingM
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingS
 import com.mrkongtk.rtspviewer.shared.ui.theme.PaddingXs
 import com.mrkongtk.rtspviewer.shared.ui.theme.RTSPViewerTheme
-import com.mrkongtk.rtspviewer.ui.screen.action.StreamListScreenActions
+import com.mrkongtk.rtspviewer.shared.util.createPlainImage
+import org.jetbrains.compose.resources.stringResource
+import rtspviewer.shared.generated.resources.Res
+import rtspviewer.shared.generated.resources.add_rtsp_button
+import rtspviewer.shared.generated.resources.description_close_button
+import rtspviewer.shared.generated.resources.description_end_sorting_button
+import rtspviewer.shared.generated.resources.description_more_button
+import rtspviewer.shared.generated.resources.no_streaming_items
+import rtspviewer.shared.generated.resources.sort_rtsp_button
+import rtspviewer.shared.generated.resources.tags_all
 
 /**
- * The main dashboard screen for viewing and managing RTSP streams.
+ * Main dashboard screen for viewing and managing RTSP streams.
  *
- * This screen handles three primary UI states:
- * 1. **Empty State:** Shows a placeholder when no streams exist.
- * 2. **Viewing State:** Displays a filterable list of streams using a [LazyColumn].
- * 3. **Reordering State:** A dedicated drag-and-drop mode for manual list sorting.
+ * Supports three primary modes:
+ * 1. Empty: Placeholder when no streams are configured.
+ * 2. Viewing: Filterable list of available streams.
+ * 3. Sorting: Manual drag-and-drop reordering of the stream list.
  *
- * @param modifier The [Modifier] for the root container.
- * @param itemList The source list of [RTSPItem] entities from the database.
- * @param previews A map of stream IDs to their latest [Bitmap] snapshots.
- * @param tags Unique categories derived from the available streams.
- * @param selectedTag The active filter; `null` represents the "All" view.
- * @param screenActions Interface for handling user interactions like selection, addition, and sorting.
+ * @param modifier Root container modifier.
+ * @param itemList List of [RTSPItem] streams from the data source.
+ * @param previews Map of stream IDs to their cached preview thumbnails.
+ * @param tags List of available stream categories for filtering.
+ * @param selectedTag Currently active filter tag; null represents "All".
+ * @param screenActions Callbacks for handling user interactions.
  */
 @Composable
 fun StreamListScreen(
@@ -97,7 +100,6 @@ fun StreamListScreen(
     var reorderedItemList by remember(itemList) { mutableStateOf(itemList) }
 
     if (itemList.isEmpty()) {
-        // State 1: Empty - Guidance for new users
         Column(
             modifier = modifier,
             verticalArrangement = Arrangement.Center
@@ -107,13 +109,12 @@ fun StreamListScreen(
                 horizontalArrangement = Arrangement.Center,
             ) {
                 Text(
-                    text = stringResource(R.string.no_streaming_items),
+                    text = stringResource(Res.string.no_streaming_items),
                     modifier = Modifier.testTag("StreamListScreenEmptyText")
                 )
             }
         }
     } else if (isSorting) {
-        // State 2: Sorting Mode - Drag-and-drop reordering
         ReorderItemList(
             modifier = modifier,
             itemList = itemList,
@@ -121,8 +122,7 @@ fun StreamListScreen(
             onItemsReordered = { reorderedItemList = it },
         )
     } else {
-        // State 3: Viewing Mode - Content list with category filtering
-        val allTags = listOf(stringResource(R.string.tags_all)) + tags
+        val allTags = listOf(stringResource(Res.string.tags_all)) + tags
         val selectedTagIndex = selectedTag?.let { allTags.indexOf(it) } ?: 0
 
         StreamItemList(
@@ -132,7 +132,6 @@ fun StreamListScreen(
             itemList = itemList,
             previews = previews,
             onTagSelected = { index ->
-                // Map index 0 back to null (All) for the business logic
                 if (index == 0) {
                     screenActions.onTagSelected(null)
                 } else {
@@ -144,7 +143,6 @@ fun StreamListScreen(
         )
     }
 
-    // Floating Action Menu: Handles both "Add" and "Enter Sorting Mode"
     Box(
         modifier = modifier
             .fillMaxSize()
@@ -157,7 +155,7 @@ fun StreamListScreen(
                 onDismissRequest = { isOptionOpening = MoreOptionState.CLOSED }
             ) {
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.add_rtsp_button)) },
+                    text = { Text(stringResource(Res.string.add_rtsp_button)) },
                     leadingIcon = { Icon(Icons.Default.Add, null) },
                     onClick = {
                         isOptionOpening = MoreOptionState.CLOSED
@@ -166,7 +164,7 @@ fun StreamListScreen(
                     modifier = Modifier.testTag("AddButton")
                 )
                 DropdownMenuItem(
-                    text = { Text(stringResource(R.string.sort_rtsp_button)) },
+                    text = { Text(stringResource(Res.string.sort_rtsp_button)) },
                     leadingIcon = { Icon(Icons.AutoMirrored.Filled.Sort, null) },
                     onClick = {
                         isOptionOpening = MoreOptionState.CLOSED
@@ -179,14 +177,14 @@ fun StreamListScreen(
             IconButton(
                 onClick = {
                     if (isSorting) {
-                        isSorting = false // Exit sorting mode
+                        isSorting = false
                         val hasOrderChanged = itemList.size != reorderedItemList.size ||
                                 itemList.indices.any { i -> itemList[i].id != reorderedItemList[i].id }
                         if (hasOrderChanged) {
                             screenActions.onItemsReordered(reorderedItemList)
                         }
                     } else {
-                        isOptionOpening = !isOptionOpening // Toggle more options
+                        isOptionOpening = !isOptionOpening
                     }
                 },
                 colors = IconButtonDefaults.filledIconButtonColors(),
@@ -196,14 +194,13 @@ fun StreamListScreen(
                     else "MoreButton"
                 )
             ) {
-                // Icon switches between 'Close' (in sorting/open menu) and 'More' (idle)
                 val isActive = isSorting || isOptionOpening == MoreOptionState.OPEN
                 Icon(
                     imageVector = if (isActive) Icons.Default.Close else Icons.Default.MoreVert,
                     contentDescription = stringResource(
-                        if (isSorting) R.string.description_end_sorting_button
-                        else if (isOptionOpening == MoreOptionState.OPEN) R.string.description_close_button
-                        else R.string.description_more_button
+                        if (isSorting) Res.string.description_end_sorting_button
+                        else if (isOptionOpening == MoreOptionState.OPEN) Res.string.description_close_button
+                        else Res.string.description_more_button
                     )
                 )
             }
@@ -212,7 +209,7 @@ fun StreamListScreen(
 }
 
 /**
- * Displays the list of RTSP streams with a horizontal tag filter at the top.
+ * Displays the list of RTSP streams with category filtering.
  */
 @Composable
 internal fun StreamItemList(
@@ -229,7 +226,6 @@ internal fun StreamItemList(
         modifier = modifier.padding(vertical = PaddingM),
         verticalArrangement = Arrangement.spacedBy(PaddingM)
     ) {
-        // Tag Cloud: Wraps to multiple lines if tags exceed screen width
         FlowRow(
             modifier = Modifier
                 .testTag("Tags")
@@ -267,7 +263,6 @@ internal fun StreamItemList(
                 .fillMaxSize(),
             verticalArrangement = Arrangement.spacedBy(PaddingM),
         ) {
-            // Filter logic: Show all if 'All' is selected, otherwise filter by tag string
             val filteredList = if (selectedTagIndex == 0) {
                 itemList
             } else {
@@ -292,8 +287,7 @@ internal fun StreamItemList(
 }
 
 /**
- * A dedicated view for manual stream reordering.
- * Uses [DraggableLazyColumn] to allow users to change the sequence of items.
+ * View for manual stream reordering using drag-and-drop.
  */
 @Composable
 internal fun ReorderItemList(
@@ -313,7 +307,6 @@ internal fun ReorderItemList(
             verticalArrangement = Arrangement.spacedBy(PaddingM),
             items = itemList,
             onReordered = { reorderedList ->
-                // Normalize the 'order' property based on new visual indices before saving to DB
                 val updatedOrderList = reorderedList.mapIndexed { index, item ->
                     item.copy(order = index)
                 }
@@ -332,20 +325,17 @@ internal fun ReorderItemList(
     }
 }
 
-/**
- * Preview provider to test Empty, Populated, and Filtered states in the IDE.
- */
 @Preview(
     name = "Day",
     showSystemUi = true,
     showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_NO
+    uiMode = UI_MODE_NIGHT_NO
 )
 @Preview(
     name = "Night",
     showSystemUi = true,
     showBackground = true,
-    uiMode = Configuration.UI_MODE_NIGHT_YES
+    uiMode = UI_MODE_NIGHT_YES
 )
 @Composable
 private fun StreamListScreenPreview(@PreviewParameter(StreamListScreenPreviewParameterProvider::class) mockData: ProviderData) {
@@ -355,10 +345,7 @@ private fun StreamListScreenPreview(@PreviewParameter(StreamListScreenPreviewPar
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.systemBars),
         ) { innerPadding ->
-            // Generate a dummy bitmap placeholder for preview purposes
-            val bmp = createBitmap(1920, 1080).apply {
-                Canvas(this).drawColor(ErrorColor.toArgb())
-            }.asImageBitmap()
+            val bmp = ImageBitmap.createPlainImage(1920, 1080)
             val mockPreviews = mapOf(1L to bmp, 4L to bmp)
 
             StreamListScreen(
@@ -380,25 +367,18 @@ private fun StreamListScreenPreview(@PreviewParameter(StreamListScreenPreviewPar
     }
 }
 
-/**
- * Provides variations of data to the Preview:
- * 1. Empty State
- * 2. Populated list with tags (nothing selected)
- * 3. Populated list with a specific tag filtered
- */
 private class StreamListScreenPreviewParameterProvider :
     PreviewParameterProvider<ProviderData> {
     override val values: Sequence<ProviderData>
         get() {
-            // Clean up LoremIpsum for use as tag labels
             val lorem = (LoremIpsum(100).values.toList().firstOrNull() ?: "").replace(
                 "[.\n\r]".toRegex(),
                 ""
             ).split(" ").mapNotNull { it.trim().ifEmpty { null } }
 
             return sequenceOf(
-                ProviderData(), // Case 1: Empty
-                ProviderData( // Case 2: Populated, No selection
+                ProviderData(),
+                ProviderData(
                     items = listOf(
                         RTSPItem(1, "Living Room Camera", "rtsp://10.0.0.1", emptyList(), 1),
                         RTSPItem(2, "Backyard", "rtsp://10.0.0.2", lorem.slice(2..10), 2)
@@ -406,7 +386,7 @@ private class StreamListScreenPreviewParameterProvider :
                     tags = lorem.slice(10..<20),
                     selectedTag = null
                 ),
-                ProviderData( // Case 3: Populated, Filter active
+                ProviderData(
                     items = listOf(
                         RTSPItem(1, "Living Room Camera", "rtsp://10.0.0.1", emptyList(), 1),
                         RTSPItem(2, "Backyard", "rtsp://10.0.0.2", lorem.slice(2..10), 2)
@@ -418,9 +398,6 @@ private class StreamListScreenPreviewParameterProvider :
         }
 }
 
-/**
- * Internal helper class for [StreamListScreenPreviewParameterProvider].
- */
 private data class ProviderData(
     val items: List<RTSPItem> = emptyList(),
     val tags: List<String> = emptyList(),

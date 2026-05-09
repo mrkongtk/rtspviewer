@@ -14,7 +14,11 @@ import androidx.compose.ui.graphics.Paint
  * @param colour The [Color] to fill the entire bitmap with.
  * @return A new [ImageBitmap] instance with the specified dimensions and color.
  */
-fun ImageBitmap.Companion.createPlainImage(width: Int, height: Int, colour: Color): ImageBitmap {
+fun ImageBitmap.Companion.createPlainImage(
+    width: Int,
+    height: Int,
+    colour: Color = Color.Transparent
+): ImageBitmap {
     return ImageBitmap(width, height).also {
         val canvas = Canvas(it)
 
