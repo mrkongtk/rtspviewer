@@ -6,12 +6,16 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalInspectionMode
+import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
 import androidx.compose.ui.test.assertTextEquals
+import androidx.compose.ui.test.hasAnyAncestor
+import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import com.mrkongtk.rtspviewer.shared.data.database.entity.RTSPItem
@@ -40,15 +44,17 @@ import rtspviewer.shared.generated.resources.app_name
 import rtspviewer.shared.generated.resources.back_button
 import rtspviewer.shared.generated.resources.screen_add_rtsp_item
 import rtspviewer.shared.generated.resources.screen_rtsp_display
+import rtspviewer.shared.generated.resources.tags_all
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
 /**
- * Multiplatform UI tests for [AppInitialScreen].
+ * Multiplatform UI tests for the [AppInitialScreen].
  *
- * These tests verify the root-level integration of navigation, app bar state,
- * and the primary screen transitions. They use in-memory fakes for data
- * persistence to ensure fast and deterministic execution across platforms.
+ * These tests verify the end-to-end integration of navigation, App Bar state management,
+ * and primary screen transitions within the Compose Multiplatform environment.
+ * In-memory fakes are used for data persistence and video playback to ensure
+ * hermetic, fast, and deterministic execution across different platforms.
  */
 @OptIn(ExperimentalTestApi::class)
 class AppInitialScreenTest {
@@ -68,12 +74,13 @@ class AppInitialScreenTest {
 
     @BeforeTest
     fun setup() {
+        // Initialize fakes and ViewModels before each test
         mockRepo = FakeRTSPItemRepository()
         mockFileRepo = FakeFileRepository()
-        // AppViewModel requires both repositories in the latest version
         appViewModel = AppViewModel(mockFileRepo, mockRepo)
         appBarViewModel = AppBarViewModel()
 
+        // Start Koin for ViewModel injection within the Compose environment
         startKoin {
             modules(module {
                 viewModel { (uri: String?, forceTcp: Boolean, onImageAvailable: ((ImageBitmap) -> Unit)?) ->
@@ -85,12 +92,13 @@ class AppInitialScreenTest {
 
     @kotlin.test.AfterTest
     fun tearDown() {
+        // Clean up Koin context after each test
         stopKoin()
     }
 
     /**
-     * Verifies that the app starts on the listing screen and shows the empty state message
-     * when no streams are configured.
+     * Verifies that the application starts on the stream listing screen and displays
+     * the empty state message when no streams are configured.
      */
     @Test
     fun appInitialScreen_startDestination_showsEmptyStateAndCorrectTitle() = runComposeUiTest {
@@ -105,17 +113,17 @@ class AppInitialScreenTest {
             }
         }
 
-        // Verify the empty list message is shown
+        // Assert that the empty state placeholder is visible
         onNodeWithTag("StreamListScreenEmptyText").assertIsDisplayed()
 
-        // Verify the Top Bar title matches the app name
+        // Assert that the App Bar title correctly reflects the application name
         val appName = runBlocking { getString(Res.string.app_name) }
         onNodeWithTag("AppBarTitle").assertTextEquals(appName)
     }
 
     /**
-     * Verifies that clicking the 'Add' action in the dropdown menu navigates the
-     * user to the Add Stream screen.
+     * Verifies that navigating to the "Add Stream" screen via the overflow menu
+     * works correctly and updates the App Bar title.
      */
     @Test
     fun appInitialScreen_clickAdd_navigatesToAddScreen() = runComposeUiTest {
@@ -130,27 +138,27 @@ class AppInitialScreenTest {
             }
         }
 
-        // 1. Open the Dropdown menu (Add button is hidden inside it)
+        // 1. Open the overflow menu
         onNodeWithTag("MoreButton").performClick()
 
-        // 2. Click the Add button now that it's visible
+        // 2. Select the "Add" action
         onNodeWithTag("AddButton").performClick()
 
-        // 3. Verify we are on the Add screen
+        // 3. Verify navigation to the Add screen
         onNodeWithTag("AddStreamItemScreenRoot").assertIsDisplayed()
 
-        // 4. Verify AppBar title updated to "Add stream"
+        // 4. Verify the App Bar title reflects the current screen
         val addTitle = runBlocking { getString(Res.string.screen_add_rtsp_item) }
         onNodeWithTag("AppBarTitle").assertTextEquals(addTitle)
     }
 
     /**
-     * Verifies that selecting an item from the list navigates to the display screen
-     * and updates the AppBar with a dynamic title containing the item's name.
+     * Verifies that selecting a stream from the list navigates to the display screen
+     * and shows a dynamic title containing the stream's name.
      */
     @Test
     fun appInitialScreen_selectItem_navigatesToDisplayAndShowsDynamicTitle() = runComposeUiTest {
-        // 1. Prepare data so the list isn't empty
+        // 1. Pre-populate the repository with a test item
         mockRepo.items.value = listOf(testItem)
 
         setContent {
@@ -164,21 +172,21 @@ class AppInitialScreenTest {
             }
         }
 
-        // 2. Click on the item card (using the specific test tag with ID)
+        // 2. Select the stream from the list
         onNodeWithTag("StreamListItem: 1").performClick()
 
-        // 3. Verify we reached the detail/display screen
+        // 3. Verify navigation to the display/detail screen
         onNodeWithTag("StreamItemScreenRoot").assertIsDisplayed()
 
-        // 4. Verify Dynamic Title (e.g., "RTSP: Front Door")
+        // 4. Verify the dynamic title in the App Bar
         val template = runBlocking { getString(Res.string.screen_rtsp_display) }
         val expectedTitle = template.formatText(testItem.name)
         onNodeWithTag("AppBarTitle").assertTextEquals(expectedTitle)
     }
 
     /**
-     * Verifies that the back button in the AppBar correctly returns the user
-     * to the previous screen.
+     * Verifies that the back button in the App Bar correctly navigates the user
+     * back to the previous screen.
      */
     @Test
     fun appInitialScreen_backButton_returnsToStart() = runComposeUiTest {
@@ -193,24 +201,25 @@ class AppInitialScreenTest {
             }
         }
 
-        // 1. Navigate away from home to the Add screen
+        // 1. Navigate to the Add screen
         onNodeWithTag("MoreButton").performClick()
         onNodeWithTag("AddButton").performClick()
 
-        // 2. Click the back arrow in the AppBar
+        // 2. Perform back navigation via the App Bar
         val backDesc = runBlocking { getString(Res.string.back_button) }
         onNodeWithContentDescription(backDesc).performClick()
 
-        // 3. Verify we are back on the start screen (empty list state)
+        // 3. Verify return to the initial list screen
         onNodeWithTag("StreamListScreenEmptyText").assertIsDisplayed()
 
+        // 4. Verify App Bar title is reset
         val appName = runBlocking { getString(Res.string.app_name) }
         onNodeWithTag("AppBarTitle").assertTextEquals(appName)
     }
 
     /**
-     * Verifies that in Portrait mode, the detail screen shows both the video player
-     * and the metadata/actions (signaled by the presence of the 'More' button).
+     * Verifies that in Portrait orientation, the detail screen displays both the
+     * video player and the metadata/actions menu.
      */
     @Test
     fun appInitialScreen_portrait_showsDetailsAndActions() = runComposeUiTest {
@@ -227,16 +236,16 @@ class AppInitialScreenTest {
             }
         }
 
-        // Navigate to display
+        // 1. Navigate to the display screen
         onNodeWithTag("StreamListItem: 1").performClick()
 
-        // In portrait, the 'MoreButton' (action menu) should be visible
+        // 2. Verify visibility of the actions menu (standard for portrait)
         onNodeWithTag("MoreButton").assertIsDisplayed()
     }
 
     /**
-     * Verifies that in Landscape mode, the screen enters a fullscreen video experience,
-     * hiding metadata and secondary action buttons.
+     * Verifies that in Landscape orientation, the screen transitions to a fullscreen
+     * video experience, hiding metadata and secondary UI elements.
      */
     @Test
     fun appInitialScreen_landscape_showsFullscreenVideoAndHidesDetails() = runComposeUiTest {
@@ -245,8 +254,7 @@ class AppInitialScreenTest {
         setContent {
             CompositionLocalProvider(LocalInspectionMode provides true) {
                 RTSPViewerTheme {
-                    // Wrap in a landscape-proportioned Box to trigger the screen's internal 
-                    // BoxWithConstraints landscape logic.
+                    // Simulate landscape orientation using a custom Box size
                     Box(modifier = Modifier.size(width = 800.dp, height = 400.dp)) {
                         AppInitialScreen(
                             viewModel = appViewModel,
@@ -257,22 +265,185 @@ class AppInitialScreenTest {
             }
         }
 
-        // 3. Navigate to the detail screen
+        // 1. Navigate to the display screen
         onNodeWithTag("StreamListItem: 1").performClick()
 
-        // 4. Assertions for Landscape
-        // Verify landscape-specific video player is shown
+        // 2. Verify the landscape-specific video player is active
         onNodeWithTag("VideoPlayerLandscape").assertIsDisplayed()
 
-        // Verify portrait-only elements are NOT displayed in landscape
+        // 3. Verify that portrait-only elements are hidden
         onNodeWithTag("MoreButton").assertDoesNotExist()
         onNodeWithTag("Name").assertDoesNotExist()
         onNodeWithTag("Uri").assertDoesNotExist()
     }
 
+    /**
+     * Verifies that deleting a stream from its detail view removes it from the list
+     * and navigates the user back to the primary list screen.
+     */
+    @Test
+    fun appInitialScreen_deleteItem_navigatesBackToList() = runComposeUiTest {
+        // 1. Setup initial state with one item
+        mockRepo.items.value = listOf(testItem)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 2. Navigate to display screen
+        onNodeWithTag("StreamListItem: 1").performClick()
+
+        // 3. Initiate deletion via the menu
+        onNodeWithTag("MoreButton").performClick()
+        onNodeWithTag("DeleteButton").performClick()
+
+        // 4. Confirm deletion in the dialog
+        onNodeWithTag("DeleteConfirmButton").performClick()
+
+        // 5. Verify navigation back to the empty list screen
+        onNodeWithTag("StreamListScreenEmptyText").assertIsDisplayed()
+
+        // 6. Verify App Bar title is reset to the app name
+        val appName = runBlocking { getString(Res.string.app_name) }
+        onNodeWithTag("AppBarTitle").assertTextEquals(appName)
+    }
+
+    /**
+     * Verifies that editing a stream's name updates both the persistence layer
+     * and the UI components, including the App Bar title.
+     */
+    @Test
+    fun appInitialScreen_editItem_savesChangesAndReturns() = runComposeUiTest {
+        mockRepo.items.value = listOf(testItem)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Navigate to Edit screen via Display screen
+        onNodeWithTag("StreamListItem: 1").performClick()
+        onNodeWithTag("MoreButton").performClick()
+        onNodeWithTag("EditButton").performClick()
+
+        // 2. Update the name field
+        onRTSPField("NameTextField").performTextReplacement("Updated Name")
+
+        // 3. Save changes
+        onNodeWithTag("SaveButton").performClick()
+
+        // 4. Verify navigation back to display screen with updated content
+        onNodeWithTag("StreamItemScreenRoot").assertIsDisplayed()
+        onNodeWithTag("Name").assertTextEquals("Updated Name")
+
+        // 5. Verify App Bar title reflects the updated name
+        val template = runBlocking { getString(Res.string.screen_rtsp_display) }
+        val expectedTitle = template.formatText("Updated Name")
+        onNodeWithTag("AppBarTitle").assertTextEquals(expectedTitle)
+    }
+
+    /**
+     * Verifies that selecting a tag filter correctly narrows the displayed list
+     * of streams and that clearing the filter restores the full list.
+     */
+    @Test
+    fun appInitialScreen_tagFiltering_updatesState() = runComposeUiTest {
+        val item1 = testItem.copy(id = 1L, name = "Camera 1", tags = listOf("Outdoor"))
+        val item2 = testItem.copy(id = 2L, name = "Camera 2", tags = listOf("Indoor"))
+        mockRepo.items.value = listOf(item1, item2)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Initial state: both items visible
+        onNodeWithTag("StreamListItem: 1").assertIsDisplayed()
+        onNodeWithTag("StreamListItem: 2").assertIsDisplayed()
+
+        // 2. Apply "Outdoor" filter
+        onNodeWithTag("Tag Outdoor").performClick()
+
+        // 3. Verify filtered list content
+        onNodeWithTag("StreamListItem: 1").assertIsDisplayed()
+        onNodeWithTag("StreamListItem: 2").assertDoesNotExist()
+
+        // 4. Reset filter to "All"
+        val allTagText = runBlocking { getString(Res.string.tags_all) }
+        onNodeWithTag("Tag $allTagText").performClick()
+
+        // 5. Verify all items are visible again
+        onNodeWithTag("StreamListItem: 1").assertIsDisplayed()
+        onNodeWithTag("StreamListItem: 2").assertIsDisplayed()
+    }
+
+    /**
+     * Verifies that entering the sorting mode displays reorderable list items
+     * and that exiting it returns to the standard list view.
+     */
+    @Test
+    fun appInitialScreen_sortingMode_showsReorderItems() = runComposeUiTest {
+        mockRepo.items.value = listOf(testItem)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Enter sorting mode via the overflow menu
+        onNodeWithTag("MoreButton").performClick()
+        onNodeWithTag("SortButton").performClick()
+
+        // 2. Verify sorting-specific UI elements are visible
+        onNodeWithTag("StreamSortingItem: 1").assertIsDisplayed()
+        onNodeWithTag("EndSortingButton").assertIsDisplayed()
+
+        // 3. Exit sorting mode
+        onNodeWithTag("EndSortingButton").performClick()
+
+        // 4. Verify return to the standard list view
+        onNodeWithTag("StreamListItem: 1").assertIsDisplayed()
+    }
+
+    /**
+     * Helper function to locate the inner text input node within an RTSP-styled
+     * outlined text field container.
+     */
+    private fun ComposeUiTest.onRTSPField(parentTag: String) = this.onNode(
+        hasTestTag("RTSPOutlinedTextField") and hasAnyAncestor(hasTestTag(parentTag))
+    )
+
     // --- Fakes for Multiplatform Testing ---
 
-    /** No-op player fake used to satisfy screen dependencies in tests. */
+    /**
+     * A fake implementation of [RTSPVideoPlayer] that provides a static state
+     * for UI testing without requiring an actual video stream.
+     */
     private class FakeRTSPVideoPlayer : RTSPVideoPlayer {
         override val currentState: StateFlow<RTSPVideoPlayerPlaybackState> =
             MutableStateFlow(RTSPVideoPlayerPlaybackState.Idle)
@@ -285,14 +456,20 @@ class AppInitialScreenTest {
         override fun <T> getPlayer(): T? = null
     }
 
-    /** In-memory fake for file I/O operations. */
+    /**
+     * An in-memory fake implementation of [FileRepository] that bypasses
+     * actual file system I/O.
+     */
     private class FakeFileRepository : FileRepository {
         override suspend fun readJPEG(file: Path): ImageBitmap? = null
         override suspend fun writeJPEG(file: Path, bitmap: ImageBitmap) = true
         override fun getCacheDir(): Path = FileSystem.SYSTEM_TEMPORARY_DIRECTORY
     }
 
-    /** In-memory fake for RTSP item metadata management. */
+    /**
+     * An in-memory fake implementation of [RTSPItemRepository] that manages
+     * stream metadata in a [MutableStateFlow] for reactive testing.
+     */
     private class FakeRTSPItemRepository : RTSPItemRepository {
         override val items = MutableStateFlow<List<RTSPItem>>(emptyList())
         override val cachedPreviews = MutableStateFlow<Map<Long, ImageBitmap>>(emptyMap())
