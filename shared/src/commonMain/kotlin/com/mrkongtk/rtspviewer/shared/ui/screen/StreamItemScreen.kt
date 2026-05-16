@@ -106,17 +106,21 @@ fun StreamItemScreen(
     ) {
         val isLandscape = maxWidth > maxHeight
         var showDeleteConfirmationPrompt by remember { mutableStateOf(false) }
+        val rtspViewModel = playerViewModel ?: koinViewModel<RTSPVideoPlayerViewModel> {
+            parametersOf(
+                item.uri,
+                item.forceTcp,
+                { bitmap: ImageBitmap -> screenActions.onImageAvailable(item, bitmap) }
+            )
+        }
 
         if (isLandscape) {
             VideoPlayer(
                 modifier = Modifier
                     .testTag("VideoPlayerLandscape")
                     .fillMaxSize(),
-                item = item,
-                viewModel = playerViewModel,
-            ) { item, bitmap ->
-                screenActions.onImageAvailable(item, bitmap)
-            }
+                viewModel = rtspViewModel,
+            )
         } else {
             Column(
                 modifier = Modifier.fillMaxSize(),
@@ -128,11 +132,8 @@ fun StreamItemScreen(
                         .testTag("VideoPlayer")
                         .fillMaxWidth()
                         .wrapContentHeight(),
-                    item = item,
-                    viewModel = playerViewModel,
-                ) { item, bitmap ->
-                    screenActions.onImageAvailable(item, bitmap)
-                }
+                    viewModel = rtspViewModel,
+                )
 
                 val nameRow: @Composable (Modifier) -> Unit = { mod ->
                     Row(
@@ -304,19 +305,10 @@ fun StreamItemScreen(
 @Composable
 private fun VideoPlayer(
     modifier: Modifier = Modifier,
-    item: RTSPItem,
-    viewModel: RTSPVideoPlayerViewModel? = null,
-    onImageAvailable: (RTSPItem, ImageBitmap) -> Unit,
+    viewModel: RTSPVideoPlayerViewModel,
 ) {
-    val rtspViewModel = viewModel ?: koinViewModel<RTSPVideoPlayerViewModel> {
-        parametersOf(
-            item.uri,
-            item.forceTcp,
-            { bitmap: ImageBitmap -> onImageAvailable(item, bitmap) }
-        )
-    }
 
-    val state by rtspViewModel.state.collectAsStateWithLifecycle(
+    val state by viewModel.state.collectAsStateWithLifecycle(
         RTSPVideoPlayerState(
             RTSPVideoPlayerPlaybackState.Idle,
             null
@@ -325,7 +317,7 @@ private fun VideoPlayer(
     KeepScreenOn(state.playback == RTSPVideoPlayerPlaybackState.Playing)
 
     RTSPVideoPlayer(
-        viewModel = rtspViewModel,
+        viewModel = viewModel,
         modifier = modifier,
     )
 }
