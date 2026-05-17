@@ -75,6 +75,8 @@ class ExoVideoPlayer(context: Context) : RTSPVideoPlayer {
             }
             if (isPlaying) {
                 _currentState.value = RTSPVideoPlayerPlaybackState.Playing
+            } else if (_currentState.value == RTSPVideoPlayerPlaybackState.Playing) {
+                _currentState.value = RTSPVideoPlayerPlaybackState.Ready
             }
         }
 
@@ -139,6 +141,7 @@ class ExoVideoPlayer(context: Context) : RTSPVideoPlayer {
         if (_currentState.value == RTSPVideoPlayerPlaybackState.Released) {
             return
         }
+        _exoPlayer.playWhenReady = true
         when (_currentState.value) {
             RTSPVideoPlayerPlaybackState.Ready -> _exoPlayer.play()
             RTSPVideoPlayerPlaybackState.Buffering,

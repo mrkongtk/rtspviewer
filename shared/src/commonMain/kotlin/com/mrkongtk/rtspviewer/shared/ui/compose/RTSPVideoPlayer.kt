@@ -76,8 +76,16 @@ fun RTSPVideoPlayer(
     // RTSP streams are often high-bandwidth; failing to stop them can lead to significant data usage.
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) {
-                viewModel.stopVideo()
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> {
+                    viewModel.stopVideo()
+                }
+
+                Lifecycle.Event.ON_RESUME -> {
+                    viewModel.playVideo()
+                }
+
+                else -> {}
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)

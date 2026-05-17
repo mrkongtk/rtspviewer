@@ -2,6 +2,7 @@ package com.mrkongtk.rtspviewer.shared.ui.compose
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
@@ -13,18 +14,24 @@ import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.height
 import androidx.compose.ui.unit.width
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.mrkongtk.rtspviewer.shared.player.RTSPVideoPlayer
 import com.mrkongtk.rtspviewer.shared.ui.player.RTSPVideoPlayerPlaybackState
+import com.mrkongtk.rtspviewer.shared.viewmodel.RTSPVideoPlayerViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 /**
- * UI Tests for the stateless [RTSPVideoPlayerContent] component.
+ * UI Tests for the stateless [RTSPVideoPlayerContent] component and stateful [RTSPVideoPlayer].
  *
  * These tests verify that the UI correctly reacts to different playback states,
- * error conditions, and layout constraints independently of the ViewModel logic.
+ * error conditions, and layout constraints independently of the ViewModel logic,
+ * as well as lifecycle events.
  *
  * This common test replaces the platform-specific Android instrumentation test.
  */
@@ -37,12 +44,20 @@ class RTSPVideoPlayerTest {
     private class FakeRTSPVideoPlayer(
         private val underlyingPlayer: Any? = null
     ) : RTSPVideoPlayer {
+        var playCalled = 0
+        var stopCalled = 0
         override val currentState = MutableStateFlow(RTSPVideoPlayerPlaybackState.Idle)
         override val videoAspectRatio = MutableStateFlow(16f / 9f)
         override val error = MutableStateFlow<Throwable?>(null)
         override fun prepare(uri: String, forceTcp: Boolean) {}
-        override fun play() {}
-        override fun stop() {}
+        override fun play() {
+            playCalled++
+        }
+
+        override fun stop() {
+            stopCalled++
+        }
+
         override fun release() {}
 
         @Suppress("UNCHECKED_CAST")
@@ -230,5 +245,67 @@ class RTSPVideoPlayerTest {
         onNodeWithTag("loading_overlay").assertDoesNotExist()
         onNodeWithTag("play_button_overlay").assertDoesNotExist()
         onNodeWithTag("pause_button_overlay").assertDoesNotExist()
+    }
+
+    // =========================================================================
+    // LIFECYCLE TESTS
+    // =========================================================================
+
+    @Test
+    fun lifecycle_onPause_stopsVideo() = runComposeUiTest {
+        val fakePlayer = FakeRTSPVideoPlayer(underlyingPlayer = Any())
+        val viewModel = RTSPVideoPlayerViewModel(fakePlayer, null, false, null)
+
+        lateinit var registry: LifecycleRegistry
+        val testLifecycleOwner = object : LifecycleOwner {
+            override val lifecycle: Lifecycle get() = registry
+        }
+
+        runOnIdle {
+            registry = LifecycleRegistry(testLifecycleOwner)
+            // Start in RESUMED state so we can transition to PAUSED
+            registry.currentState = Lifecycle.State.RESUMED
+        }
+
+        setContent {
+            CompositionLocalProvider(LocalLifecycleOwner provides testLifecycleOwner) {
+                RTSPVideoPlayer(viewModel = viewModel)
+            }
+        }
+
+        // Wait for composition and DisposableEffect to run
+        runOnIdle {
+            registry.handleLifecycleEvent(Lifecycle.Event.ON_PAUSE)
+        }
+        assertEquals(1, fakePlayer.stopCalled, "stop() should be called on ON_PAUSE")
+    }
+
+    @Test
+    fun lifecycle_onResume_playsVideo() = runComposeUiTest {
+        val fakePlayer = FakeRTSPVideoPlayer(underlyingPlayer = Any())
+        val viewModel = RTSPVideoPlayerViewModel(fakePlayer, null, false, null)
+
+        lateinit var registry: LifecycleRegistry
+        val testLifecycleOwner = object : LifecycleOwner {
+            override val lifecycle: Lifecycle get() = registry
+        }
+
+        runOnIdle {
+            registry = LifecycleRegistry(testLifecycleOwner)
+            // Start in STARTED state so we can transition to RESUMED
+            registry.currentState = Lifecycle.State.STARTED
+        }
+
+        setContent {
+            CompositionLocalProvider(LocalLifecycleOwner provides testLifecycleOwner) {
+                RTSPVideoPlayer(viewModel = viewModel)
+            }
+        }
+
+        // Wait for composition and DisposableEffect to run
+        runOnIdle {
+            registry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+        }
+        assertEquals(1, fakePlayer.playCalled, "play() should be called on ON_RESUME")
     }
 }
