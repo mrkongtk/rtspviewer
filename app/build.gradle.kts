@@ -5,7 +5,6 @@ plugins {
     alias(libs.plugins.kotlin.serialization)
 
     alias(libs.plugins.google.devtools.ksp)
-    alias(libs.plugins.google.dagger.hilt.android)
 }
 
 android {
@@ -64,15 +63,20 @@ dependencies {
     implementation(libs.androidx.navigation.runtime.ktx)
     implementation(libs.androidx.navigation.compose)
 
-    implementation(libs.androidx.hilt.hilt.navigation.compose)
-    implementation(libs.google.dagger.hilt.android)
-    ksp(libs.google.dagger.hilt.android.compiler)
-
     implementation(libs.androidx.media3.media3.exoplayer.rtsp)
     implementation(libs.androidx.media3.media3.ui)
 
     implementation(libs.androidx.room.room.runtime)
     ksp(libs.androidx.room.room.compiler)
+
+    implementation(project(":shared"))
+    implementation(project.dependencies.platform(libs.koin.bom))
+    implementation(libs.koin.android)
+    implementation(libs.koin.compose)
+    implementation(libs.koin.compose.viewmodel)
+    // path
+    implementation(libs.okio)
+    implementation(libs.compose.components.resources)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
@@ -81,6 +85,7 @@ dependencies {
     testImplementation(libs.mockito.kotlin)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
+    testImplementation(libs.androidx.compose.ui.graphics)
 
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -90,5 +95,6 @@ dependencies {
     androidTestImplementation(libs.mockito.core)
     androidTestImplementation(libs.mockito.kotlin)
     androidTestImplementation(libs.mockito.android)
+    testImplementation(libs.androidx.compose.ui.graphics)
 
 }
