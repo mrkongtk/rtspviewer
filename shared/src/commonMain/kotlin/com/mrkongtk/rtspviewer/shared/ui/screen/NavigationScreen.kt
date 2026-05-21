@@ -99,6 +99,10 @@ fun NavigationScreen(
                 ) {
                     screenActions.onImageAvailable(item, bitmap)
                 }
+
+                override fun onHeaderVisibilityChange(isVisible: Boolean) {
+                    screenActions.onHeaderVisibilityChange(isVisible)
+                }
             }
 
             uiState.selectedItem?.let { item ->
@@ -222,6 +226,9 @@ private fun NavigationScreenPreview(
                     }
 
                     override fun onTagSelected(tag: String?) {
+                    }
+
+                    override fun onHeaderVisibilityChange(isVisible: Boolean) {
                     }
 
                 },

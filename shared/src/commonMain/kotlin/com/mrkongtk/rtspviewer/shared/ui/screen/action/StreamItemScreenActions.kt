@@ -26,4 +26,6 @@ interface StreamItemScreenActions {
      * @param bitmap The captured video frame to be used for thumbnails or previews.
      */
     fun onImageAvailable(item: RTSPItem, bitmap: ImageBitmap)
+
+    fun onHeaderVisibilityChange(isVisible: Boolean)
 }

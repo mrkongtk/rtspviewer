@@ -216,11 +216,15 @@ class RTSPVideoPlayerTest {
         // Measure the resulting bounds of the overlay which fills the player content
         val bounds = onNodeWithTag("play_button_overlay").getUnclippedBoundsInRoot()
 
+        // Use a tolerance of 0.5dp to account for pixel rounding
+        val tolerance = 0.5f
+
         // Assert: Height = Width / Ratio => 200 / 2 = 100
-        assertEquals(bounds.width, containerWidth, "Width should match container")
+        assertEquals(containerWidth.value, bounds.width.value, tolerance, "Width should match container")
         assertEquals(
-            bounds.height,
-            100.dp,
+            100.dp.value,
+            bounds.height.value,
+            tolerance,
             "Height should be 100dp for 2.0 ratio, but ${bounds.height}"
         )
     }

@@ -57,15 +57,21 @@ class NavigationScreenTest {
     private lateinit var fileRepository: FakeFileRepository
     private lateinit var viewModel: AppViewModel
 
+    private var capturedOnImageAvailable: ((ImageBitmap) -> Unit)? = null
+    private var lastHeaderVisibility: Boolean? = null
+
     @BeforeTest
     fun setup() {
         repository = FakeRTSPItemRepository()
         fileRepository = FakeFileRepository()
         viewModel = AppViewModel(fileRepository, repository)
+        capturedOnImageAvailable = null
+        lastHeaderVisibility = null
 
         startKoin {
             modules(module {
                 viewModel { (uri: String?, forceTcp: Boolean, onImageAvailable: ((ImageBitmap) -> Unit)?) ->
+                    capturedOnImageAvailable = onImageAvailable
                     RTSPVideoPlayerViewModel(FakeRTSPVideoPlayer(), uri, forceTcp, onImageAvailable)
                 }
             })
@@ -77,10 +83,11 @@ class NavigationScreenTest {
         stopKoin()
     }
 
-    private fun ComposeUiTest.launchScreen(onNavController: (NavHostController) -> Unit) {
+    private fun ComposeUiTest.launchScreen(onNavController: (NavHostController) -> Unit = {}) {
+        var capturedNavController: NavHostController? = null
         setContent {
             val navController = rememberNavController()
-            onNavController(navController)
+            capturedNavController = navController
             RTSPViewerTheme {
                 val uiState by viewModel.uiState.collectAsState(AppUiState())
 
@@ -115,6 +122,10 @@ class NavigationScreenTest {
                     override fun onTagSelected(tag: String?) {
                         viewModel.select(tag)
                     }
+
+                    override fun onHeaderVisibilityChange(isVisible: Boolean) {
+                        lastHeaderVisibility = isVisible
+                    }
                 }
 
                 NavigationScreen(
@@ -125,6 +136,8 @@ class NavigationScreenTest {
                 )
             }
         }
+        waitForIdle()
+        capturedNavController?.let(onNavController)
     }
 
     @Test
@@ -300,6 +313,36 @@ class NavigationScreenTest {
 
         val updatedItem = repository.items.value.first { it.id == 1L }
         assertEquals("New Name", updatedItem.name)
+
+        onNodeWithText("New Name").assertIsDisplayed()
+    }
+
+    @Test
+    fun displayScreen_imageAvailable_persistsPreview() = runComposeUiTest {
+        val item1 = RTSPItem(1, "Cam", "rtsp://1", emptyList(), 0)
+        repository.items.value = listOf(item1)
+        launchScreen { }
+
+        onNodeWithTag("StreamListItem: 1").performClick()
+        waitForIdle()
+
+        val bitmap = ImageBitmap(10, 10)
+        capturedOnImageAvailable?.invoke(bitmap)
+
+        waitForIdle()
+        assertEquals(bitmap, repository.cachedPreviews.value[1L])
+    }
+
+    @Test
+    fun navigation_updatesHeaderVisibility() = runComposeUiTest {
+        val item1 = RTSPItem(1, "Cam", "rtsp://1", emptyList(), 0)
+        repository.items.value = listOf(item1)
+        launchScreen { }
+
+        onNodeWithTag("StreamListItem: 1").performClick()
+        waitForIdle()
+
+        assertEquals(true, lastHeaderVisibility)
     }
 
     @Test

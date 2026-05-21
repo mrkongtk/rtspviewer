@@ -9,12 +9,17 @@ import androidx.compose.ui.platform.LocalInspectionMode
 import androidx.compose.ui.test.ComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsDisplayed
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasAnyAncestor
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
+import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTextReplacement
 import androidx.compose.ui.test.runComposeUiTest
 import androidx.compose.ui.unit.dp
@@ -43,6 +48,7 @@ import rtspviewer.shared.generated.resources.Res
 import rtspviewer.shared.generated.resources.app_name
 import rtspviewer.shared.generated.resources.back_button
 import rtspviewer.shared.generated.resources.screen_add_rtsp_item
+import rtspviewer.shared.generated.resources.screen_edit_rtsp_item
 import rtspviewer.shared.generated.resources.screen_rtsp_display
 import rtspviewer.shared.generated.resources.tags_all
 import kotlin.test.BeforeTest
@@ -275,6 +281,9 @@ class AppInitialScreenTest {
         onNodeWithTag("MoreButton").assertDoesNotExist()
         onNodeWithTag("Name").assertDoesNotExist()
         onNodeWithTag("Uri").assertDoesNotExist()
+
+        // 4. Verify that the App Bar is also hidden in landscape
+        onNodeWithTag("AppBarTitle").assertDoesNotExist()
     }
 
     /**
@@ -428,6 +437,267 @@ class AppInitialScreenTest {
 
         // 4. Verify return to the standard list view
         onNodeWithTag("StreamListItem: 1").assertIsDisplayed()
+    }
+
+    /**
+     * Verifies that adding a new stream via the "Add Screen" correctly saves it
+     * and returns the user to the list screen where the new item is displayed.
+     */
+    @Test
+    fun appInitialScreen_addItem_savesAndShowsInList() = runComposeUiTest {
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Navigate to Add screen
+        onNodeWithTag("MoreButton").performClick()
+        onNodeWithTag("AddButton").performClick()
+
+        // 2. Fill in details and save
+        onRTSPField("NameTextField").performTextInput("New Camera")
+        onRTSPField("UriTextField").performTextInput("rtsp://10.0.0.1/live")
+        onNodeWithTag("SaveButton").performClick()
+
+        // 3. Verify returned to list and item is visible
+        onNodeWithTag("StreamListItem: 1").assertIsDisplayed()
+        onNodeWithText("New Camera").assertIsDisplayed()
+    }
+
+    /**
+     * Verifies that the App Bar title updates correctly when navigating to the Edit screen,
+     * including the dynamic stream name.
+     */
+    @Test
+    fun appInitialScreen_editScreen_showsCorrectTitle() = runComposeUiTest {
+        mockRepo.items.value = listOf(testItem)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Navigate to Edit screen
+        onNodeWithTag("StreamListItem: 1").performClick()
+        onNodeWithTag("MoreButton").performClick()
+        onNodeWithTag("EditButton").performClick()
+
+        // 2. Verify the Edit screen title
+        val template = runBlocking { getString(Res.string.screen_edit_rtsp_item) }
+        val expectedTitle = template.formatText(testItem.name)
+        onNodeWithTag("AppBarTitle").assertTextEquals(expectedTitle)
+    }
+
+    /**
+     * Verifies that multiple items are displayed correctly in the list and can be
+     * individually selected.
+     */
+    @Test
+    fun appInitialScreen_multipleItems_showsBothAndNavigates() = runComposeUiTest {
+        val item1 = testItem.copy(id = 1L, name = "Front")
+        val item2 = testItem.copy(id = 2L, name = "Back")
+        mockRepo.items.value = listOf(item1, item2)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Verify both visible
+        onNodeWithTag("StreamListItem: 1").assertIsDisplayed()
+        onNodeWithTag("StreamListItem: 2").assertIsDisplayed()
+
+        // 2. Select second item and verify title
+        onNodeWithTag("StreamListItem: 2").performClick()
+        val template = runBlocking { getString(Res.string.screen_rtsp_display) }
+        val expectedTitle = template.formatText("Back")
+        onNodeWithTag("AppBarTitle").assertTextEquals(expectedTitle)
+    }
+
+    /**
+     * Verifies that resetting changes in the Edit screen restores the initial
+     * field values.
+     */
+    @Test
+    fun appInitialScreen_editScreen_clearButton_restoresState() = runComposeUiTest {
+        mockRepo.items.value = listOf(testItem)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Navigate to Edit screen
+        onNodeWithTag("StreamListItem: 1").performClick()
+        onNodeWithTag("MoreButton").performClick()
+        onNodeWithTag("EditButton").performClick()
+
+        // 2. Modify name
+        onRTSPField("NameTextField").performTextReplacement("Temp Name")
+
+        // 3. Click clear/restore button
+        onNodeWithTag("ClearButton").performClick()
+
+        // 4. Verify name is restored
+        onRTSPField("NameTextField").assertTextContains(testItem.name)
+    }
+
+    /**
+     * Verifies that deleting one stream from its detail view when multiple exist
+     * correctly updates the list and returns the user to the list screen.
+     */
+    @Test
+    fun appInitialScreen_deleteItem_withMultipleRemaining_updatesList() = runComposeUiTest {
+        val item1 = testItem.copy(id = 1L, name = "Keep Me")
+        val item2 = testItem.copy(id = 2L, name = "Delete Me")
+        mockRepo.items.value = listOf(item1, item2)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Navigate to "Delete Me" display screen
+        onNodeWithTag("StreamListItem: 2").performClick()
+
+        // 2. Delete it
+        onNodeWithTag("MoreButton").performClick()
+        onNodeWithTag("DeleteButton").performClick()
+        onNodeWithTag("DeleteConfirmButton").performClick()
+
+        // 3. Verify returned to list and only "Keep Me" exists
+        onNodeWithTag("StreamListItem: 1").assertIsDisplayed()
+        onNodeWithTag("StreamListItem: 2").assertDoesNotExist()
+        onNodeWithText("Keep Me").assertIsDisplayed()
+    }
+
+    /**
+     * Verifies that editing a stream's tags correctly updates the UI
+     * on the display screen.
+     */
+    @Test
+    fun appInitialScreen_editItem_updatesTags() = runComposeUiTest {
+        mockRepo.items.value = listOf(testItem)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Navigate to Edit
+        onNodeWithTag("StreamListItem: 1").performClick()
+        onNodeWithTag("MoreButton").performClick()
+        onNodeWithTag("EditButton").performClick()
+
+        // 2. Add a new tag
+        onRTSPField("TagsTextField").performTextReplacement("Home,NewTag")
+        onNodeWithTag("SaveButton").performClick()
+
+        // 3. Verify on Display screen
+        onNodeWithTag("Tag Home").assertIsDisplayed()
+        onNodeWithTag("Tag NewTag").assertIsDisplayed()
+    }
+
+    /**
+     * Verifies that the Force TCP setting can be toggled in the Edit screen
+     * and its state is correctly persisted and displayed.
+     */
+    @Test
+    fun appInitialScreen_editItem_togglesForceTcp() = runComposeUiTest {
+        val initialItem = testItem.copy(forceTcp = false)
+        mockRepo.items.value = listOf(initialItem)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Navigate to Edit and verify initial state
+        onNodeWithTag("StreamListItem: 1").performClick()
+        onNodeWithTag("ForceTCP").assertIsOff()
+        onNodeWithTag("MoreButton").performClick()
+        onNodeWithTag("EditButton").performClick()
+
+        // 2. Toggle Force TCP and save
+        onNodeWithTag("ForceTCPCheckbox").performClick()
+        onNodeWithTag("SaveButton").performClick()
+
+        // 3. Verify updated state in the display view
+        onNodeWithTag("ForceTCP").assertIsOn()
+    }
+
+    /**
+     * Verifies that the back button on the display screen correctly returns
+     * the user to the stream list.
+     */
+    @Test
+    fun appInitialScreen_backFromDisplay_returnsToList() = runComposeUiTest {
+        mockRepo.items.value = listOf(testItem)
+
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    AppInitialScreen(
+                        viewModel = appViewModel,
+                        appBarViewModel = appBarViewModel
+                    )
+                }
+            }
+        }
+
+        // 1. Navigate to display
+        onNodeWithTag("StreamListItem: 1").performClick()
+
+        // 2. Click back
+        val backDesc = runBlocking { getString(Res.string.back_button) }
+        onNodeWithContentDescription(backDesc).performClick()
+
+        // 3. Verify returned to list
+        onNodeWithTag("StreamListItem: 1").assertIsDisplayed()
+        val appName = runBlocking { getString(Res.string.app_name) }
+        onNodeWithTag("AppBarTitle").assertTextEquals(appName)
     }
 
     /**

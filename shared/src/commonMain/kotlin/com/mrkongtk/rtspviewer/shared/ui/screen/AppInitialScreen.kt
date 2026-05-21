@@ -9,6 +9,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.testTag
@@ -31,6 +34,7 @@ import com.mrkongtk.rtspviewer.shared.viewmodel.AppBarViewModel
 import com.mrkongtk.rtspviewer.shared.viewmodel.AppViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.map
+import okio.FileSystem
 import okio.Path
 
 
@@ -54,6 +58,7 @@ fun AppInitialScreen(
 ) {
 
     val navBackStackEntry by navController.currentBackStackEntryAsState()
+    var showHeaderBar by remember { mutableStateOf(true) }
 
     LaunchedEffect(navBackStackEntry) {
         val currentEntry = navController.currentBackStackEntry
@@ -81,10 +86,12 @@ fun AppInitialScreen(
             .testTag("NavigationScreenRoot")
             .background(MaterialTheme.colorScheme.background),
         topBar = {
-            AppBar(
-                navigateUp = { navController.navigateUp() },
-                viewModel = appBarViewModel
-            )
+            if (showHeaderBar) {
+                AppBar(
+                    navigateUp = { navController.navigateUp() },
+                    viewModel = appBarViewModel
+                )
+            }
         }
     ) { innerPadding ->
         val uiState by viewModel.uiState.collectAsStateWithLifecycle(AppUiState())
@@ -119,6 +126,10 @@ fun AppInitialScreen(
 
             override fun onTagSelected(tag: String?) {
                 viewModel.select(tag)
+            }
+
+            override fun onHeaderVisibilityChange(isVisible: Boolean) {
+                showHeaderBar = isVisible
             }
 
         }
@@ -167,7 +178,7 @@ private fun AppInitialScreenPreview() {
             }
 
             override fun getCacheDir(): Path {
-                return okio.FileSystem.SYSTEM_TEMPORARY_DIRECTORY
+                return FileSystem.SYSTEM_TEMPORARY_DIRECTORY
             }
         }
 
@@ -192,7 +203,7 @@ private fun AppInitialScreenPreview() {
             }
 
             override fun previewPathFor(item: RTSPItem): Path {
-                return okio.FileSystem.SYSTEM_TEMPORARY_DIRECTORY
+                return FileSystem.SYSTEM_TEMPORARY_DIRECTORY
             }
 
             override fun cachePreviewFor(

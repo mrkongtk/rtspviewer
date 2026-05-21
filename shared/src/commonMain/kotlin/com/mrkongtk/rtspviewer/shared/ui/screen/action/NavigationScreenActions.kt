@@ -23,4 +23,6 @@ interface NavigationScreenActions {
     fun onImageAvailable(item: RTSPItem, snapshot: ImageBitmap)
 
     fun onTagSelected(tag: String?)
+
+    fun onHeaderVisibilityChange(isVisible: Boolean)
 }

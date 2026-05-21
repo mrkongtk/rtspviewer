@@ -48,31 +48,46 @@ class StreamItemScreenTest {
         val errorFlow = MutableStateFlow<Throwable?>(null)
         override val error: StateFlow<Throwable?> = errorFlow
 
-        override fun prepare(uri: String, forceTcp: Boolean) {}
+        var playCalled = false
+        var stopCalled = false
+        var prepareCalledWith: Pair<String, Boolean>? = null
+
+        override fun prepare(uri: String, forceTcp: Boolean) {
+            prepareCalledWith = uri to forceTcp
+        }
         override fun play() {
+            playCalled = true
             currentStateFlow.value = RTSPVideoPlayerPlaybackState.Playing
         }
 
         override fun stop() {
+            stopCalled = true
             currentStateFlow.value = RTSPVideoPlayerPlaybackState.Idle
         }
 
         override fun release() {
             currentStateFlow.value = RTSPVideoPlayerPlaybackState.Released
         }
+        
+        var mockPlayerValue: Any? = Any()
         @Suppress("UNCHECKED_CAST")
-        override fun <T> getPlayer(): T? = Any() as? T
+        override fun <T> getPlayer(): T? = mockPlayerValue as? T
     }
 
     private class MockScreenActions : StreamItemScreenActions {
         var onEditCalled = false
         var onDeleteCalled = false
         var lastCapturedBitmap: ImageBitmap? = null
+        val headerVisibilityEvents = mutableListOf<Boolean>()
 
         override fun onEditItemSelected() { onEditCalled = true }
         override fun onDeleteItemSelected() { onDeleteCalled = true }
         override fun onImageAvailable(item: RTSPItem, bitmap: ImageBitmap) {
             lastCapturedBitmap = bitmap
+        }
+
+        override fun onHeaderVisibilityChange(isVisible: Boolean) {
+            headerVisibilityEvents.add(isVisible)
         }
     }
 
@@ -332,5 +347,166 @@ class StreamItemScreenTest {
 
         capturedViewModel?.imageAvailable(fakeBitmap)
         assertEquals(fakeBitmap, actions.lastCapturedBitmap)
+    }
+
+    @Test
+    fun landscapeMode_notifiesHeaderHidden() = runComposeUiTest {
+        val actions = MockScreenActions()
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    StreamItemScreen(
+                        modifier = Modifier.size(width = 800.dp, height = 400.dp),
+                        item = sampleItem,
+                        screenActions = actions
+                    )
+                }
+            }
+        }
+        assertTrue(actions.headerVisibilityEvents.contains(false))
+    }
+
+    @Test
+    fun portraitMode_notifiesHeaderVisible() = runComposeUiTest {
+        val actions = MockScreenActions()
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    StreamItemScreen(
+                        modifier = Modifier.size(width = 400.dp, height = 800.dp),
+                        item = sampleItem,
+                        screenActions = actions
+                    )
+                }
+            }
+        }
+        assertTrue(actions.headerVisibilityEvents.contains(true))
+    }
+
+    @Test
+    fun idleState_showsPlayButton() = runComposeUiTest {
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    StreamItemScreen(
+                        modifier = Modifier.size(400.dp, 800.dp),
+                        item = sampleItem,
+                        screenActions = MockScreenActions()
+                    )
+                }
+            }
+        }
+        fakePlayer.currentStateFlow.value = RTSPVideoPlayerPlaybackState.Idle
+        onNodeWithTag("play_button_overlay").assertIsDisplayed()
+    }
+
+    @Test
+    fun readyState_showsPlayButton() = runComposeUiTest {
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    StreamItemScreen(
+                        modifier = Modifier.size(400.dp, 800.dp),
+                        item = sampleItem,
+                        screenActions = MockScreenActions()
+                    )
+                }
+            }
+        }
+        fakePlayer.currentStateFlow.value = RTSPVideoPlayerPlaybackState.Ready
+        onNodeWithTag("play_button_overlay").assertIsDisplayed()
+    }
+
+    @Test
+    fun clickPlayButton_startsPlayback() = runComposeUiTest {
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    StreamItemScreen(
+                        modifier = Modifier.size(400.dp, 800.dp),
+                        item = sampleItem,
+                        screenActions = MockScreenActions()
+                    )
+                }
+            }
+        }
+        fakePlayer.currentStateFlow.value = RTSPVideoPlayerPlaybackState.Ready
+        onNodeWithTag("play_button_overlay").performClick()
+        assertTrue(fakePlayer.playCalled)
+    }
+
+    @Test
+    fun clickPauseOverlay_stopsPlayback() = runComposeUiTest {
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    StreamItemScreen(
+                        modifier = Modifier.size(400.dp, 800.dp),
+                        item = sampleItem,
+                        screenActions = MockScreenActions()
+                    )
+                }
+            }
+        }
+        fakePlayer.currentStateFlow.value = RTSPVideoPlayerPlaybackState.Playing
+        onNodeWithTag("pause_button_overlay").performClick()
+        assertTrue(fakePlayer.stopCalled)
+    }
+
+    @Test
+    fun errorState_takesPrecedenceOverPlayer() = runComposeUiTest {
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    StreamItemScreen(
+                        modifier = Modifier.size(400.dp, 800.dp),
+                        item = sampleItem,
+                        screenActions = MockScreenActions()
+                    )
+                }
+            }
+        }
+        fakePlayer.currentStateFlow.value = RTSPVideoPlayerPlaybackState.Playing
+        fakePlayer.errorFlow.value = RuntimeException("Fatal Error")
+
+        onNodeWithTag("error_overlay").assertIsDisplayed()
+        onNodeWithTag("pause_button_overlay").assertDoesNotExist()
+    }
+
+    @Test
+    fun nullPlayer_showsInitializingOverlay() = runComposeUiTest {
+        fakePlayer.mockPlayerValue = null
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    StreamItemScreen(
+                        modifier = Modifier.size(400.dp, 800.dp),
+                        item = sampleItem,
+                        screenActions = MockScreenActions()
+                    )
+                }
+            }
+        }
+        onNodeWithTag("empty_player_overlay").assertIsDisplayed()
+    }
+
+    @Test
+    fun manyTags_rendersAllTags() = runComposeUiTest {
+        val manyTags = (1..20).map { "Tag$it" }
+        val itemManyTags = sampleItem.copy(tags = manyTags)
+        setContent {
+            CompositionLocalProvider(LocalInspectionMode provides true) {
+                RTSPViewerTheme {
+                    StreamItemScreen(
+                        modifier = Modifier.size(width = 360.dp, height = 1000.dp),
+                        item = itemManyTags,
+                        screenActions = MockScreenActions()
+                    )
+                }
+            }
+        }
+        onNodeWithTag("Tag Tag1").assertIsDisplayed()
+        onNodeWithTag("Tag Tag10").assertIsDisplayed()
+        onNodeWithTag("Tag Tag20").assertIsDisplayed()
     }
 }
